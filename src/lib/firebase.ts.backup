@@ -1,0 +1,115 @@
+// Firebase Realtime Database utilities for IoT communication
+// This file handles all Firebase interactions for ESP32 device communication
+
+interface FirebaseConfig {
+  databaseURL: string;
+  apiKey?: string;
+}
+
+// Mock Firebase implementation - Replace with actual Firebase SDK when integrating
+export class FirebaseService {
+  private config: FirebaseConfig;
+  private listeners: Map<string, (data: any) => void> = new Map();
+  
+  constructor(config: FirebaseConfig) {
+    this.config = config;
+  }
+
+  // Read data from Firebase path
+  async read(path: string): Promise<any> {
+    console.log(`Reading from Firebase: ${path}`);
+    // Mock data for demonstration
+    return this.getMockData(path);
+  }
+
+  // Write data to Firebase path
+  async write(path: string, data: any): Promise<void> {
+    console.log(`Writing to Firebase ${path}:`, data);
+    // In production: await firebase.database().ref(path).set(data);
+  }
+
+  // Subscribe to real-time updates
+  subscribe(path: string, callback: (data: any) => void): () => void {
+    console.log(`Subscribing to Firebase: ${path}`);
+    this.listeners.set(path, callback);
+    
+    // Simulate real-time updates every 5 seconds
+    const interval = setInterval(() => {
+      callback(this.getMockData(path));
+    }, 5000);
+
+    // Return unsubscribe function
+    return () => {
+      clearInterval(interval);
+      this.listeners.delete(path);
+    };
+  }
+
+  // Mock data for demonstration
+  private getMockData(path: string): any {
+    if (path.includes('/sensors/')) {
+      return {
+        temp: 22 + Math.random() * 5,
+        humidity: 45 + Math.random() * 20,
+        pressure: 1010 + Math.random() * 20,
+        gas: 100 + Math.random() * 300,
+        rain: Math.random() > 0.7 ? 1 : 0,
+        waterLevel: 50 + Math.random() * 30,
+        motion: Math.random() > 0.8 ? 1 : 0,
+      };
+    }
+    
+    if (path.includes('/status/')) {
+      return {
+        light: Math.random() > 0.5 ? 'ON' : 'OFF',
+        fan: Math.random() > 0.5 ? 'ON' : 'OFF',
+        lock: Math.random() > 0.5 ? 'LOCKED' : 'UNLOCKED',
+        wifi: 'CONNECTED',
+        powerSource: 'MAINS',
+      };
+    }
+
+    return {};
+  }
+}
+
+// Firebase paths configuration
+export const FIREBASE_PATHS = {
+  // Commands (write to control devices)
+  COMMANDS: {
+    LIGHT: 'home/commands/light',
+    FAN: 'home/commands/fan',
+    RELAY1: 'home/commands/relay1',
+    RELAY2: 'home/commands/relay2',
+    RELAY3: 'home/commands/relay3',
+    RELAY4: 'home/commands/relay4',
+    LOCK: 'home/commands/lock',
+  },
+  
+  // Sensors (read from ESP32)
+  SENSORS: {
+    TEMP: 'home/sensors/temp',
+    HUMIDITY: 'home/sensors/humidity',
+    PRESSURE: 'home/sensors/pressure',
+    GAS: 'home/sensors/gas',
+    RAIN: 'home/sensors/rain',
+    WATER_LEVEL: 'home/sensors/waterLevel',
+    MOTION: 'home/sensors/motion',
+    ALL: 'home/sensors',
+  },
+  
+  // Status (read device states)
+  STATUS: {
+    LIGHT: 'home/status/light',
+    FAN: 'home/status/fan',
+    LOCK: 'home/status/lock',
+    WIFI: 'home/status/wifi',
+    POWER: 'home/status/powerSource',
+    ALL: 'home/status',
+  },
+};
+
+// Initialize Firebase service (replace with actual config)
+export const firebaseService = new FirebaseService({
+  databaseURL: 'https://your-project.firebaseio.com',
+});
