@@ -185,7 +185,7 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Contact
 Maintainer: anubhavb4123  
-Email / profile: (add contact info)
+Email : anubhavb4123@gmail.com
 
 ---
 
