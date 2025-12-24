@@ -26,6 +26,29 @@ interface HistoryPoint {
   time: string;
 }
 
+// ================= CUSTOM TOOLTIP =================
+import { TooltipProps } from "recharts";
+
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) => {
+  if (!active || !payload || !payload.length) return null;
+
+  return (
+    <div className="rounded-lg bg-black/80 px-3 py-2 text-white text-sm border border-white/20">
+      <p className="font-semibold">🕒 {label}</p>
+      <p>
+        {payload[0].name}:{" "}
+        <span className="font-bold">
+          {payload[0].value}
+        </span>
+      </p>
+    </div>
+  );
+};
+
 export default function Sensors() {
   const { sensorData, loading, error } = useSensorData();
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -180,7 +203,7 @@ export default function Sensors() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="time" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
                 <Line
                   type="monotone"
                   dataKey={selectedMetric}
