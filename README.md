@@ -1,10 +1,7 @@
 # IoTMesh
 
-[Short description badge placeholder]
-
 IoTMesh is a lightweight, extensible mesh networking framework for IoT devices. It provides a resilient, low-latency mesh layer with support for common transport and application integrations (MQTT, HTTP, local discovery, over-the-air updates). IoTMesh is designed to run on resource-constrained devices (ESP32, nRF52, STM32, etc.) and to interoperate with cloud and edge components.
 
-> NOTE: This README is a template. Replace placeholders (hardware/platform instructions, example credentials, and URLs) with the specifics of your implementation.
 
 ## Table of Contents
 - [Features](#features)
