@@ -158,7 +158,7 @@ export default function Auth() {
         <Card className="w-full max-w-md bg-card/50 border-white/20">
           <CardHeader className="text-center space-y-3">
             <CardTitle className="text-2xl text-cyan-400">
-              Account Verification
+              IoTMESH
             </CardTitle>
             <CardDescription>
               {step === "details" && "Enter your details"}
