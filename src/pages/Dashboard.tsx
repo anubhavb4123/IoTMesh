@@ -25,13 +25,29 @@ interface DashboardData {
   door: number;
   power?: number;
   last_update?: string;
+  batteryVoltage?: number;
+  batteryPercent?: number;
 }
+
+function parseLastUpdateToMs(lastUpdate?: string): number | null {
+  if (!lastUpdate) return null;
+
+  // "20:45:12 13-12-2025"
+  const [timePart, datePart] = lastUpdate.split(" ");
+  if (!timePart || !datePart) return null;
+
+  const [h, m, s] = timePart.split(":").map(Number);
+  const [d, mo, y] = datePart.split("-").map(Number);
+
+  return new Date(y, mo - 1, d, h, m, s).getTime();
+}
+
 function formatLastUpdated(timeString?: string) {
-  if (!timeString) return "Updated: --";
+  if (!timeString) return "Last sync --";
 
   // Example input: "20:45:12 13-12-2025"
   const [timePart, datePart] = timeString.split(" ");
-  if (!timePart || !datePart) return "Updated: --";
+  if (!timePart || !datePart) return "Last sync --";
 
   const [hour, minute, second] = timePart.split(":").map(Number);
   const [day, month, year] = datePart.split("-").map(Number);
@@ -61,13 +77,13 @@ function formatLastUpdated(timeString?: string) {
     updateDate.getMonth() === yesterday.getMonth() &&
     updateDate.getFullYear() === yesterday.getFullYear();
 
-  if (today) return `Updated Today at ${timeFormatted}`;
-  if (isYesterday) return `Updated Yesterday at ${timeFormatted}`;
+  if (today) return `Last sync Today at ${timeFormatted}`;
+  if (isYesterday) return `Last sync Yesterday at ${timeFormatted}`;
 
   // Otherwise show full date
   const dateFormatted = updateDate.toLocaleDateString();
 
-  return `Updated on ${dateFormatted} at ${timeFormatted}`;
+  return `Last sync ${dateFormatted} at ${timeFormatted}`;
 }
 
 
@@ -90,9 +106,31 @@ export default function Dashboard() {
     motion: liveSensorData?.motion ? "Detected" : "Clear",
     door : safe(liveSensorData?.door),
     last_update: liveSensorData?.last_update,
+    batteryVoltage: safe(liveSensorData?.batteryVoltage),
+    batteryPercent: safe(liveSensorData?.batteryPercent),
   };
 
+  useEffect(() => {
+  const checkStatus = () => {
+    const lastMs = parseLastUpdateToMs(dashboard.last_update);
+    if (!lastMs) {
+      setSensorOnline(false);
+      return;
+    }
+
+    const now = Date.now();
+    setSensorOnline(now - lastMs <= 60_000); // 1 minute
+  };
+
+  checkStatus();                 // ✅ IMMEDIATE check on page load
+  const interval = setInterval(checkStatus, 1000); // ✅ live monitoring
+
+  return () => clearInterval(interval);
+}, [dashboard.last_update]);
+
   const getTempStatus = (t: number) => (t < 15 || t > 30 ? "warning" : "ok");
+
+  const [sensorOnline, setSensorOnline] = useState(false);
 
   const getHumidityStatus = (h: number) =>
     h < 30 || h > 70 ? "warning" : "ok";
@@ -113,6 +151,12 @@ export default function Dashboard() {
         <p className="text-red-500">Error: {error}</p>
       </Layout>
     );
+
+    const getBatteryStatus = (percent = 0) => {
+      if (percent > 60) return "battery-ok";
+      if (percent > 30) return "battery-warning";
+      return "battery-critical";
+    };
 
   return (
     <Layout>
@@ -198,9 +242,13 @@ export default function Dashboard() {
         {/* System Status */}
         <div className="border-border/50 bg-card/50 p-6 rounded-lg">
           <h2 className="text-xl mb-4">System Status</h2>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <StatusItem label="Firebase Connection" ok={!!liveSensorData} />
-            <StatusItem label="Sensor Status" ok={!!liveSensorData} />
+            <StatusItem
+              label="Sensor Status"
+              ok={sensorOnline}
+              value={sensorOnline ? "Online" : "Offline"}
+            />
             <StatusItem
               label="Power Source"
               ok={power === 1}
@@ -212,6 +260,12 @@ export default function Dashboard() {
                   : "Unknown"
               }
             />
+            <StatusItem
+              label="Internal Battery"
+              ok={dashboard.batteryPercent !== undefined}
+              value={`${dashboard.batteryPercent ?? "--"}% • ${dashboard.batteryVoltage?.toFixed(2) ?? "--"}V`}
+              indicatorClass={getBatteryStatus(dashboard.batteryPercent)}
+            />
           </div>
         </div>
       </div>
@@ -219,12 +273,21 @@ export default function Dashboard() {
   );
 }
 
-function StatusItem({ label, ok, value }: any) {
+function StatusItem({
+  label,
+  ok,
+  value,
+  indicatorClass,
+}: any) {
   return (
     <div className="flex items-center gap-3">
       <div
-        className={`h-3 w-3 rounded-full animate-pulse-glow ${
-          ok ? "bg-status-ok" : "bg-status-warning"
+        className={`h-3 w-3 rounded-full ${
+          indicatorClass
+            ? indicatorClass
+            : ok
+            ? "bg-green-500 animate-"
+            : "bg-red-500 animate-blink-fast"
         }`}
       />
       <div>

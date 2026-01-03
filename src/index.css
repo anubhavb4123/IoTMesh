@@ -82,3 +82,29 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+@keyframes blink-fast {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.animate-blink-fast {
+  animation: blink-fast 0.5s infinite;
+}
+.battery-ok {
+  background-color: #22c55e; /* green */;
+  animation: blink-fast 2s infinite;
+}
+
+.battery-warning {
+  background-color: #f59e0b; /* amber */
+  animation: blink-fast 0.8s infinite;
+}
+
+.battery-critical {
+  background-color: #ef4444; /* red */
+  animation: blink-fast 0.25s infinite;
+}
