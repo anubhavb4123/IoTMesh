@@ -49,9 +49,19 @@ export const Layout = ({ children }: LayoutProps) => {
 
   const handleLogout = async () => {
     await signOut();
-    toast.success("Signed out successfully");
+    toast.success("Signed out successfully", {
+      className: "toast-success",
+    });
     navigate("/auth");
   };
+
+  // ================= ADMIN ACCESS HANDLER =================
+const handleAdminOnlyClick = (itemName: string) => {
+  toast.error("Admin Access Only", {
+    description: `${itemName} is restricted. Please login as Admin to continue.`,
+    className: "toast-admin-warning",
+  });
+};
 
   // ⏱ Countdown + Auto logout
   useEffect(() => {
@@ -85,11 +95,9 @@ export const Layout = ({ children }: LayoutProps) => {
     ...item,
     adminOnly: ["Users", "Telegram"].includes(item.name),
   }));
-
   return (
     <div className="relative min-h-screen z-10 flex flex-col">
       <BackgroundVideo />
-
       {/* ================= SIDEBAR (DESKTOP) ================= */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col border-r border-sidebar-border">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto px-3 pb-4">
@@ -100,23 +108,24 @@ export const Layout = ({ children }: LayoutProps) => {
               </video>
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
-              IOTMesh <span className="ml-2 text-xs text-muted-foreground">v2.0</span>
+              IOTMesh <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
             </span>
           </div>
-
           <nav className="flex flex-1 flex-col">
             <ul className="flex flex-1 flex-col gap-y-1">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href;
                 const isDisabled = item.adminOnly && role !== "admin";
-
                 return (
                   <li key={item.name}>
                     {isDisabled ? (
-                      <div className="flex gap-x-3 rounded-lg p-3 text-sm font-semibold opacity-50 cursor-not-allowed">
+                      <button
+                        onClick={() => handleAdminOnlyClick(item.name)}
+                        className="flex w-full gap-x-3 rounded-lg p-3 text-sm font-semibold opacity-50 cursor-pointer hover:bg-red-500/10 text-left"
+                      >
                         <item.icon className="h-5 w-5" />
                         {item.name}
-                      </div>
+                      </button>
                     ) : (
                       <Link
                         to={item.href}
@@ -135,7 +144,6 @@ export const Layout = ({ children }: LayoutProps) => {
                 );
               })}
             </ul>
-
             <Button
               variant="ghost"
               className="mt-auto justify-start gap-x-3 rounded-lg p-3 text-sm font-semibold hover:bg-red-600/10 text-red-600"
@@ -151,38 +159,44 @@ export const Layout = ({ children }: LayoutProps) => {
           </nav>
         </div>
       </aside>
-
       {/* ================= MOBILE HEADER ================= */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-card/80 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-lg font-bold bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
-            IOTMesh
+            IOTMesh <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
           </span>
           <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <X /> : <Menu />}
           </Button>
         </div>
-
         {mobileMenuOpen && (
           <div className="absolute top-full left-0 right-0 bg-card/95 backdrop-blur border-t border-border z-50">
             <nav className="px-4 py-4 space-y-2">
               {navigation.map((item) => {
                 const isDisabled = item.adminOnly && role !== "admin";
-                if (isDisabled) return null;
-
                 return (
-                  <Link
+                  <button
                     key={item.name}
-                    to={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-x-3 rounded-lg p-3 text-sm font-semibold hover:bg-sidebar-accent/50"
+                    onClick={() => {
+                      if (isDisabled) {
+                        handleAdminOnlyClick(item.name);
+                      } else {
+                        navigate(item.href);
+                        setMobileMenuOpen(false);
+                      }
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-x-3 rounded-lg p-3 text-sm font-semibold text-left",
+                      isDisabled
+                        ? "opacity-50 hover:bg-red-500/10"
+                        : "hover:bg-sidebar-accent/50"
+                    )}
                   >
                     <item.icon className="h-5 w-5" />
                     {item.name}
-                  </Link>
+                  </button>
                 );
               })}
-
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-x-3 rounded-lg p-3 text-sm font-semibold hover:bg-red-600/10 text-red-600"
@@ -199,12 +213,10 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
         )}
       </div>
-
       {/* ================= MAIN CONTENT ================= */}
       <main className="flex-1 lg:ml-72 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 mt-16 lg:mt-0">
         {children}
       </main>
-
       {/* ================= FOOTER ================= */}
       <footer className="lg:ml-72">
         <Footer />

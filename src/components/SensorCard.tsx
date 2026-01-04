@@ -48,9 +48,9 @@ export const SensorCard = ({
           </div>
           <div className={cn(
             "h-3 w-3 rounded-full animate-pulse-glow",
-            status === 'ok' && "bg-status-ok",
-            status === 'warning' && "bg-status-warning",
-            status === 'alert' && "bg-status-alert"
+            status === 'ok' && "battery-ok",
+            status === 'warning' && "battery-warning",
+            status === 'alert' && "battery-critical"
           )} />
         </div>
         

@@ -136,7 +136,7 @@ export default function Dashboard() {
     h < 30 || h > 70 ? "warning" : "ok";
 
   const getGasStatus = (g: number) =>
-    g > 300 ? "alert" : g > 200 ? "warning" : "ok";
+    g > 350 ? "alert" : g > 250 ? "warning" : "ok";
 
   if (loading)
     return (
@@ -286,7 +286,7 @@ function StatusItem({
           indicatorClass
             ? indicatorClass
             : ok
-            ? "bg-green-500 animate-"
+            ? "bg-green-500 battery-ok"
             : "bg-red-500 animate-blink-fast"
         }`}
       />
