@@ -15,7 +15,8 @@ import {
 import {
   getMessaging,
   getToken,
-  onMessage
+  onMessage,
+  isSupported
 } from "firebase/messaging";
 
 // ------------------------------------------------------
@@ -37,9 +38,6 @@ const firebaseConfig = {
 // ------------------------------------------------------
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
-
-// Messaging (FCM)
-const messaging = getMessaging(app);
 
 // ------------------------------------------------------
 // DATABASE PATHS
@@ -211,35 +209,41 @@ export const userStore = {
 // FCM PERMISSION REQUEST
 // ------------------------------------------------------
 export const requestFCMPermission = async () => {
-  try {
-    const permission = await Notification.requestPermission();
-
-    if (permission !== "granted") {
-      console.warn("FCM permission denied");
-      return null;
-    }
-
-    const token = await getToken(messaging, {
-      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY
-    });
-
-    if (token) {
-      console.log("FCM Token:", token);
-      return token;
-    } else {
-      console.log("No token received");
-      return null;
-    }
-  } catch (err) {
-    console.error("FCM error:", err);
+  if (!messaging) {
+    console.warn("Messaging not initialized yet");
     return null;
   }
-};
 
-// Receive notifications while app is open
-onMessage(messaging, (payload) => {
-  console.log("Message received: ", payload);
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return null;
+
+  const token = await getToken(messaging, {
+    vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+  });
+
+  console.log("✅ FCM Token:", token);
+  return token;
+};
+let messaging: ReturnType<typeof getMessaging> | null = null;
+
+isSupported().then((supported) => {
+  if (!supported) {
+    console.warn("FCM not supported in this browser");
+    return;
+  }
+
+  try {
+    messaging = getMessaging(app);
+
+    onMessage(messaging, (payload) => {
+      console.log("📩 FCM foreground message:", payload);
+    });
+
+  } catch (e) {
+    console.error("FCM init failed", e);
+  }
 });
+
 
 // ------------------------------------------------------
 // EXPORTS

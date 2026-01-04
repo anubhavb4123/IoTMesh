@@ -1,7 +1,5 @@
-/* eslint-disable no-undef */
-
-importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js");
 
 firebase.initializeApp({
   apiKey: "AIzaSyCOncUZJrlqdXbRBcHRVwMLfy2nNU6-AGI",
@@ -13,14 +11,9 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage(function (payload) {
-  console.log("[firebase-messaging-sw.js] Background message:", payload);
-
-  const title = payload.notification?.title || "IoTMesh Alert";
-  const options = {
-    body: payload.notification?.body || "New update received",
-    icon: "/icon-192.png",
-  };
-
-  self.registration.showNotification(title, options);
+messaging.onBackgroundMessage((payload) => {
+  self.registration.showNotification(payload.notification.title, {
+    body: payload.notification.body,
+    icon: "/favicon.ico",
+  });
 });
