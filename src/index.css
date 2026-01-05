@@ -54,6 +54,7 @@ All colors MUST be HSL.
     --sidebar-ring: 189 94% 55%;
 
     /* Custom IoT colors */
+    --status-cold: 210 100% 50%;
     --status-ok: 142 76% 36%;
     --status-alert: 0 84.2% 60.2%;
     --status-warning: 38 92% 50%;
@@ -107,6 +108,10 @@ All colors MUST be HSL.
 .battery-critical {
   background-color: #ef4444; /* red */
   animation: blink-fast 0.25s infinite;
+}
+.battery-cold {
+  background-color: #0263ff; /* blue */
+  animation: blink-fast 2s infinite;
 }
 /* 🔴 Red edge lighting for admin-only warning */
 .toast-admin-warning {

@@ -66,6 +66,7 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         status: {
+          cold : "hsl(var(--status-cold))",
           ok: "hsl(var(--status-ok))",
           alert: "hsl(var(--status-alert))",
           warning: "hsl(var(--status-warning))",

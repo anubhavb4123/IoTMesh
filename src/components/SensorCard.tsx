@@ -7,7 +7,7 @@ interface SensorCardProps {
   value: string | number;
   unit?: string;
   icon: LucideIcon;
-  status?: 'ok' | 'warning' | 'alert';
+  status?: 'ok' | 'warning' | 'alert' | 'cold';
   description?: string;
 }
 
@@ -20,12 +20,14 @@ export const SensorCard = ({
   description 
 }: SensorCardProps) => {
   const statusColors = {
+    cold : 'text-status-cold',
     ok: 'text-status-ok',
     warning: 'text-status-warning',
     alert: 'text-status-alert',
   };
 
   const statusGlow = {
+    cold : 'shadow-[0_0_20px_hsl(var(--status-cold)/0.3)]',
     ok: 'shadow-[0_0_20px_hsl(var(--status-ok)/0.3)]',
     warning: 'shadow-[0_0_20px_hsl(var(--status-warning)/0.3)]',
     alert: 'shadow-[0_0_20px_hsl(var(--status-alert)/0.3)]',
@@ -47,7 +49,8 @@ export const SensorCard = ({
             <Icon className="h-6 w-6" />
           </div>
           <div className={cn(
-            "h-3 w-3 rounded-full animate-pulse-glow",
+            "h-10 w-1 rounded-full animate-pulse-glow",
+            status === 'cold' && "battery-cold",
             status === 'ok' && "battery-ok",
             status === 'warning' && "battery-warning",
             status === 'alert' && "battery-critical"

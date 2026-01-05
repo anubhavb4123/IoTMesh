@@ -128,7 +128,7 @@ export default function Dashboard() {
   return () => clearInterval(interval);
 }, [dashboard.last_update]);
 
-  const getTempStatus = (t: number) => (t < 15 || t > 30 ? "warning" : "ok");
+  const getTempStatus = (t: number) => (t < 27 ? "cold" : t < 28 ? "ok" : t > 35 ? "alert" : "warning");
 
   const [sensorOnline, setSensorOnline] = useState(false);
 
@@ -210,7 +210,7 @@ export default function Dashboard() {
             value={dashboard.waterLevel}
             unit="cm"
             icon={Waves}
-            status={dashboard.waterLevel < 20 ? "warning" : "ok"}
+            status={dashboard.waterLevel > 60 ? "ok" : dashboard.waterLevel > 20 ? "warning" : "alert"}
             description="Tank water level"
           />
 
