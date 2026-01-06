@@ -179,8 +179,16 @@ return (
           </video>
         </div>
         <div>
-          <CardTitle className="text-2xl bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
-            {step === "signin" ? "IOTMesh" : "Admin Access"}
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary bg-clip-text text-transparent">
+            {step === "signin" ? (
+              <>
+                I
+                <span className="glow-o">O</span>
+                TMesh
+              </>
+            ) : (
+              "Admin Access"
+            )}
           </CardTitle>
           <CardDescription>
             {step === "signin"

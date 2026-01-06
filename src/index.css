@@ -166,3 +166,67 @@ All colors MUST be HSL.
       inset 0 0 6px rgba(34, 197, 94, 0.3);
   }
 }
+@keyframes pulseWave {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(8);
+    opacity: 0;
+  }
+}
+@keyframes breathe {
+  0% {
+    box-shadow: 0 0 8px rgba(34,211,238,0.4);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(34,211,238,0.9);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(34,211,238,0.4);
+  }
+}
+
+.room-alive {
+  animation: breathe 3s ease-in-out infinite;
+}
+@keyframes glowPulse {
+  0% {
+    text-shadow: 0 0 4px rgba(34, 211, 238, 0.4),
+                 0 0 8px rgba(34, 211, 238, 0.4);
+    opacity: 0.6;
+  }
+  50% {
+    text-shadow: 0 0 10px rgba(34, 211, 238, 1),
+                 0 0 20px rgba(34, 211, 238, 0.9);
+    opacity: 1;
+  }
+  100% {
+    text-shadow: 0 0 4px rgba(34, 211, 238, 0.4),
+                 0 0 8px rgba(34, 211, 238, 0.4);
+    opacity: 0.6;
+  }
+}
+
+.glow-o {
+  display: inline-block;
+  color: #22d3ee; /* cyan glow */
+  animation: glowPulse 1.4s ease-in-out infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loader-o {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(34, 211, 238, 0.25); /* outer fade */
+  border-top-color: #22d3ee; /* active segment */
+  animation: spin 0.9s linear infinite;
+  display: inline-block;
+  margin-top: 2px;
+}

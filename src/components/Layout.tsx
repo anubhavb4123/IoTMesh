@@ -107,8 +107,12 @@ const handleAdminOnlyClick = (itemName: string) => {
                 <source src="/logo-video.mp4" type="video/mp4" />
               </video>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
-              IOTMesh <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-primary bg-clip-text text-transparent">
+                            <>
+                I
+                <span className="glow-o">O</span>
+                TMesh
+              </> <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
             </span>
           </div>
           <nav className="flex flex-1 flex-col">
@@ -163,7 +167,11 @@ const handleAdminOnlyClick = (itemName: string) => {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-card/80 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-lg font-bold bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
-            IOTMesh <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
+                          <>
+                I
+                <span className="glow-o">O</span>
+                TMesh
+              </> <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
           </span>
           <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <X /> : <Menu />}
