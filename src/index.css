@@ -212,7 +212,7 @@ All colors MUST be HSL.
 .glow-o {
   display: inline-block;
   color: #22d3ee; /* cyan glow */
-  animation: glowPulse 1.4s ease-in-out infinite;
+  animation: glowPulse 3s ease-in-out infinite;
 }
 @keyframes spin {
   to {

@@ -128,7 +128,7 @@ export default function Dashboard() {
   return () => clearInterval(interval);
 }, [dashboard.last_update]);
 
-  const getTempStatus = (t: number) => (t < 27 ? "cold" : t < 28 ? "ok" : t > 35 ? "alert" : "warning");
+  const getTempStatus = (t: number) => t < 25 ? "cold" : t < 30 ? "ok" : t < 35 ? "warning" : "alert";
 
   const [sensorOnline, setSensorOnline] = useState(false);
 

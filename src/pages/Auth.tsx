@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { database } from "@/lib/firebase";
 import { ref, push } from "firebase/database";
-import Footer from "@/components/Footer";
 import InfoDialog from "@/components/InfoDialog";
 // ================= PASSWORDS =================
 const GUEST_PASSWORD = "1111";
@@ -153,7 +152,7 @@ return (
     <source src="/login-bg.mp4" type="video/mp4" />
   </video>
   {/* 🌑 DARK OVERLAY */}
-  <div className="fixed inset-0 bg-black/70 -z-10" />
+  <div className="fixed inset-0 bg-black/50 -z-10" />
   {/* 🔐 EXISTING CONTENT (UNCHANGED) */}
  <div className="flex flex-col min-h-screen items-center justify-center p-4 relative z-10">
     <InfoDialog />
