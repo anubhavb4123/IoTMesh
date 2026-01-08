@@ -1,6 +1,7 @@
 // ------------------------------------------------------
 // IMPORTS
 // ------------------------------------------------------
+import { toast } from "@/components/ui/sonner";
 import { initializeApp } from "firebase/app";
 import {
   getDatabase,
@@ -84,7 +85,6 @@ export interface StatusData {
 // SENSOR + CONTROL + STATUS SERVICE
 // ------------------------------------------------------
 class FirebaseService {
-  // -------- SENSORS --------
   async getSensorData() {
     try {
       const snap = await get(ref(database, PATHS.SENSORS));
@@ -99,19 +99,11 @@ class FirebaseService {
     return onValue(ref(database, PATHS.SENSORS), (snap) => {
       if (snap.exists()) {
         const raw = snap.val() || {};
-
-        // Auto-add timestamp if missing
-        const updated = {
-          ...raw,
-          timestamp: raw.timestamp ?? Date.now(),
-        };
-
-        callback(updated);
+        callback({ ...raw, timestamp: raw.timestamp ?? Date.now() });
       }
     });
   }
 
-  // -------- CONTROLS --------
   async getControlStates() {
     try {
       const snap = await get(ref(database, PATHS.CONTROLS));
@@ -135,7 +127,6 @@ class FirebaseService {
     });
   }
 
-  // -------- STATUS --------
   async updateDeviceStatus(online: boolean) {
     await set(ref(database, PATHS.STATUS), {
       online,
@@ -158,8 +149,6 @@ class AlertService {
 
   async createAlert(type: string, message: string, severity: string, value: number | null) {
     const now = Date.now();
-
-    // Prevent spam (60 seconds)
     if (this.lastAlert[type] && now - this.lastAlert[type] < 60000) return;
     this.lastAlert[type] = now;
 
@@ -174,7 +163,7 @@ class AlertService {
 }
 
 // ------------------------------------------------------
-// USER LOGIN STORE (NO FIREBASE AUTH)
+// USER LOGIN STORE
 // ------------------------------------------------------
 export const userStore = {
   async addLogin(name: string, role: string) {
@@ -185,20 +174,14 @@ export const userStore = {
     });
   },
 
-      async getUsers() {
-      const snap = await get(ref(database, PATHS.USERS));
-      if (!snap.exists()) return [];
-
-      const raw = snap.val() as Record<
-        string,
-        { name: string; role: string; loginTime: number }
-      >;
-
-      return Object.entries(raw).map(([id, user]) => ({
-        id,
-        ...user,
-      }));
-    },
+  async getUsers() {
+    const snap = await get(ref(database, PATHS.USERS));
+    if (!snap.exists()) return [];
+    return Object.entries(snap.val()).map(([id, user]: any) => ({
+      id,
+      ...user
+    }));
+  },
 
   async deleteUser(id: string) {
     await set(ref(database, `${PATHS.USERS}/${id}`), null);
@@ -206,11 +189,42 @@ export const userStore = {
 };
 
 // ------------------------------------------------------
-// FCM PERMISSION REQUEST
+// 🔔 FCM SETUP (FIXED & CLEAN)
 // ------------------------------------------------------
+// ------------------------------------------------------
+// FCM SETUP (SAFE)
+// ------------------------------------------------------
+
+let messaging: ReturnType<typeof getMessaging> | null = null;
+
+export const initFCM = async () => {
+  const supported = await isSupported();
+  if (!supported) {
+    console.warn("❌ FCM not supported in this browser");
+    return null;
+  }
+
+  try {
+    messaging = getMessaging(app);
+
+    onMessage(messaging, (payload) => {
+      console.log("📩 FCM foreground message:", payload);
+
+      toast(payload.notification?.title ?? "New alert", {
+        description: payload.notification?.body,
+      });
+    });
+
+    return messaging;
+  } catch (err) {
+    console.error("❌ FCM init failed:", err);
+    return null;
+  }
+};
+
 export const requestFCMPermission = async () => {
   if (!messaging) {
-    console.warn("Messaging not initialized yet");
+    console.warn("⚠️ Messaging not initialized. Call initFCM() first.");
     return null;
   }
 
@@ -224,30 +238,15 @@ export const requestFCMPermission = async () => {
   console.log("✅ FCM Token:", token);
   return token;
 };
-let messaging: ReturnType<typeof getMessaging> | null = null;
-
-isSupported().then((supported) => {
-  if (!supported) {
-    console.warn("FCM not supported in this browser");
-    return;
-  }
-
-  try {
-    messaging = getMessaging(app);
-
-    onMessage(messaging, (payload) => {
-      console.log("📩 FCM foreground message:", payload);
-    });
-
-  } catch (e) {
-    console.error("FCM init failed", e);
-  }
-});
-
 
 // ------------------------------------------------------
 // EXPORTS
 // ------------------------------------------------------
 export const firebaseService = new FirebaseService();
 export const alertService = new AlertService();
-export { database, PATHS, messaging };
+
+export {
+  database,
+  PATHS,
+  messaging,
+};

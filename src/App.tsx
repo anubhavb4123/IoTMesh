@@ -7,8 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useEffect } from "react";
 import { requestFCMPermission } from "@/lib/firebase";
-import BackgroundVideo from "@/components/BackgroundVideo";
-
+import { initFCM } from "@/lib/firebase";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
@@ -24,7 +23,21 @@ const App = () => {
 
   // 🔔 Request browser notification permission (FCM)
   useEffect(() => {
-    requestFCMPermission();
+    const setupFCM = async () => {
+      const token = await requestFCMPermission();
+      if (!token) return;
+
+      // 🔥 Send token to backend
+      await fetch("/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token }),
+      });
+    };
+
+    setupFCM();
   }, []);
 
   return (
