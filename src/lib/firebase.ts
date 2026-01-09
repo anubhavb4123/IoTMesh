@@ -13,13 +13,6 @@ import {
   push
 } from "firebase/database";
 
-import {
-  getMessaging,
-  getToken,
-  onMessage,
-  isSupported
-} from "firebase/messaging";
-
 // ------------------------------------------------------
 // FIREBASE CONFIG (.env)
 // ------------------------------------------------------
@@ -188,56 +181,6 @@ export const userStore = {
   }
 };
 
-// ------------------------------------------------------
-// 🔔 FCM SETUP (FIXED & CLEAN)
-// ------------------------------------------------------
-// ------------------------------------------------------
-// FCM SETUP (SAFE)
-// ------------------------------------------------------
-
-let messaging: ReturnType<typeof getMessaging> | null = null;
-
-export const initFCM = async () => {
-  const supported = await isSupported();
-  if (!supported) {
-    console.warn("❌ FCM not supported in this browser");
-    return null;
-  }
-
-  try {
-    messaging = getMessaging(app);
-
-    onMessage(messaging, (payload) => {
-      console.log("📩 FCM foreground message:", payload);
-
-      toast(payload.notification?.title ?? "New alert", {
-        description: payload.notification?.body,
-      });
-    });
-
-    return messaging;
-  } catch (err) {
-    console.error("❌ FCM init failed:", err);
-    return null;
-  }
-};
-
-export const requestFCMPermission = async () => {
-  if (!messaging) {
-    console.warn("⚠️ Messaging not initialized. Call initFCM() first.");
-    return null;
-  }
-
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") return null;
-
-  const token = await getToken(messaging, {
-    vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-  });
-
-  console.log("✅ FCM Token:", token);
-  return token;
-};
 
 // ------------------------------------------------------
 // EXPORTS
@@ -248,5 +191,4 @@ export const alertService = new AlertService();
 export {
   database,
   PATHS,
-  messaging,
 };

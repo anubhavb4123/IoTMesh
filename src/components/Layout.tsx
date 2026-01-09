@@ -27,8 +27,8 @@ const allNavigation = [
   { name: "Devices", href: "/devices", icon: Lightbulb },
   { name: "Sensors", href: "/sensors", icon: Activity },
   { name: "Alerts", href: "/alerts", icon: Bell },
-  { name: "Users", href: "/users", icon: Users },
   { name: "Telegram", href: "/telegram", icon: MessageSquare },
+  { name: "Users", href: "/users", icon: Users },
 ];
 
 export const Layout = ({ children }: LayoutProps) => {
@@ -93,7 +93,7 @@ const handleAdminOnlyClick = (itemName: string) => {
 
   const navigation = allNavigation.map((item) => ({
     ...item,
-    adminOnly: ["Users", "Telegram"].includes(item.name),
+    adminOnly: ["Users"].includes(item.name),
   }));
   return (
     <div className="relative min-h-screen z-10 flex flex-col">

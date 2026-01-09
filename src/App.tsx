@@ -5,9 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { useEffect } from "react";
-import { requestFCMPermission } from "@/lib/firebase";
-import { initFCM } from "@/lib/firebase";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
@@ -20,25 +17,6 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => {
-
-  // 🔔 Request browser notification permission (FCM)
-  useEffect(() => {
-    const setupFCM = async () => {
-      const token = await requestFCMPermission();
-      if (!token) return;
-
-      // 🔥 Send token to backend
-      await fetch("/subscribe", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token }),
-      });
-    };
-
-    setupFCM();
-  }, []);
 
   return (
     <>
@@ -86,6 +64,14 @@ const App = () => {
                   }
                 />
                 <Route
+                  path="/telegram"
+                  element={
+                    <ProtectedRoute>
+                      <Telegram />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/users"
                   element={
                     <ProtectedRoute adminOnly>
@@ -93,15 +79,6 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/telegram"
-                  element={
-                    <ProtectedRoute adminOnly>
-                      <Telegram />
-                    </ProtectedRoute>
-                  }
-                />
-
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

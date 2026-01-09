@@ -23,9 +23,18 @@ interface UserProfile {
   timestamp: number;
 }
 
+interface TelegramSubscriber {
+  id: string;
+  name: string;
+  chatId: string;
+  createdAt: number;
+}
+
 export default function Users() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [subscribers, setSubscribers] = useState<TelegramSubscriber[]>([]);
+  const [loadingSubs, setLoadingSubs] = useState(true);
 
   const { role: currentUserRole } = useAuth();
 
@@ -56,6 +65,30 @@ export default function Users() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+  const subsRef = ref(database, "telegram/subscribers");
+
+  const unsub = onValue(subsRef, (snapshot) => {
+    if (!snapshot.exists()) {
+      setSubscribers([]);
+      setLoadingSubs(false);
+      return;
+    }
+
+    const data = snapshot.val();
+    const list: TelegramSubscriber[] = Object.keys(data).map((id) => ({
+      id,
+      ...data[id],
+    }));
+
+    list.sort((a, b) => b.createdAt - a.createdAt);
+    setSubscribers(list);
+    setLoadingSubs(false);
+  });
+
+  return () => unsub();
+}, []);
+
   const deleteUser = async (id: string) => {
     if (currentUserRole !== "admin") {
       toast.error("Only admin can delete users!");
@@ -64,6 +97,16 @@ export default function Users() {
 
     await remove(ref(database, `home/users/${id}`));
     toast.success("User deleted");
+  };
+
+  const deleteSubscriber = async (id: string) => {
+    if (currentUserRole !== "admin") {
+      toast.error("Only admin can remove subscribers!");
+      return;
+    }
+
+    await remove(ref(database, `telegram/subscribers/${id}`));
+    toast.success("Subscriber removed");
   };
 
   const getRoleBadge = (role: string) => {
@@ -113,6 +156,63 @@ export default function Users() {
                       <TableCell className="text-right">
                         <Trash2
                           onClick={() => deleteUser(u.id)}
+                          className="h-5 w-5 text-red-500 cursor-pointer hover:text-red-700"
+                        />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+        {/* ================= TELEGRAM SUBSCRIBERS ================= */}
+        <Card className="border-border/50 bg-card/50">
+          <h2 className="text-xl font-semibold px-6 pt-6 flex items-center gap-2">
+            <UsersIcon className="h-5 w-5" />
+            Telegram Subscribers
+          </h2>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Chat ID</TableHead>
+                <TableHead>Subscribed At</TableHead>
+                {currentUserRole === "admin" && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {loadingSubs ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              ) : subscribers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center">
+                    No Telegram subscribers
+                  </TableCell>
+                </TableRow>
+              ) : (
+                subscribers.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell>{s.name}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {s.chatId}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(s.createdAt).toLocaleString()}
+                    </TableCell>
+
+                    {currentUserRole === "admin" && (
+                      <TableCell className="text-right">
+                        <Trash2
+                          onClick={() => deleteSubscriber(s.id)}
                           className="h-5 w-5 text-red-500 cursor-pointer hover:text-red-700"
                         />
                       </TableCell>
