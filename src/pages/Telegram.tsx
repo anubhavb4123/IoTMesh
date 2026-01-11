@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import {
   Card,
@@ -11,34 +11,50 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { MessageSquare, Bot, Users } from "lucide-react";
+import { MessageSquare, Bot } from "lucide-react";
 
 import { database } from "@/lib/firebase";
-import { ref, push, onValue } from "firebase/database";
+import { ref, set, onValue } from "firebase/database";
 
 export default function Telegram() {
   const [name, setName] = useState("");
   const [chatId, setChatId] = useState("");
 
   // 🔹 SAVE USER TO FIREBASE
-  const handleSave = async () => {
-    if (!name.trim() || !chatId.trim()) {
-      toast.error("Name and Chat ID are required");
-      return;
-    }
+const handleSave = async () => {
+  if (!name.trim() || !chatId.trim()) {
+    toast.error("Name and Chat ID are required");
+    return;
+  }
 
   try {
-    await push(ref(database, "telegram/subscribers"), {
-      name,
-      chatId,
-      createdAt: Date.now(),
-    });
+    const metaRef = ref(database, "telegram/subscribers/meta/nextIndex");
 
-    toast.success("Subscriber saved!");
-    setName("");
-    setChatId("");
+    let index = 0;
+
+    await onValue(
+      metaRef,
+      async (snap) => {
+        index = snap.exists() ? snap.val() : 0;
+
+        // save subscriber at numeric index
+        await set(ref(database, `telegram/subscribers/list/${index}`), {
+          name,
+          chatId,
+          createdAt: Date.now(),
+        });
+
+        // increment index
+        await set(metaRef, index + 1);
+
+        toast.success("Subscriber saved!");
+        setName("");
+        setChatId("");
+      },
+      { onlyOnce: true }
+    );
   } catch (err) {
-    console.error("Firebase save error:", err);
+    console.error(err);
     toast.error("Failed to save subscriber");
   }
 };

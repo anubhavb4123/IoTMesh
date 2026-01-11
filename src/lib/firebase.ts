@@ -1,7 +1,6 @@
 // ------------------------------------------------------
 // IMPORTS
 // ------------------------------------------------------
-import { toast } from "@/components/ui/sonner";
 import { initializeApp } from "firebase/app";
 import {
   getDatabase,
@@ -41,7 +40,7 @@ const PATHS = {
   CONTROLS: "home/room1/controls",
   STATUS: "home/room1/status",
   USERS: "users",
-  ALERTS: "home/room1/alerts"
+  ALERTS: "home/room1/alerts/logs"
 } as const;
 
 // ------------------------------------------------------
@@ -72,6 +71,14 @@ export interface ControlData {
 export interface StatusData {
   online: boolean;
   lastSeen: number;
+}
+
+export interface NewAlert {
+  alert_type: string;
+  severity: "info" | "warning" | "error" | "critical";
+  message: string;
+  sensor_value?: number | null;
+  timestamp: number;
 }
 
 // ------------------------------------------------------
@@ -138,22 +145,35 @@ class FirebaseService {
 // ALERT SERVICE
 // ------------------------------------------------------
 class AlertService {
-  lastAlert: Record<string, number> = {};
+  private lastAlert: Record<string, number> = {};
+  private COOLDOWN = 60000;
 
-  async createAlert(type: string, message: string, severity: string, value: number | null) {
+  async newAlert(key: string, alert: NewAlert) {
     const now = Date.now();
-    if (this.lastAlert[type] && now - this.lastAlert[type] < 60000) return;
-    this.lastAlert[type] = now;
+    if (this.lastAlert[key] && now - this.lastAlert[key] < this.COOLDOWN) {
+      return;
+    }
 
-    await push(ref(database, PATHS.ALERTS), {
-      type,
-      message,
-      severity,
-      sensor_value: value,
-      timestamp: now
+    this.lastAlert[key] = now;
+    console.log(`[AlertService] newAlert called for ${key}`);
+    console.log(`[AlertService] Writing alert to Firebase: ${key}`, alert);
+    await push(ref(database, "home/room1/alerts/logs"), alert);
+    console.log(`[AlertService] Alert written successfully for ${key}`);
+  }
+
+  // Hard test write for debugging
+  async testWrite() {
+    console.log("[AlertService] Performing hard test write to DEBUG/firebase_test");
+    await set(ref(database, "DEBUG/firebase_test"), {
+      test: true,
+      timestamp: Date.now(),
+      message: "Firebase RTDB test write"
     });
+    console.log("[AlertService] Test write completed");
   }
 }
+
+export const alertService = new AlertService();
 
 // ------------------------------------------------------
 // USER LOGIN STORE
@@ -186,7 +206,6 @@ export const userStore = {
 // EXPORTS
 // ------------------------------------------------------
 export const firebaseService = new FirebaseService();
-export const alertService = new AlertService();
 
 export {
   database,

@@ -1,0 +1,34 @@
+{
+  "rules": {
+    "home": {
+      "room1": {
+        "sensor": {
+          ".read": true,
+          ".write": true
+        },
+        "controls": {
+          ".read": true,
+          ".write": true
+        },
+        "status": {
+          ".read": true,
+          ".write": true
+        },
+        "alerts": {
+          "logs": {
+            ".read": true,
+            ".write": true
+          },
+          "state": {
+            ".read": true,
+            ".write": true
+          }
+        }
+      }
+    },
+    "users": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

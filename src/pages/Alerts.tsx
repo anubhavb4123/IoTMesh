@@ -28,7 +28,7 @@ export default function Alerts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const alertRef = ref(database, "home/room1/alerts");
+    const alertRef = ref(database, "home/room1/alerts/logs");
 
     const unsubscribe = onValue(alertRef, (snapshot) => {
       if (snapshot.exists()) {

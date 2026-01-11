@@ -66,7 +66,7 @@ export default function Users() {
   }, []);
 
   useEffect(() => {
-  const subsRef = ref(database, "telegram/subscribers");
+  const subsRef = ref(database, "telegram/subscribers/list");
 
   const unsub = onValue(subsRef, (snapshot) => {
     if (!snapshot.exists()) {
@@ -95,6 +95,12 @@ export default function Users() {
       return;
     }
 
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this user?\nThis action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
     await remove(ref(database, `home/users/${id}`));
     toast.success("User deleted");
   };
@@ -105,7 +111,13 @@ export default function Users() {
       return;
     }
 
-    await remove(ref(database, `telegram/subscribers/${id}`));
+    const confirmed = window.confirm(
+      "Are you sure you want to remove this Telegram subscriber?"
+    );
+
+    if (!confirmed) return;
+
+    await remove(ref(database, `telegram/subscribers/list/${id}`));
     toast.success("Subscriber removed");
   };
 
@@ -120,11 +132,15 @@ export default function Users() {
     );
   };
 
-  return (
-    <Layout>
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+return (
+  <Layout>
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold tracking-tight">Users</h1>
 
+      {/* 👇 REPLACE FROM HERE */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* ================= USERS ================= */}
         <Card className="border-border/50 bg-card/50">
           <Table>
             <TableHeader>
@@ -132,25 +148,33 @@ export default function Users() {
                 <TableHead>Name</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Login Time</TableHead>
-                {currentUserRole === "admin" && <TableHead className="text-right">Actions</TableHead>}
+                {currentUserRole === "admin" && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={4} className="text-center">
+                    Loading...
+                  </TableCell>
                 </TableRow>
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">No users found</TableCell>
+                  <TableCell colSpan={4} className="text-center">
+                    No users found
+                  </TableCell>
                 </TableRow>
               ) : (
                 users.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell>{u.name}</TableCell>
                     <TableCell>{getRoleBadge(u.role)}</TableCell>
-                    <TableCell>{new Date(u.timestamp).toLocaleString()}</TableCell>
+                    <TableCell>
+                      {new Date(u.timestamp).toLocaleString()}
+                    </TableCell>
 
                     {currentUserRole === "admin" && (
                       <TableCell className="text-right">
@@ -166,6 +190,7 @@ export default function Users() {
             </TableBody>
           </Table>
         </Card>
+
         {/* ================= TELEGRAM SUBSCRIBERS ================= */}
         <Card className="border-border/50 bg-card/50">
           <h2 className="text-xl font-semibold px-6 pt-6 flex items-center gap-2">
@@ -223,7 +248,11 @@ export default function Users() {
             </TableBody>
           </Table>
         </Card>
+
       </div>
-    </Layout>
-  );
+      {/* 👆 REPLACE TILL HERE */}
+
+    </div>
+  </Layout>
+);
 }

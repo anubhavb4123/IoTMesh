@@ -249,6 +249,16 @@ return (
       </CardContent>
     </Card>
   </div>
+  {/* ================= FOOTER ================= */}
+  <div className="fixed bottom-0 left-0 w-full z-20">
+    <div className="text-center text-xs text-white/80 py-2 backdrop-blur-md">
+      <span className="font-medium">IoTMesh</span> ·
+      <span className="mx-1">v16.01.26 ZUX</span> ·
+      <span>
+        © {new Date().getFullYear()} IoTMesh. All rights reserved.
+      </span>
+    </div>
+  </div>
 </div>
 );
 }

@@ -112,7 +112,7 @@ const handleAdminOnlyClick = (itemName: string) => {
                 I
                 <span className="glow-o">O</span>
                 TMesh
-              </> <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
+              </> <span className="ml-2 text-xs text-muted-foreground">v16.01.26 ZUX</span>
             </span>
           </div>
           <nav className="flex flex-1 flex-col">
@@ -171,7 +171,7 @@ const handleAdminOnlyClick = (itemName: string) => {
                 I
                 <span className="glow-o">O</span>
                 TMesh
-              </> <span className="ml-2 text-xs text-muted-foreground">v3.0 Pro</span>
+              </> <span className="ml-2 text-xs text-muted-foreground">v16.01.26 ZUX</span>
           </span>
           <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <X /> : <Menu />}
