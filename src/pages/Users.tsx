@@ -135,13 +135,15 @@ export default function Users() {
 return (
   <Layout>
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-
       {/* 👇 REPLACE FROM HERE */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* ================= USERS ================= */}
         <Card className="border-border/50 bg-card/50">
+        <h2 className="text-xl font-semibold px-6 pt-6 flex items-center gap-2">
+            <UsersIcon className="h-5 w-5" />
+            Users
+          </h2>
           <Table>
             <TableHeader>
               <TableRow>
