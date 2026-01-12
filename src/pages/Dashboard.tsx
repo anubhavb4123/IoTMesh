@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { SensorCard } from "@/components/SensorCard";
-
+import { cn } from "@/lib/utils";
 import {
   Thermometer,
   Droplets,
@@ -288,38 +288,64 @@ export default function Dashboard() {
   );
 }
 
+import { LucideIcon } from "lucide-react";
+
 function StatusItem({
   label,
   ok,
   value,
-  indicatorClass,
   icon: Icon,
-}: 
-{
+  indicatorClass,
+}: {
   label: string;
   ok: boolean;
   value?: string;
+  icon: LucideIcon;
   indicatorClass?: string;
-  icon: any;
 }) {
-  const colorClass = indicatorClass
-    ? indicatorClass
+// 🔥 derive status correctly
+const derivedStatus =
+  indicatorClass === "battery-ok"
+    ? "ok"
+    : indicatorClass === "battery-warning"
+    ? "warning"
+    : indicatorClass === "battery-critical"
+    ? "alert"
     : ok
-    ? "bg-green-500 battery-ok"
-    : "bg-red-500 animate-blink-fast"
+    ? "ok"
+    : "alert";
 
+const iconStrokeClass =
+  derivedStatus === "ok"
+    ? "icon-ok"
+    : derivedStatus === "warning"
+    ? "icon-warning"
+    : derivedStatus === "alert"
+    ? "icon-critical"
+    : "icon-critical";
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className={`flex h-8 w-8 items-center justify-center rounded-full ${colorClass}`}
-      >
-        <Icon className="h-4 w-4" />
+    <div
+  className={cn(
+    "flex items-center gap-1 p-2 rounded-lg border border-border/50 bg-background/40 transition-shadow",
+    derivedStatus === "ok" && "shadow-[0_0_10px_rgba(34,197,94,0.25)]",
+    derivedStatus === "warning" && "shadow-[0_0_10px_rgba(245,158,11,0.28)]",
+    derivedStatus === "alert" && "shadow-[0_0_10px_rgba(239,68,68,0.35)]"
+  )}
+>
+      {/* ICON */}
+      <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-background/70">
+        <Icon
+          className={cn(
+            "h-6 w-6 fill-none stroke-[1.8] transition-transform",
+            iconStrokeClass,
+            label === "Internal Battery" && "rotate-90 scale-x-[-1]"
+          )}
+        />
       </div>
-
       {/* TEXT */}
-      <div>
+      <div className="flex flex-col">
         <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {value !== undefined && value !== null
             ? value
             : ok
