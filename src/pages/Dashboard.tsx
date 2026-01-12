@@ -11,6 +11,10 @@ import {
   CloudRain,
   Activity,
   DoorOpen,
+  Database,
+  Activity as ActivityIcon,
+  Zap,
+  BatteryCharging,
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 
@@ -241,32 +245,43 @@ export default function Dashboard() {
 
         {/* System Status */}
         <div className="border-border/50 bg-card/50 p-6 rounded-lg">
-          <h2 className="text-xl mb-4">System Status</h2>
           <div className="grid gap-4 md:grid-cols-4">
-            <StatusItem label="Firebase Connection" ok={!!liveSensorData} />
-            <StatusItem
-              label="Sensor Status"
-              ok={sensorOnline}
-              value={sensorOnline ? "Online" : "Offline"}
-            />
-            <StatusItem
-              label="Power Source"
-              ok={power === 1}
-              value={
-                power === 1
-                  ? "GRID"
-                  : power === 0
-                  ? "INVERTER"
-                  : "Unknown"
-              }
-            />
-            <StatusItem
-              label="Internal Battery"
-              ok={dashboard.batteryPercent !== undefined}
-              value={`${dashboard.batteryPercent ?? "--"}% • ${dashboard.batteryVoltage?.toFixed(2) ?? "--"}V`}
-              indicatorClass={getBatteryStatus(dashboard.batteryPercent)}
-            />
-          </div>
+          <StatusItem
+            label="Firebase Connection"
+            ok={!!liveSensorData}
+            icon={Database}
+          />
+
+          <StatusItem
+            label="Sensor Status"
+            ok={sensorOnline}
+            value={sensorOnline ? "Online" : "Offline"}
+            icon={ActivityIcon}
+          />
+
+          <StatusItem
+            label="Power Source"
+            ok={power === 1}
+            value={
+              power === 1
+                ? "GRID"
+                : power === 0
+                ? "INVERTER"
+                : "Unknown"
+            }
+            icon={Zap}
+          />
+
+          <StatusItem
+            label="Internal Battery"
+            ok={dashboard.batteryPercent !== undefined}
+            value={`${dashboard.batteryPercent ?? "--"}% • ${
+              dashboard.batteryVoltage?.toFixed(2) ?? "--"
+            }V`}
+            indicatorClass={getBatteryStatus(dashboard.batteryPercent)}
+            icon={BatteryCharging}
+          />
+        </div>
         </div>
       </div>
     </Layout>
@@ -278,18 +293,30 @@ function StatusItem({
   ok,
   value,
   indicatorClass,
-}: any) {
+  icon: Icon,
+}: 
+{
+  label: string;
+  ok: boolean;
+  value?: string;
+  indicatorClass?: string;
+  icon: any;
+}) {
+  const colorClass = indicatorClass
+    ? indicatorClass
+    : ok
+    ? "bg-green-500 battery-ok"
+    : "bg-red-500 animate-blink-fast"
+
   return (
     <div className="flex items-center gap-3">
       <div
-        className={`h-3 w-3 rounded-full ${
-          indicatorClass
-            ? indicatorClass
-            : ok
-            ? "bg-green-500 battery-ok"
-            : "bg-red-500 animate-blink-fast"
-        }`}
-      />
+        className={`flex h-8 w-8 items-center justify-center rounded-full ${colorClass}`}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+
+      {/* TEXT */}
       <div>
         <p className="text-sm font-medium">{label}</p>
         <p className="text-xs text-muted-foreground">
