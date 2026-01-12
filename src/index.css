@@ -93,7 +93,7 @@ All colors MUST be HSL.
 }
 
 .animate-blink-fast {
-  animation: blink-fast 0.5s infinite;
+  animation: blink-fast 2s infinite;
 }
 .battery-ok {
   background-color: #22c55e; /* green */;
@@ -116,7 +116,7 @@ All colors MUST be HSL.
 /* 🔴 Red edge lighting for admin-only warning */
 .toast-admin-warning {
   border: 1px solid rgba(239, 68, 68, 0.6); /* red-500 */
-  box-shadow:
+  box-shadow: 
     0 0 10px rgba(239, 68, 68, 0.6),
     inset 0 0 8px rgba(239, 68, 68, 0.4);
   animation: red-edge-pulse 1.2s infinite;
@@ -229,4 +229,38 @@ All colors MUST be HSL.
   animation: spin 0.9s linear infinite;
   display: inline-block;
   margin-top: 2px;
+}
+/* ===== ICON STROKE BLINK ===== */
+
+.icon-ok {
+  stroke: #22c55e;
+  animation: icon-blink 2s infinite;
+  filter: drop-shadow(0 0 6px rgba(34,197,94,0.6));
+}
+
+.icon-warning {
+  stroke: #f59e0b;
+  animation: icon-blink 0.8s infinite;
+  filter: drop-shadow(0 0 6px rgba(245,158,11,0.7));
+}
+
+.icon-critical {
+  stroke: #ef4444;
+  animation: icon-blink 0.25s infinite;
+  filter: drop-shadow(0 0 6px rgba(239,68,68,0.9));
+}
+
+.icon-cold {
+  stroke: #0263ff;
+  animation: icon-blink 2s infinite;
+  filter: drop-shadow(0 0 6px rgba(2,99,255,0.6));
+}
+
+@keyframes icon-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
