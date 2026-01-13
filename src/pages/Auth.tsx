@@ -163,7 +163,7 @@ return (
       <source src="/login-music.mp3" type="audio/mpeg" />
     </audio>
 
-    <Card className="border-border/50 bg-card/50 border-white/50 shadow-lg w-full max-w-md">
+    <Card className="border-border/40 bg-card/40 border-white/50 shadow-lg w-full max-w-md">
       <CardHeader className="space-y-4 text-center">
         {/* 🎥 Video Logo */}
         <div className="mx-auto h-16 w-16 rounded-2xl overflow-hidden shadow-lg border border-white/20">
