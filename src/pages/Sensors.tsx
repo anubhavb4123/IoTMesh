@@ -137,35 +137,35 @@ export default function Sensors() {
 
         {/* CURRENT SENSOR CARDS */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="border-border/50 bg-card/50 p-6">
+          <Card className="border-border/40 bg-card/40 p-6">
             <h2>Temperature</h2>
             <p className="text-4xl font-bold text-primary">
               {sensorData?.temperature.toFixed(1)}°C
             </p>
           </Card>
 
-          <Card className="border-border/50 bg-card/50 p-6">
+          <Card className="border-border/40 bg-card/40 p-6">
             <h2>Humidity</h2>
             <p className="text-4xl font-bold text-primary">
               {sensorData?.humidity.toFixed(1)}%
             </p>
           </Card>
 
-          <Card className="border-border/50 bg-card/50 p-6">
+          <Card className="border-border/40 bg-card/40 p-6">
             <h2>Air Quality</h2>
             <p className="text-4xl font-bold text-primary">
               {sensorData?.gas.toFixed(0)} PPM
             </p>
           </Card>
 
-          <Card className="border-border/50 bg-card/50 p-6">
+          <Card className="border-border/40 bg-card/40 p-6">
             <h2>Pressure</h2>
             <p className="text-4xl font-bold text-primary">
               {(sensorData?.pressure ?? 0).toFixed(0)} hPa
             </p>
           </Card>
 
-          <Card className="border-border/50 bg-card/50 p-6">
+          <Card className="border-border/40 bg-card/40 p-6">
             <h2>Water Level</h2>
             <p className="text-4xl font-bold text-primary">
               {(sensorData?.WaterLevel ?? 0).toFixed(0)} cm
@@ -174,7 +174,7 @@ export default function Sensors() {
         </div>
 
         {/* HISTORY GRAPH */}
-        <Card className="border-border/50 bg-card/50 p-6">
+        <Card className="border-border/40 bg-card/40 p-6">
           <h2 className="text-xl font-semibold mb-4">Historical Data</h2>
 
           <div className="flex gap-2 mb-4">
