@@ -23,7 +23,7 @@ export const DeviceControl = ({
 }: DeviceControlProps) => {
   return (
     <Card className={cn(
-      "border-border/50 bg-card/50",
+      "border-border/50 bg-card/10 ",
       isActive && "border-primary/70 shadow-[0_0_30px_hsl(var(--primary)/0.2)]"
     )}>
       <div className="p-6">
