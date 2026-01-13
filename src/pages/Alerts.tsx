@@ -85,7 +85,7 @@ export default function Alerts() {
           </p>
         </div>
 
-        <Card className="border-border/50 bg-card/50">
+        <Card className="border-border/40 bg-card/40">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border/50">
