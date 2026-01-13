@@ -74,7 +74,7 @@ const handleSave = async () => {
         </div>
 
         {/* ================= QR CODE ================= */}
-        <Card className="border-border/50 bg-card/50">
+        <Card className="border-border/40 bg-card/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bot className="h-5 w-5 text-primary" />
@@ -98,7 +98,7 @@ const handleSave = async () => {
         </Card>
 
         {/* ================= SUBSCRIBE FORM ================= */}
-        <Card className="border-border/50 bg-card/50">
+        <Card className="border-border/40 bg-card/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-primary" />
