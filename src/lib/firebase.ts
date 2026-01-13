@@ -31,6 +31,7 @@ const firebaseConfig = {
 // ------------------------------------------------------
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+const CONTROL_PATH = "home/room1/controls";
 
 // ------------------------------------------------------
 // DATABASE PATHS
@@ -53,7 +54,7 @@ export interface SensorData {
   gas: number;
   rain: boolean;
   WaterLevel: number;
-  motion?: string;
+  motion?: boolean;
   door?: number;
   power?: number;
   timestamp: number;
@@ -62,10 +63,63 @@ export interface SensorData {
   batteryPercent?: number;
 }
 
+export const DEFAULT_CONTROLS: ControlData = {
+  room1Light: false,
+  room1Switch: false,
+  room1Fan: false,
+
+  room2Light: false,
+  room2Switch: false,
+  room2Fan: false,
+
+  room3Light: false,
+  room3Switch: false,
+  room3Fan: false,
+
+  lobbyFan: false,
+  lobbyLight: false,
+  lobbyTV: false,
+  stairsLight: false,
+
+  relay1: false,
+  relay2: false,
+  relay3: false,
+  relay4: false,
+
+  lock: false,
+  motion: false,
+  nightMode: false,
+};
 export interface ControlData {
-  light: boolean;
-  fan: boolean;
-  timestamp?: number;
+  // ===== ROOMS =====
+  room1Light: boolean;
+  room1Fan: boolean;
+  room1Switch: boolean;
+
+  room2Light: boolean;
+  room2Fan: boolean;
+  room2Switch: boolean;
+
+  room3Light: boolean;
+  room3Fan: boolean;
+  room3Switch: boolean;
+
+  // ===== COMMON =====
+  lobbyLight: boolean;
+  stairsLight: boolean;
+  lobbyFan: boolean;
+  lobbyTV: boolean;
+
+  // ===== RELAYS =====
+  relay1: boolean;
+  relay2: boolean;
+  relay3: boolean;
+  relay4: boolean;
+
+  // ===== SECURITY =====
+  lock: boolean;
+  motion: boolean;
+  nightMode: boolean;
 }
 
 export interface StatusData {
@@ -103,30 +157,47 @@ class FirebaseService {
       }
     });
   }
-
-  async getControlStates() {
-    try {
-      const snap = await get(ref(database, PATHS.CONTROLS));
-      return snap.exists() ? snap.val() : null;
-    } catch (e) {
-      console.error("Control fetch error:", e);
-      return null;
-    }
+  
+  async getControlStates(): Promise<ControlData> {
+    const snap = await get(ref(database, PATHS.CONTROLS));
+    return snap.exists()
+      ? { ...DEFAULT_CONTROLS, ...snap.val() }
+      : DEFAULT_CONTROLS;
   }
 
-  listenToControlStates(callback: (data: ControlData) => void) {
-    return onValue(ref(database, PATHS.CONTROLS), (snap) => {
-      if (snap.exists()) callback(snap.val());
+  listenToControlStates(
+    callback: (data: ControlData) => void
+  ) {
+    const controlsRef = ref(database, CONTROL_PATH);
+
+    return onValue(controlsRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        callback(DEFAULT_CONTROLS);
+        return;
+      }
+
+      const data = snapshot.val();
+
+      callback({
+        ...DEFAULT_CONTROLS,
+        ...data, // merge to prevent missing keys
+      });
     });
   }
 
-  async updateSwitchState(device: "light" | "fan", state: boolean) {
-    await update(ref(database, PATHS.CONTROLS), {
-      [device]: state,
-      timestamp: Date.now()
-    });
-  }
+ updateSwitchState(
+    key: keyof ControlData,
+    value: boolean
+  ) {
+    const updates: Partial<ControlData> = {};
+    updates[key] = value;
 
+    return update(ref(database, CONTROL_PATH), updates);
+  }
+  // ✅ ADD THIS
+  updateMultipleSwitches(updates: Partial<ControlData>) {
+    return update(ref(database, CONTROL_PATH), updates);
+  }
   async updateDeviceStatus(online: boolean) {
     await set(ref(database, PATHS.STATUS), {
       online,
@@ -138,7 +209,7 @@ class FirebaseService {
     return onValue(ref(database, PATHS.STATUS), (snap) => {
       if (snap.exists()) callback(snap.val());
     });
-  }
+  }  
 }
 
 // ------------------------------------------------------
