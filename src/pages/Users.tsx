@@ -139,7 +139,7 @@ return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* ================= USERS ================= */}
-        <Card className="border-border/50 bg-card/50">
+        <Card className="border-border/40 bg-card/40">
         <h2 className="text-xl font-semibold px-6 pt-6 flex items-center gap-2">
             <UsersIcon className="h-5 w-5" />
             Users
@@ -194,7 +194,7 @@ return (
         </Card>
 
         {/* ================= TELEGRAM SUBSCRIBERS ================= */}
-        <Card className="border-border/50 bg-card/50">
+        <Card className="border-border/40 bg-card/40">
           <h2 className="text-xl font-semibold px-6 pt-6 flex items-center gap-2">
             <UsersIcon className="h-5 w-5" />
             Telegram Subscribers
