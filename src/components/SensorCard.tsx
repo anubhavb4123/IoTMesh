@@ -36,7 +36,7 @@ export const SensorCard = ({
   return (
     <Card 
       className={cn(
-        "border-border/50 bg-card/50 relative overflow-hidden",
+        "border-border/40 bg-card/40 relative overflow-hidden",
         statusGlow[status]
       )}
     >
