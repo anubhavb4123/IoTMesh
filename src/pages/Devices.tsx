@@ -153,17 +153,17 @@ export default function Devices() {
           {/* ROOM 3 */}
           <Card className="border-border/40 bg-card/40 p-4 space-y-3">
             <h2 className="font-semibold text-lg">Room 3</h2>
-            <DeviceControl title="Fan" icon={Fan}
-              isActive={controls.room3Fan}
-              onToggle={(v) => update("room3Fan", v)}
+            <DeviceControl title="Light" icon={Lightbulb}
+              isActive={controls.room3Light}
+              onToggle={(v) => update("room3Light", v)}
             />
             <DeviceControl title="Switch" icon={ToggleLeft}
               isActive={controls.room3Switch}
               onToggle={(v) => update("room3Switch", v)}
             />
-            <DeviceControl title="Light" icon={Lightbulb}
-              isActive={controls.room3Light}
-              onToggle={(v) => update("room3Light", v)}
+            <DeviceControl title="Fan" icon={Fan}
+              isActive={controls.room3Fan}
+              onToggle={(v) => update("room3Fan", v)}
             />
           </Card>
         </div>
