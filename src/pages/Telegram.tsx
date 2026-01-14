@@ -63,7 +63,6 @@ const handleSave = async () => {
     <Layout>
       <div className="space-y-6 pb-5">
 
-        {/* ================= HEADER ================= */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
             Telegram Alerts
