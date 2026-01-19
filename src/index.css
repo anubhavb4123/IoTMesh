@@ -264,3 +264,39 @@ All colors MUST be HSL.
     opacity: 0.35;
   }
 }
+.edge-glow {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.edge-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px; /* edge thickness */
+  border-radius: inherit;
+
+  background: linear-gradient(
+    120deg,
+    hsl(210 100% 56%), /* blue */
+    hsl(190 100% 50%), /* cyan */
+    hsl(210 100% 56%)
+  );
+  background-size: 300% 300%;
+  animation: edge-blue-cyan 4s linear infinite;
+
+  pointer-events: none;
+
+  /* ✅ PURE BORDER ONLY (NO SHADOW) */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+@keyframes edge-blue-cyan {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 300% 50%; }
+}
