@@ -15,6 +15,7 @@ import {
   Activity as ActivityIcon,
   Zap,
   BatteryCharging,
+  Cpu,
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 
@@ -253,10 +254,10 @@ export default function Dashboard() {
           />
 
           <StatusItem
-            label="Sensor Status"
+            label="ESP Device"
             ok={sensorOnline}
             value={sensorOnline ? "Online" : "Offline"}
-            icon={ActivityIcon}
+            icon={Cpu}
           />
 
           <StatusItem
