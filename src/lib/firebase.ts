@@ -79,7 +79,7 @@ export const DEFAULT_CONTROLS: ControlData = {
   lobbyFan: false,
   lobbyLight: false,
   lobbyTV: false,
-  stairsLight: false,
+  refrigerator: false,
 
   relay1: false,
   relay2: false,
@@ -106,7 +106,7 @@ export interface ControlData {
 
   // ===== COMMON =====
   lobbyLight: boolean;
-  stairsLight: boolean;
+  refrigerator: boolean;
   lobbyFan: boolean;
   lobbyTV: boolean;
 
