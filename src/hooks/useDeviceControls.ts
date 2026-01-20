@@ -43,10 +43,12 @@ export const useDeviceControls = () => {
     };
   }, []);
 
-  const updateDeviceState = async (device: 'light' | 'fan', state: boolean) => {
+  const updateDeviceState = async (
+    device: keyof ControlData,
+    state: boolean
+  ) => {
     try {
       await firebaseService.updateSwitchState(device, state);
-      // The real-time listener will update the state automatically
     } catch (err) {
       console.error(`Error updating ${device} state:`, err);
       setError(`Failed to update ${device} state`);
