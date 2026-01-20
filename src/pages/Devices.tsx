@@ -11,6 +11,7 @@ import {
   Lock,
   Activity,
   Sun,
+  Refrigerator,
 } from "lucide-react";
 import { firebaseService } from "@/lib/firebase";
 import { toast } from "sonner";
@@ -36,7 +37,7 @@ export default function Devices() {
     "room1Light", "room1Switch", "room1Fan",
     "room2Light", "room2Switch", "room2Fan",
     "room3Light", "room3Switch", "room3Fan",
-    "lobbyFan", "lobbyLight", "lobbyTV", "stairsLight",
+    "lobbyFan", "lobbyLight", "lobbyTV", "refrigerator",
     "relay1", "relay2", "relay3", "relay4",
   ];
   const SECURITY_KEYS: (keyof ControlData)[] = [
@@ -184,9 +185,9 @@ export default function Devices() {
               isActive={controls.lobbyTV}
               onToggle={(v) => update("lobbyTV", v)}
             />
-            <DeviceControl title="Stairs Light" icon={Lightbulb}
-              isActive={controls.stairsLight}
-              onToggle={(v) => update("stairsLight", v)}
+            <DeviceControl title="Refrigerator" icon={Refrigerator}
+              isActive={controls.refrigerator}
+              onToggle={(v) => update("refrigerator", v)}
             />
           </div>
         </Card>
