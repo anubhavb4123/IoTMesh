@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { database } from "@/lib/firebase";
 import { ref, push } from "firebase/database";
-import InfoDialog from "@/components/InfoDialog";
+
 // ================= PASSWORDS =================
 const GUEST_PASSWORD = "1111";
 const ADMIN_PASSWORD = "4123";
@@ -155,7 +155,17 @@ return (
   <div className="fixed inset-0 bg-black/50 -z-10" />
   {/* 🔐 EXISTING CONTENT (UNCHANGED) */}
  <div className="flex flex-col min-h-screen items-center justify-center p-4 relative z-10">
-    <InfoDialog />
+    <button
+      onClick={() => window.location.href = '/iotmesh.html'}
+      className="border-border/40 bg-card/80 border-white/50 shadow-lg w-full max-w-md mb-6 px-4 py-2 rounded-lg text-white font-medium hover:bg-white/10 transition-colors"
+    >
+      Explore 
+      <>
+        I
+          <span className="glow-o">O</span>
+            TMesh
+        </>
+    </button>
     {/* Background gradient */}
     <div className="absolute inset-0 bg-gradient-to-br via-background to-glow-cyan/10 pointer-events-none" />
     {/* 🎵 Background Music */}
