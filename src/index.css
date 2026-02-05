@@ -300,3 +300,27 @@ All colors MUST be HSL.
   0%   { background-position:   0% 50%; }
   100% { background-position: 300% 50%; }
 }
+@keyframes borderFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-border {
+  background: linear-gradient(
+    270deg,
+    #22d3ee,
+    #a855f7,
+    #3b82f6,
+    #ec4899,
+    #22d3ee
+  );
+  background-size: 600% 600%;
+  animation: borderFlow 6s linear infinite;
+}
