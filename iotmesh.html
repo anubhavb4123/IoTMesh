@@ -229,6 +229,69 @@
       box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
     }
 
+    .showcase-row {
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      margin-bottom: 80px;
+      animation: slideUp 0.6s ease-out forwards;
+      transform: translateY(16px);
+    }
+
+    .showcase-row:nth-child(even) .showcase-text {
+      order: 2;
+    }
+
+    .showcase-row:nth-child(even) .showcase-image {
+      order: 1;
+    }
+
+    .showcase-text {
+      flex: 0 0 40%;
+    }
+
+    .showcase-text h3 {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      color: var(--accent-primary);
+    }
+
+    .showcase-text p {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    .showcase-image {
+      flex: 0 0 55%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .showcase-image img {
+      width: 100%;
+      height: auto;
+      max-width: 1200px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    .showcase-images {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .showcase-images img {
+      width: 100%;
+      height: auto;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
     @media (max-width: 768px) {
       .hero .btn {
         display: block;
@@ -242,6 +305,20 @@
       .container {
         padding: 0 16px;
       }
+
+      .showcase-row {
+        flex-direction: column;
+        gap: 20px;
+        margin-bottom: 60px;
+      }
+
+      .showcase-text {
+        text-align: center;
+      }
+
+      .showcase-image img {
+        max-width: 100%;
+      }
     }
   </style>
 </head>
@@ -253,6 +330,78 @@
       <p>IoTMesh is a smart automation ecosystem designed for homes, industries, and factories using real-time data, cloud intelligence, and secure communication.</p>
       <a href="/auth" class="btn btn-primary">Login to IoTMesh</a>
       <a href="#contact" class="btn btn-secondary">Contact IoTMesh</a>
+    </div>
+  </section>
+
+  <!-- Explore IoTMesh Platform Section -->
+  <section id="explore">
+    <div class="container">
+      <h2>Explore IoTMesh Platform</h2>
+      <p>Discover the core features of IoTMesh through our intuitive platform interfaces.</p>
+      <div class="showcase-container">
+        <div class="showcase-row">
+          <div class="showcase-text">
+            <h3>Central Dashboard</h3>
+            <p>Comprehensive overview of all connected devices and system status. Monitor real-time metrics and control operations from a unified interface.</p>
+          </div>
+          <div class="showcase-image">
+            <img src="public/pictures/dashboard.png" alt="Central Dashboard">
+          </div>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-image">
+            <div class="showcase-images">
+              <img src="public/pictures/devices1.png" alt="Device Management">
+              <img src="public/pictures/devices2.png" alt="Device Control">
+            </div>
+          </div>
+          <div class="showcase-text">
+            <h3>Device Management & Control</h3>
+            <p>Efficiently manage and control all IoT devices across your network. Configure settings, monitor performance, and execute commands remotely.</p>
+          </div>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-text">
+            <h3>Live Sensor Monitoring</h3>
+            <p>Real-time visualization of sensor data including temperature, humidity, and environmental parameters. Track trends and receive instant updates.</p>
+          </div>
+          <div class="showcase-image">
+            <img src="public/pictures/sensors.png" alt="Live Sensor Monitoring">
+          </div>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-image">
+            <img src="public/pictures/telegram.png" alt="Telegram Bot Automation">
+          </div>
+          <div class="showcase-text">
+            <h3>Telegram Bot Automation & Alerts</h3>
+            <p>Integrate with Telegram for automated notifications and remote control. Receive alerts and manage devices directly through messaging.</p>
+          </div>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-text">
+            <h3>Smart Alerts & Notifications</h3>
+            <p>Intelligent alert system for critical events and threshold breaches. Customize notification preferences and response protocols.</p>
+          </div>
+          <div class="showcase-image">
+            <img src="public/pictures/alerts.png" alt="Smart Alerts & Notifications">
+          </div>
+        </div>
+
+        <div class="showcase-row">
+          <div class="showcase-image">
+            <img src="public/pictures/users.png" alt="User & Role Management">
+          </div>
+          <div class="showcase-text">
+            <h3>User & Role Management</h3>
+            <p>Manage user accounts, permissions, and access levels. Ensure secure and organized control over your IoT ecosystem.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
