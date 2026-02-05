@@ -13,6 +13,7 @@ import Alerts from "./pages/Alerts";
 import Users from "./pages/Users";
 import Telegram from "./pages/Telegram";
 import NotFound from "./pages/NotFound";
+import IotMesh from "./pages/IoTMesh";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Navigate to="/auth" replace />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/iotmesh" element={<IotMesh />} />
 
                 {/* 🔐 PROTECTED ROUTES */}
                 <Route
