@@ -152,20 +152,34 @@ return (
     <source src="/login-bg.mp4" type="video/mp4" />
   </video>
   {/* 🌑 DARK OVERLAY */}
-  <div className="fixed inset-0 bg-black/50 -z-10" />
+  <div className="fixed inset-0 bg-black/50-z-10" />
   {/* 🔐 EXISTING CONTENT (UNCHANGED) */}
  <div className="flex flex-col min-h-screen items-center justify-center p-4 relative z-10">
+    <div className="relative w-full max-w-md mb-6 group">
+      {/* Actual button */}
+      <div className="relative w-full max-w-md mb-6">
+  {/* Animated border wrapper */}
+  <div className="animate-border rounded-lg p-[2px]">
     <button
-      onClick={() => window.location.href = '/iotmesh.html'}
-      className="border-border/40 bg-card/80 border-white/50 shadow-lg w-full max-w-md mb-6 px-4 py-2 rounded-lg text-white font-medium hover:bg-white/10 transition-colors"
+      onClick={() => navigate("/iotmesh")}
+      className="
+        w-full rounded-lg
+        bg-card/80 backdrop-blur
+        px-4 py-2
+        text-white font-medium
+        border border-white/30
+        hover:bg-white/10
+        transition-colors
+      "
     >
-      Explore 
+      Explore{" "}
       <>
-        I
-          <span className="glow-o">O</span>
-            TMesh
-        </>
+        I<span className="glow-o">O</span>TMesh
+      </>
     </button>
+  </div>
+</div>
+    </div>
     {/* Background gradient */}
     <div className="absolute inset-0 bg-gradient-to-br via-background to-glow-cyan/10 pointer-events-none" />
     {/* 🎵 Background Music */}
