@@ -114,7 +114,7 @@ export default function Devices() {
             />
           </div>
         </Card>
-        {/* ================= ROOMS ================= */}
+        {/* ============== ROOMS ============== */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
           {/* ROOM 1 */}
@@ -191,7 +191,6 @@ export default function Devices() {
             />
           </div>
         </Card>
-
         {/* ================= RELAYS ================= */}
         <Card className="border-border/40 bg-card/40 p-4 space-y-4">
           <h2 className="font-semibold text-lg">Relay Controls</h2>
