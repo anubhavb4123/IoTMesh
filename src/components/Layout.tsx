@@ -222,7 +222,11 @@ const handleAdminOnlyClick = (itemName: string) => {
         )}
       </div>
       {/* ================= MAIN CONTENT ================= */}
-      <main className="flex-1 lg:ml-72 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 mt-16 lg:mt-0">
+      <main className="flex-1
+  lg:ml-72
+  px-4 sm:px-6 lg:px-8
+  pt-1
+  -mt-24 lg:-mt-36">
         {children}
       </main>
       {/* ================= FOOTER ================= */}
