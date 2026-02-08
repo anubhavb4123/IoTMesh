@@ -253,7 +253,7 @@ const IotMesh = () => {
           <h2>Build smarter systems with IoTMesh</h2>
           <p>Join the revolution in IoT automation and unlock the potential of connected intelligence.</p>
           <Link to="/auth" className="btn btn-primary">Login to IoTMesh</Link>
-          <a href="mailto:contact@iotmesh.com" className="btn btn-secondary">Get in Touch</a>
+          <a href="mailto:iotmesh4123@gmail.com" className="btn btn-secondary">Get in Touch</a>
         </div>
       </section>
     </>
