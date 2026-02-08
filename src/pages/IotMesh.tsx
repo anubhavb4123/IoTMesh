@@ -127,7 +127,7 @@ const IotMesh = () => {
         </div>
       </section>
 
-      {/* Industry & Factory Automation Section */}
+      {/* ========= Industry & Factory Automation Section ========*/}
       <section id="industry-automation" className="animate-on-scroll">
         <div className="container">
           <h2>Industry & Factory Automation</h2>
