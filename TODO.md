@@ -1,21 +1,17 @@
-# IoTMesh System Architecture Section Implementation
+# TODO: Implement Phone Number Authentication with OTP at Signup
 
-## Steps to Complete
+## Completed Tasks
+- [x] Analyze current auth setup
+- [x] Create implementation plan
+- [x] Get user confirmation
 
-1. **Add new section to IoTMesh.tsx**
-   - Insert the "IoTMesh System Architecture" section after the "Explore IoTMesh Platform" section.
-   - Include SVG diagram with blocks for Sensors, ESP nodes, Firebase, Backend, Frontend, Telegram.
-   - Add sub-items for Sensors and ESP nodes.
-   - Include animated arrows for data flow.
-
-2. **Add CSS styles to iotmesh.css**
-   - Define styles for the architecture section container.
-   - Style the SVG blocks, arrows, and animations (pulse/glow, flowing arrows using translate/stroke-dash).
-   - Add hover tooltips using CSS-only.
-   - Ensure responsive design: horizontal on desktop, vertical on mobile using media queries.
-
-3. **Test and verify**
-   - Check that the page loads without errors.
-   - Verify animations are subtle and professional.
-   - Ensure responsiveness on different screen sizes.
-   - Confirm no existing sections or styles are broken.
+## Pending Tasks
+- [ ] Update src/lib/firebase.ts to include Firebase Auth exports
+- [ ] Update src/contexts/AuthContext.tsx to use phone instead of name
+- [ ] Update src/pages/Auth.tsx for phone signup with OTP, then passwords, and login with phone + password
+- [ ] Update src/components/ProtectedRoute.tsx if needed (likely no change)
+- [ ] Update src/pages/Users.tsx to display phone instead of name, change DB path to "users"
+- [ ] Change DB structure to users/{phone}: {role, createdAt}
+- [ ] Test signup flow with OTP
+- [ ] Test login flow with phone + password
+- [ ] Verify role-based access
