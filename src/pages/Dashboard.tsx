@@ -127,7 +127,7 @@ export default function Dashboard() {
     setSensorOnline(now - lastMs <= 120_000); // ✅ 2 minutes threshold
   };
 
-  checkStatus();                 // ✅ IMMEDIATE check on page load
+  checkStatus();                 
   const interval = setInterval(checkStatus, 1000); // ✅ live monitoring
 
   return () => clearInterval(interval);
