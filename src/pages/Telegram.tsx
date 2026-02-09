@@ -72,7 +72,7 @@ const handleSave = async () => {
           </p>
         </div>
 
-        {/* ===================== QR CODE ===================== */}
+        {/*  QR CODE  */}
         <Card className="border-border/40 bg-card/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
