@@ -22,7 +22,7 @@ export default function Footer() {
         <div className="flex justify-center gap-6">
           {[
             {
-              href: "https://iotmesh-4123.web.app",
+              href: "https://anubhavb-tech-hub.web.app/",
               label: "Website",
               Icon: Globe,
             },
@@ -32,7 +32,7 @@ export default function Footer() {
               Icon: Github,
             },
             {
-              href: "https://www.instagram.com/anubhavb__?igsh=MWc5dmR6d243YXNxZA==",
+              href: "https://www.instagram.com/anubhhhav_b_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
               label: "Instagram",
               Icon: Instagram,
             },
