@@ -13,7 +13,7 @@ import Alerts from "./pages/Alerts";
 import Users from "./pages/Users";
 import Telegram from "./pages/Telegram";
 import NotFound from "./pages/NotFound";
-import IotMesh from "./pages/IoTMesh";
+import IotMesh from "./pages/IotMeshA";
 
 const queryClient = new QueryClient();
 
