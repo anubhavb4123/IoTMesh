@@ -115,10 +115,20 @@ All colors MUST be HSL.
 }
 /* 🔴 Red edge lighting for admin-only warning */
 .toast-admin-warning {
-  border: 1px solid rgba(239, 68, 68, 0.6); /* red-500 */
-  box-shadow: 
-    0 0 10px rgba(239, 68, 68, 0.6),
-    inset 0 0 8px rgba(239, 68, 68, 0.4);
+  border: 2px solid rgba(239, 68, 68, 0.85);
+
+  /* 🔥 Bigger Size */
+  padding: 18px 24px;
+  font-size: 16px;
+  min-width: 340px;
+  min-height: 65px;
+
+  border-radius: 12px;
+
+  box-shadow:
+    0 0 18px rgba(239, 68, 68, 0.7),
+    inset 0 0 10px rgba(239, 68, 68, 0.45);
+
   animation: red-edge-pulse 1.2s infinite;
 }
 
@@ -142,10 +152,20 @@ All colors MUST be HSL.
 }
 /* 🟢 Green edge lighting for success messages */
 .toast-success {
-  border: 1px solid rgba(34, 197, 94, 0.6); /* green-500 */
+  border: 2px solid rgba(34, 197, 94, 0.8);
+
+  /* 🔥 Bigger size */
+  padding: 16px 20px;
+  font-size: 16px;
+  min-height: 60px;
+  min-width: 320px;
+
+  border-radius: 12px;
+
   box-shadow:
-    0 0 10px rgba(34, 197, 94, 0.6),
-    inset 0 0 8px rgba(34, 197, 94, 0.4);
+    0 0 18px rgba(34, 197, 94, 0.7),
+    inset 0 0 10px rgba(34, 197, 94, 0.5);
+
   animation: green-edge-pulse 1.2s infinite;
 }
 /* Pulse animation */
