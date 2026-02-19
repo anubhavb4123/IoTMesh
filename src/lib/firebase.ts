@@ -273,9 +273,7 @@ export const userStore = {
 };
 
 
-// ------------------------------------------------------
 // EXPORTS
-// ------------------------------------------------------
 export const firebaseService = new FirebaseService();
 
 export {
