@@ -7,10 +7,40 @@ const IotMesh = () => {
       {/* Hero Section */}
       <section className="hero">
         <div className="container hero-content">
-          <h1>IoTMesh – Smart Automation for Homes, Industry & Factories</h1>
-          <p>IoTMesh is a smart automation ecosystem designed for homes, industries, and factories using real-time data, cloud intelligence, and secure communication.</p>
-          <Link to="/auth" className="btn btn-primary">Login to IoTMesh</Link>
-          <a href="#contact" className="btn btn-secondary">Contact IoTMesh</a>
+          
+          <h1>
+            IoTMesh — Intelligent Automation Engine  
+            for Homes, Industries & Smart Factories
+          </h1>
+
+          <p>
+            IoTMesh connects embedded systems, cloud infrastructure, and real-time
+            analytics into one unified automation ecosystem. Monitor sensors,
+            control devices, receive instant alerts, and scale seamlessly —
+            from a single smart home to enterprise-grade industrial environments.
+          </p>
+
+          <p style={{ marginTop: "20px", opacity: 0.9 }}>
+            Secure. Scalable. Real-Time. Built for the future of connected intelligence.
+          </p>
+
+          <div style={{ marginTop: "30px" }}>
+            <Link to="/auth" className="btn btn-primary">
+              Access IoTMesh Platform
+            </Link>
+
+            <a href="#contact" className="btn btn-secondary">
+              Explore Solutions
+            </a>
+          </div>
+
+          <div style={{ marginTop: "40px", opacity: 0.7 }}>
+            <span>✔ Real-Time Monitoring</span> &nbsp;&nbsp;
+            <span>✔ Cloud Integration</span> &nbsp;&nbsp;
+            <span>✔ Secure Remote Control</span> &nbsp;&nbsp;
+            <span>✔ Industrial-Grade Reliability</span>
+          </div>
+
         </div>
       </section>
 
@@ -90,13 +120,53 @@ const IotMesh = () => {
       <section id="about">
         <div className="container">
           <h2>About IoTMesh</h2>
-          <p>IoTMesh is a cutting-edge IoT platform that seamlessly integrates embedded systems with cloud technology, enabling real-time monitoring, secure remote control, and scalable automation solutions. Our ecosystem empowers users to build intelligent systems that adapt to their needs, from smart homes to industrial operations.</p>
+
+          <p>
+            IoTMesh is a next-generation IoT automation platform designed to bridge 
+            the gap between embedded hardware systems and modern cloud infrastructure. 
+            It transforms traditional devices into intelligent, connected systems capable 
+            of real-time monitoring, secure remote control, and dynamic automation.
+          </p>
+
+          <p>
+            Built on a distributed architecture, IoTMesh connects multiple ESP-based 
+            microcontroller nodes, sensors, actuators, and cloud services into a 
+            unified ecosystem. Each device communicates securely with the cloud, 
+            enabling centralized control, live data visualization, event-driven 
+            automation, and multi-user access management.
+          </p>
+
+          <p>
+            Whether it's a smart home, a commercial building, or an industrial facility, 
+            IoTMesh provides the scalability and flexibility required to deploy 
+            intelligent automation at any level — from single-room control to 
+            factory-scale infrastructure.
+          </p>
+
           <ul className="feature-list">
-            <li className="stagger">Embedded Systems Integration</li>
-            <li className="stagger">Cloud-Based Intelligence</li>
-            <li className="stagger">Real-Time Data Monitoring</li>
-            <li className="stagger">Secure Remote Control</li>
-            <li className="stagger">Scalable Architecture</li>
+            <li className="stagger">
+              <strong>Embedded Systems Integration</strong> – Seamless connection of ESP32/ESP8266, sensors, relays, and microcontrollers into a unified network.
+            </li>
+
+            <li className="stagger">
+              <strong>Cloud-Based Intelligence</strong> – Firebase-powered real-time database with secure backend synchronization.
+            </li>
+
+            <li className="stagger">
+              <strong>Real-Time Data Monitoring</strong> – Live updates for temperature, pressure, gas levels, power state, and device activity.
+            </li>
+
+            <li className="stagger">
+              <strong>Secure Remote Control</strong> – Role-based access control with encrypted cloud communication.
+            </li>
+
+            <li className="stagger">
+              <strong>Scalable Architecture</strong> – Multi-node device support enabling expansion from home automation to industrial automation.
+            </li>
+
+            <li className="stagger">
+              <strong>Event-Driven Automation</strong> – Smart alerts, conditional triggers, and real-time notification system via web and Telegram.
+            </li>
           </ul>
         </div>
       </section>
@@ -105,24 +175,78 @@ const IotMesh = () => {
       <section id="home-automation">
         <div className="container">
           <h2>Smart Home Automation</h2>
-          <p>Transform your living space with IoTMesh's comprehensive home automation features, providing convenience, security, and energy efficiency at your fingertips.</p>
+
+          <p>
+            IoTMesh transforms traditional homes into intelligent, responsive environments 
+            powered by real-time cloud connectivity and embedded control systems. 
+            From lighting automation to environmental safety monitoring, every 
+            device becomes part of a unified smart ecosystem.
+          </p>
+
+          <p>
+            Designed for reliability and scalability, IoTMesh enables seamless 
+            interaction between sensors, microcontrollers, and cloud infrastructure — 
+            giving users complete control, visibility, and automation capabilities 
+            from anywhere in the world.
+          </p>
+
           <div className="grid">
+
             <div className="card stagger">
-              <h3>Device Control</h3>
-              <p>Remote control of lights, fans, and appliances via intuitive interfaces.</p>
+              <h3>Advanced Device Control</h3>
+              <p>
+                Remotely manage lights, fans, televisions, refrigerators, and 
+                other appliances through a real-time web dashboard. 
+                Instant state synchronization ensures that every action 
+                reflects immediately across devices and users.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Telegram Integration</h3>
-              <p>Receive alerts and control devices directly through Telegram messaging.</p>
+              <h3>Telegram Command & Alert System</h3>
+              <p>
+                Receive instant alerts for gas leaks, door status, power changes, 
+                and battery levels directly on Telegram. Control devices via 
+                secure command-based messaging without opening the dashboard.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Environmental Monitoring</h3>
-              <p>Track gas levels, temperature, humidity, and power consumption in real-time.</p>
+              <h3>Environmental Intelligence</h3>
+              <p>
+                Monitor temperature, humidity, pressure, gas concentration, 
+                water levels, and power states in real time. 
+                Historical data logging enables analytics and predictive insights.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Energy Management</h3>
-              <p>Monitor battery levels and optimize energy usage for sustainable living.</p>
+              <h3>Energy & Power Management</h3>
+              <p>
+                Track battery voltage, inverter/grid switching, and 
+                energy consumption patterns. Optimize power usage 
+                through smart alerts and automated switching logic.
+              </p>
             </div>
+
+            <div className="card stagger">
+              <h3>Multi-Room & Multi-ESP Architecture</h3>
+              <p>
+                Connect multiple ESP nodes across different rooms. 
+                Each node operates independently while synchronizing 
+                securely with the central cloud database.
+              </p>
+            </div>
+
+            <div className="card stagger">
+              <h3>Event-Driven Automation</h3>
+              <p>
+                Configure automated responses such as turning on fans 
+                when temperature rises, sending alerts during gas detection, 
+                or switching power sources during outages.
+              </p>
+            </div>
+
           </div>
         </div>
       </section>
@@ -131,24 +255,79 @@ const IotMesh = () => {
       <section id="industry-automation" className="animate-on-scroll">
         <div className="container">
           <h2>Industry & Factory Automation</h2>
-          <p>IoTMesh delivers robust automation solutions for industrial environments, ensuring reliability, safety, and operational efficiency in demanding settings.</p>
+
+          <p>
+            IoTMesh extends beyond smart homes to deliver enterprise-level 
+            industrial automation solutions. Built for high-demand environments, 
+            the platform enables real-time machine monitoring, intelligent power 
+            management, predictive insights, and centralized control across 
+            large-scale operations.
+          </p>
+
+          <p>
+            With a cloud-connected distributed ESP architecture, factories can 
+            monitor production units, manage energy resources, and respond to 
+            environmental risks instantly — ensuring operational continuity, 
+            safety compliance, and maximum efficiency.
+          </p>
+
           <div className="grid">
+
             <div className="card stagger">
-              <h3>Machine Monitoring</h3>
-              <p>Real-time tracking of machine performance and power consumption.</p>
+              <h3>Industrial Machine Monitoring</h3>
+              <p>
+                Track machine performance, runtime, load conditions, 
+                temperature, vibration indicators, and power usage 
+                in real time. Identify anomalies early to reduce 
+                downtime and maintenance costs.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Grid Management</h3>
-              <p>Intelligent switching between power sources for uninterrupted operations.</p>
+              <h3>Smart Grid & Power Management</h3>
+              <p>
+                Automatically switch between grid power, inverter systems, 
+                or backup sources based on real-time availability and load. 
+                Prevent outages and optimize energy distribution.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Safety Alerts</h3>
-              <p>Environmental safety monitoring with instant alert systems.</p>
+              <h3>Safety & Compliance Monitoring</h3>
+              <p>
+                Detect hazardous gas levels, overheating systems, 
+                unauthorized access, or environmental risks. 
+                Instant alerts ensure rapid response and workplace safety.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Centralized Dashboard</h3>
-              <p>Comprehensive monitoring and control from a single, user-friendly interface.</p>
+              <h3>Centralized Control Dashboard</h3>
+              <p>
+                Manage multiple factory units from a unified cloud dashboard. 
+                Access live metrics, control devices remotely, 
+                analyze historical trends, and generate operational insights.
+              </p>
             </div>
+
+            <div className="card stagger">
+              <h3>Multi-Node Distributed Architecture</h3>
+              <p>
+                Deploy multiple ESP-based controllers across different 
+                production zones. Each node operates independently while 
+                synchronizing securely with the central database.
+              </p>
+            </div>
+
+            <div className="card stagger">
+              <h3>Predictive Maintenance & Analytics</h3>
+              <p>
+                Use historical data logging and cloud-based analytics 
+                to anticipate equipment failures, optimize workflows, 
+                and enhance long-term operational planning.
+              </p>
+            </div>
+
           </div>
         </div>
       </section>
@@ -157,40 +336,102 @@ const IotMesh = () => {
       <section id="capabilities">
         <div className="container">
           <h2>Platform Capabilities</h2>
-          <p>Discover the powerful features that make IoTMesh the ultimate IoT automation platform.</p>
+
+          <p>
+            IoTMesh is engineered as a full-stack IoT ecosystem — combining 
+            embedded hardware intelligence, cloud computing, secure data flow, 
+            and dynamic user interfaces into one unified automation platform.
+          </p>
+
+          <p>
+            Designed for scalability and flexibility, IoTMesh supports distributed 
+            device networks, real-time decision making, and customizable automation 
+            logic suitable for homes, industries, and large-scale infrastructures.
+          </p>
+
           <div className="grid">
+
             <div className="card">
-              <h3>Device Control</h3>
-              <p>Seamless management of connected devices across multiple protocols.</p>
+              <h3>Advanced Device Orchestration</h3>
+              <p>
+                Manage and control multiple ESP-based nodes across different 
+                environments with centralized configuration and real-time status updates.
+              </p>
             </div>
+
             <div className="card">
-              <h3>Real-time Monitoring</h3>
-              <p>Live data visualization and instant insights into system performance.</p>
+              <h3>Real-Time Telemetry & Monitoring</h3>
+              <p>
+                Stream live data from sensors including temperature, humidity, 
+                pressure, gas levels, voltage, and system health metrics with 
+                instant dashboard updates.
+              </p>
             </div>
+
             <div className="card">
-              <h3>Instant Alerts</h3>
-              <p>Proactive notifications for critical events and threshold breaches.</p>
+              <h3>Event-Driven Alert System</h3>
+              <p>
+                Configure threshold-based alerts and receive immediate notifications 
+                via Telegram or dashboard warnings for safety and operational events.
+              </p>
             </div>
+
             <div className="card">
-              <h3>Cloud Integration</h3>
-              <p>Secure data storage and processing in the cloud for scalability.</p>
+              <h3>Cloud-Native Architecture</h3>
+              <p>
+                Powered by Firebase cloud infrastructure for real-time database 
+                synchronization, scalable deployment, and high availability.
+              </p>
             </div>
+
             <div className="card">
-              <h3>Automation Logic</h3>
-              <p>Customizable rules and workflows for intelligent system behavior.</p>
+              <h3>Custom Automation Rules Engine</h3>
+              <p>
+                Define intelligent workflows such as auto-switching power sources, 
+                device scheduling, sensor-triggered actions, and energy optimization logic.
+              </p>
             </div>
+
             <div className="card">
-              <h3>Secure Communication</h3>
-              <p>End-to-end encryption ensuring data privacy and system integrity.</p>
+              <h3>Secure & Encrypted Communication</h3>
+              <p>
+                End-to-end encrypted communication between devices, cloud backend, 
+                and frontend interfaces ensuring data privacy and system integrity.
+              </p>
             </div>
+
             <div className="card">
-              <h3>Historical Analytics</h3>
-              <p>Comprehensive data analysis for trend identification and optimization.</p>
+              <h3>Historical Data Logging & Analytics</h3>
+              <p>
+                Maintain structured historical logs for performance tracking, 
+                trend analysis, predictive maintenance, and operational insights.
+              </p>
             </div>
+
             <div className="card">
-              <h3>Remote Access</h3>
-              <p>Access your systems from anywhere with secure remote connectivity.</p>
+              <h3>Global Remote Access</h3>
+              <p>
+                Securely access and manage your IoT ecosystem from anywhere 
+                using a responsive web dashboard with real-time synchronization.
+              </p>
             </div>
+
+            <div className="card">
+              <h3>Multi-User Role-Based Access</h3>
+              <p>
+                Support for guest and admin roles with permission-based control 
+                systems, enabling secure collaborative management.
+              </p>
+            </div>
+
+            <div className="card">
+              <h3>Modular & Expandable System Design</h3>
+              <p>
+                Easily add new devices, sensors, automation rules, and control nodes 
+                without disrupting existing infrastructure.
+              </p>
+            </div>
+
           </div>
         </div>
       </section>
@@ -199,24 +440,108 @@ const IotMesh = () => {
       <section id="portfolio">
         <div className="container">
           <h2>IoTMesh Platform Preview</h2>
-          <p>Explore the intuitive interfaces that power IoTMesh automation systems.</p>
+
+          <p>
+            Experience the powerful and intuitive interface of IoTMesh — designed 
+            to deliver clarity, control, and real-time insights across your entire 
+            IoT infrastructure.
+          </p>
+
+          <p>
+            Each module of the platform is built with performance, usability, 
+            and scalability in mind — enabling seamless interaction between 
+            embedded devices and cloud intelligence.
+          </p>
+
           <div className="portfolio-grid">
+
             <div className="portfolio-item stagger">
-              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%231a1a2e'/%3E%3Ctext x='200' y='100' text-anchor='middle' fill='%2300d4ff' font-family='Arial' font-size='24'%3EDashboard UI%3C/text%3E%3C/svg%3E" alt="Dashboard UI" />
-              <h3>Dashboard UI</h3>
+              <img 
+                src="/pictures/dashboard.png" 
+                alt="IoTMesh Dashboard Overview" 
+              />
+              <h3>Centralized Dashboard</h3>
+              <p>
+                A real-time overview of all connected ESP nodes, system health, 
+                environmental metrics, device states, and alert notifications 
+                in one unified control panel.
+              </p>
             </div>
+
             <div className="portfolio-item stagger">
-              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%231a1a2e'/%3E%3Ctext x='200' y='100' text-anchor='middle' fill='%2300d4ff' font-family='Arial' font-size='24'%3ESensor Monitoring%3C/text%3E%3C/svg%3E" alt="Sensor Monitoring" />
-              <h3>Sensor Monitoring Page</h3>
+              <img 
+                src="/pictures/sensors.png" 
+                alt="Sensor Monitoring Interface" 
+              />
+              <h3>Live Sensor Monitoring</h3>
+              <p>
+                Monitor temperature, humidity, gas levels, pressure, voltage, 
+                battery percentage, and power source status with dynamic updates 
+                synchronized directly from embedded systems.
+              </p>
             </div>
+
             <div className="portfolio-item stagger">
-              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%231a1a2e'/%3E%3Ctext x='200' y='100' text-anchor='middle' fill='%2300d4ff' font-family='Arial' font-size='24'%3EDevice Control%3C/text%3E%3C/svg%3E" alt="Device Control" />
-              <h3>Device Control Page</h3>
+              <img 
+                src="/pictures/devices1.png" 
+                alt="Device Management Interface" 
+              />
+              <h3>Device Management & Control</h3>
+              <p>
+                Remotely control relays, lighting systems, fans, appliances, 
+                and industrial switches through a secure cloud-synced interface.
+              </p>
             </div>
+
             <div className="portfolio-item stagger">
-              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%231a1a2e'/%3E%3Ctext x='200' y='100' text-anchor='middle' fill='%2300d4ff' font-family='Arial' font-size='24'%3EHistory & Analytics%3C/text%3E%3C/svg%3E" alt="History & Analytics" />
-              <h3>History & Analytics Page</h3>
+              <img 
+                src="/pictures/devices2.png" 
+                alt="Advanced Device Configuration" 
+              />
+              <h3>Advanced Device Configuration</h3>
+              <p>
+                Configure device behavior, assign ESP pins, customize controls, 
+                and manage room-wise automation dynamically for each user profile.
+              </p>
             </div>
+
+            <div className="portfolio-item stagger">
+              <img 
+                src="/pictures/alerts.png" 
+                alt="Alert System Interface" 
+              />
+              <h3>Smart Alert System</h3>
+              <p>
+                Instant alert notifications for gas leaks, power switching, 
+                door status changes, and battery thresholds — ensuring 
+                proactive safety management.
+              </p>
+            </div>
+
+            <div className="portfolio-item stagger">
+              <img 
+                src="/pictures/telegram.png" 
+                alt="Telegram Integration" 
+              />
+              <h3>Telegram Bot Integration</h3>
+              <p>
+                Control devices and receive real-time alerts directly via Telegram, 
+                enabling secure command-based automation from anywhere.
+              </p>
+            </div>
+
+            <div className="portfolio-item stagger">
+              <img 
+                src="/pictures/users.png" 
+                alt="User Management Interface" 
+              />
+              <h3>Role-Based User Management</h3>
+              <p>
+                Manage multiple users with guest and admin permissions, 
+                ensuring secure access control across different IoT environments.
+              </p>
+            </div>
+
           </div>
         </div>
       </section>
@@ -225,36 +550,114 @@ const IotMesh = () => {
       <section id="vision">
         <div className="container">
           <h2>The IoTMesh Vision</h2>
-          <p>IoTMesh is pioneering the future of IoT automation, bridging the gap between physical devices and intelligent systems. Our vision encompasses intelligent automation, AI-driven insights, scalable IoT mesh networks, and seamless integration from single homes to factory-level operations.</p>
+
+          <p>
+            IoTMesh is not just an automation platform — it is a unified 
+            intelligence layer designed to connect embedded systems, cloud 
+            computing, and real-world infrastructure into one scalable ecosystem.
+          </p>
+
+          <p>
+            Our mission is to build a secure, intelligent, and adaptive IoT 
+            framework capable of powering everything from smart homes to 
+            large-scale industrial environments — while maintaining simplicity, 
+            performance, and user control.
+          </p>
+
           <div className="grid">
+
             <div className="card stagger">
               <h3>Intelligent Automation</h3>
-              <p>AI-powered systems that learn and adapt to user behaviors and environmental conditions.</p>
+              <p>
+                Systems that go beyond simple ON/OFF control — IoTMesh is built 
+                to support rule-based automation, adaptive behaviors, and 
+                context-aware decision making powered by real-time data.
+              </p>
             </div>
+
             <div className="card stagger">
               <h3>AI-Driven Insights</h3>
-              <p>Advanced analytics providing actionable intelligence for optimized performance.</p>
+              <p>
+                Transform raw sensor data into actionable intelligence using 
+                analytics, predictive monitoring, and machine learning models 
+                for performance optimization and preventive maintenance.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Scalable IoT Mesh</h3>
-              <p>Expandable networks that grow with your needs, from home to enterprise scale.</p>
+              <h3>Scalable IoT Mesh Architecture</h3>
+              <p>
+                From a single ESP device in a room to a distributed multi-node 
+                industrial network, IoTMesh is designed to scale seamlessly 
+                without compromising stability or performance.
+              </p>
             </div>
+
             <div className="card stagger">
-              <h3>Universal Integration</h3>
-              <p>Seamless connectivity across diverse devices and platforms for unified control.</p>
+              <h3>Universal Integration Layer</h3>
+              <p>
+                Designed to integrate with diverse microcontrollers, sensors, 
+                APIs, messaging platforms like Telegram, and cloud services — 
+                creating a unified, interoperable automation ecosystem.
+              </p>
             </div>
+
           </div>
         </div>
       </section>
 
       {/* ========== Final CTA Section ======== */}
-      <section id="contact" style={{ background: "linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)" }}>
+      <section
+        id="contact"
+        style={{
+          background:
+            "linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)",
+        }}
+      >
         <div className="container" style={{ textAlign: "center" }}>
-          <h2>Build smarter systems with IoTMesh</h2>
-          <p>Join the revolution in IoT automation and unlock the potential of connected intelligence.</p>
-          <Link to="/auth" className="btn btn-primary">Login to IoTMesh</Link>
-          <a href="https://anubhavb-tech-hub.web.app/" className="btn btn-secondary">Know more about Admin</a>
-          <a href="mailto:iotmesh4123@gmail.com" className="btn btn-secondary">Get in Touch</a>
+          
+          <h2>Ready to Build Intelligent Systems?</h2>
+
+          <p>
+            Whether you're automating a smart home, developing an IoT startup,
+            or deploying industrial-grade monitoring systems — IoTMesh provides
+            the infrastructure, scalability, and intelligence you need.
+          </p>
+
+          <p style={{ maxWidth: "750px", margin: "20px auto", opacity: 0.9 }}>
+            Experience secure device control, real-time analytics, cloud
+            synchronization, and scalable automation architecture — all within
+            one unified platform.
+          </p>
+
+          <div style={{ marginTop: "30px" }}>
+            <Link to="/auth" className="btn btn-primary">
+              Access IoTMesh Platform
+            </Link>
+
+            <a
+              href="https://anubhavb-tech-hub.web.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+            >
+              Meet the Founder
+            </a>
+
+            <a
+              href="mailto:iotmesh4123@gmail.com"
+              className="btn btn-secondary"
+            >
+              Contact Us
+            </a>
+          </div>
+
+          <div style={{ marginTop: "40px", opacity: 0.7, fontSize: "0.9rem" }}>
+            <p>
+              IoTMesh © {new Date().getFullYear()} — Engineered for Intelligent Automation.
+            </p>
+          </div>
+
         </div>
       </section>
     </>
