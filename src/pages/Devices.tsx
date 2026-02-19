@@ -55,8 +55,8 @@ export default function Devices() {
   const enableNightMode = async () => {
     const updates: Partial<ControlData> = {
       nightMode: true,
-      lock: true,     // 🔒 forced
-      motion: true,   // 🚨 forced
+      lock: true,     
+      motion: true,   
     };
 
     await firebaseService.updateMultipleSwitches(updates);
