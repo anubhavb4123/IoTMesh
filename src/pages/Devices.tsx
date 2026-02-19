@@ -55,7 +55,7 @@ export default function Devices() {
   const enableNightMode = async () => {
     const updates: Partial<ControlData> = {
       nightMode: true,
-      lock: true,     
+      lock: true,      
       motion: true,   
     };
 
