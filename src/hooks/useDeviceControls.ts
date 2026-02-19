@@ -14,7 +14,7 @@ export const useDeviceControls = () => {
         setLoading(true);
         setError(null);
 
-        // Get initial data
+        // ===== Get initial data ======== //
         const initialData = await firebaseService.getControlStates();
         if (initialData) {
           setControlData(initialData);
