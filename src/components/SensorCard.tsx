@@ -34,45 +34,64 @@ export const SensorCard = ({
   };
 
   return (
-    <Card 
+  <Card
+    className={cn(
+      "relative overflow-hidden border-border/40 bg-card/40",
+      statusGlow[status]
+    )}
+  >
+    {/* LEFT STATUS BAR */}
+    <div
       className={cn(
-        "border-border/40 bg-card/40 relative overflow-hidden",
-        statusGlow[status]
+        "absolute left-0 top-0 h-full w-1 animate-pulse-glow",
+        status === "cold" && "battery-cold",
+        status === "ok" && "battery-ok",
+        status === "warning" && "battery-warning",
+        status === "alert" && "battery-critical"
       )}
-    >
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className={cn(
-            "p-3 rounded-xl bg-secondary/50 backdrop-blur-sm",
-            statusColors[status]
-          )}>
-            <Icon className="h-6 w-6" />
-          </div>
-          <div className={cn(
-            "h-10 w-1 rounded-full animate-pulse-glow",
-            status === 'cold' && "battery-cold",
-            status === 'ok' && "battery-ok",
-            status === 'warning' && "battery-warning",
-            status === 'alert' && "battery-critical"
-          )} />
-        </div>
-        
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-foreground">
-              {typeof value === "number" ? Number(value).toFixed(1) : (value ?? "0")}
+    />
+
+    {/* ICON placed at top-right aligned with line */}
+    <div className="absolute top-4 right-4 z-10">
+      <div
+        className={cn(
+          "p-2 rounded-xl bg-secondary/50 backdrop-blur-sm",
+          statusColors[status]
+        )}
+      >
+        <Icon className="h-6 w-6" />
+      </div>
+    </div>
+
+    <div className="p-10 pr-10">
+      <div className="space-y-1">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          {title}
+        </h3>
+
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-bold text-foreground">
+            {typeof value === "number"
+              ? Number(value).toFixed(1)
+              : value ?? "0"}
+          </span>
+          {unit && (
+            <span className="text-lg text-muted-foreground">
+              {unit}
             </span>
-            {unit && <span className="text-lg text-muted-foreground">{unit}</span>}
-          </div>
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
           )}
         </div>
+
+        {description && (
+          <p className="text-xs text-muted-foreground">
+            {description}
+          </p>
+        )}
       </div>
-      
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-    </Card>
-  );
+    </div>
+
+    {/* Gradient overlay */}
+    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+  </Card>
+);
 };
