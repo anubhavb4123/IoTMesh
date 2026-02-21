@@ -348,3 +348,11 @@ All colors MUST be HSL.
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
 }
+@keyframes logoGlow {
+  0%, 100% { filter: drop-shadow(0 0 10px #00e5ff); }
+  50% { filter: drop-shadow(0 0 30px #00ffff); }
+}
+
+.animate-logo-glow {
+  animation: logoGlow 1.8s ease-in-out infinite;
+}
