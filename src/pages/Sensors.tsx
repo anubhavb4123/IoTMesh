@@ -173,7 +173,7 @@ export default function Sensors() {
           </Card>
         </div>
 
-        {/*================ HISTORY GRAPH ===========*/}
+        {/* HISTORY GRAPH */}
         <Card className="border-border/40 bg-card/40 p-6">
           <h2 className="text-xl font-semibold mb-4">Historical Data</h2>
 
