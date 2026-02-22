@@ -44,7 +44,7 @@ const IotMesh = () => {
         </div>
       </section>
 
-      {/* Explore IoTMesh Platform Section */}
+      {/* ========= Explore IoTMesh Platform Section======= */}
       <section id="explore">
         <div className="container">
           <h2>Explore IoTMesh Platform</h2>
