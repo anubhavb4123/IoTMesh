@@ -96,7 +96,7 @@ export default function Devices() {
               type="button"
             />
 
-            {/* 2️⃣ NIGHT MODE */}
+            {/* =======2️⃣ NIGHT MODE =====*/}
             <DeviceControl
               title="Night Mode"
               icon={Lock}
