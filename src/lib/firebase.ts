@@ -44,9 +44,7 @@ const PATHS = {
   ALERTS: "home/room1/alerts/logs"
 } as const;
 
-// ------------------------------------------------------
 // INTERFACES
-// ------------------------------------------------------
 export interface SensorData {
   temperature: number;
   humidity: number;
