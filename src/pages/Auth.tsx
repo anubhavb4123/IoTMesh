@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { database } from "@/lib/firebase";
 import { ref, push } from "firebase/database";
 
-// ================= PASSWORDS =================
+// PASSWORDS
 const GUEST_PASSWORD = "1111";
 const ADMIN_PASSWORD = "4123";
 
