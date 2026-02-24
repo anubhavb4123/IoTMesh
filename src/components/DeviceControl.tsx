@@ -12,7 +12,7 @@ interface DeviceControlProps {
   type?: 'switch' | 'button';
   disabled?: boolean;
 }
-
+// A reusable component for controlling a device (light, fan, relay) with a nice UI
 export const DeviceControl = ({
   title,
   icon: Icon,
