@@ -14,7 +14,7 @@ export function ProtectedRoute({
 
   const user = localStorage.getItem("mock_user");
 
-  // ❌ Not logged in
+  // Not logged in
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
