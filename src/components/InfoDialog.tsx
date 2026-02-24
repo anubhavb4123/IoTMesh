@@ -72,7 +72,7 @@ export default function InfoDialog() {
                 </p>
               </section>
 
-              {/*  LINKS */}
+              {/* ==== LINKS ====*/}
               <section>
                 <h3 className="font-semibold text-foreground mb-2">
                   🔗 Links & Contact
