@@ -9,7 +9,7 @@ export default function Footer() {
 
       <div className="relative max-w-7xl mx-auto px-6 py-7 grid gap-8 md:grid-cols-3 items-center text-sm text-muted-foreground">
 
-        {/* LEFT */}
+        {/*====== LEFT ======*/}
         <div className="space-y-1 text-center md:text-left">
           <p className="text-base font-semibold text-foreground tracking-wide">
             IoTMesh
