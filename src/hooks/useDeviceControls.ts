@@ -20,7 +20,6 @@ export const useDeviceControls = () => {
           setControlData(initialData);
         }
 
-        // Set up real-time listener
         unsubscribe = firebaseService.listenToControlStates((data) => {
           setControlData(data);
         });
