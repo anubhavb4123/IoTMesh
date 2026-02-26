@@ -163,7 +163,7 @@ const handleAdminOnlyClick = (itemName: string) => {
           </nav>
         </div>
       </aside>
-      {/* MOBILE HEADER */}
+      {/* ======= MOBILE HEADER ======= */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-card/80 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-lg font-bold bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
