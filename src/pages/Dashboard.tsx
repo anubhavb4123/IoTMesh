@@ -124,7 +124,7 @@ export default function Dashboard() {
     }
 
     const now = Date.now();
-    setSensorOnline(now - lastMs <= 120_000); 
+    setSensorOnline(now - lastMs <= 120_000); // ✅ 2 minutes threshold
   };
 
   checkStatus();                 
