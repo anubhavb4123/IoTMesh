@@ -90,7 +90,7 @@ export const SensorCard = ({
       </div>
     </div>
 
-    {/*============ Gradient overlay =========*/}
+    {/* Gradient overlay */}
     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
   </Card>
 );
