@@ -1,5 +1,5 @@
 import type { Config } from "tailwindcss";
-
+/// use `npx tailwindcss -i ./src/styles/globals.css -o ./dist/output.css --watch` to build the css
 export default {
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
