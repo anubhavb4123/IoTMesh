@@ -40,7 +40,7 @@ export const SensorCard = ({
       statusGlow[status]
     )}
   >
-    {/* LEFT STATUS BAR */}
+    {/* =====LEFT STATUS BAR =======*/}
     <div
       className={cn(
         "absolute left-0 top-0 h-full w-1 animate-pulse-glow",
