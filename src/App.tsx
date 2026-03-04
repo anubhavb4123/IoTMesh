@@ -14,6 +14,7 @@ import Users from "./pages/Users";
 import Telegram from "./pages/Telegram";
 import NotFound from "./pages/NotFound";
 import IotMesh from "./pages/IotMeshA";
+import Ignition from "@/pages/IgnitionControl";
 
 const queryClient = new QueryClient();
 
@@ -73,11 +74,21 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
+
                 <Route
                   path="/users"
                   element={
                     <ProtectedRoute adminOnly>
                       <Users />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/ignition"
+                  element={
+                    <ProtectedRoute adminOnly>
+                      <Ignition />
                     </ProtectedRoute>
                   }
                 />
