@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   X,
+  Flame,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -29,6 +30,7 @@ const allNavigation = [
   { name: "Alerts", href: "/alerts", icon: Bell },
   { name: "Telegram", href: "/telegram", icon: MessageSquare },
   { name: "Users", href: "/users", icon: Users },
+  { name: "Ignition", href: "/ignition", icon: Flame }, 
 ];
 
 export const Layout = ({ children }: LayoutProps) => {
