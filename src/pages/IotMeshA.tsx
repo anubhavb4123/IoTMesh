@@ -171,7 +171,7 @@ const IotMesh = () => {
         </div>
       </section>
 
-      {/* Home Automation Section */}
+      {/* ==== Home Automation Section==== */}
       <section id="home-automation">
         <div className="container">
           <h2>Smart Home Automation</h2>
