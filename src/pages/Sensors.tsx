@@ -2,19 +2,11 @@ import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from "recharts";
-
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useSensorData } from "@/hooks/useSensorData";
 import { database } from "@/lib/firebase";
 import { ref, onValue } from "firebase/database";
+import { TooltipProps } from "recharts";
 
 interface HistoryPoint {
   timestamp: number;
@@ -26,25 +18,12 @@ interface HistoryPoint {
   time: string;
 }
 
-// ================= CUSTOM TOOLTIP =================
-import { TooltipProps } from "recharts";
-
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: TooltipProps<number, string>) => {
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (!active || !payload || !payload.length) return null;
-
   return (
     <div className="rounded-lg bg-black/80 px-3 py-2 text-white text-sm border border-white/20">
       <p className="font-semibold">🕒 {label}</p>
-      <p>
-        {payload[0].name}:{" "}
-        <span className="font-bold">
-          {payload[0].value}
-        </span>
-      </p>
+      <p>{payload[0].name}: <span className="font-bold">{payload[0].value}</span></p>
     </div>
   );
 };
@@ -53,148 +32,86 @@ export default function Sensors() {
   const { sensorData, loading, error } = useSensorData();
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [range, setRange] = useState<1 | 12 | 24>(24);
-  const [selectedMetric, setSelectedMetric] =
-    useState<"temperature" | "humidity" | "gas" | "pressure" | "waterLevel">(
-      "temperature"
-    );
+  const [selectedMetric, setSelectedMetric] = useState<"temperature" | "humidity" | "gas" | "pressure" | "waterLevel">("temperature");
 
-  // ================= LOAD HISTORY =================
   useEffect(() => {
     const historyRef = ref(database, "home/room1/history/h24");
-
     const unsubscribe = onValue(historyRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        setHistory([]);
-        return;
-      }
-
+      if (!snapshot.exists()) { setHistory([]); return; }
       const raw = snapshot.val();
-
-      const arr: HistoryPoint[] = Object.entries(raw).map(
-        ([_, item]: any) => {
-          // ⭐ FIX: Normalize timestamp (sec → ms)
-          const ts =
-            item.timestamp < 1e12
-              ? item.timestamp * 1000
-              : item.timestamp;
-
-          return {
-            timestamp: ts,
-            temperature: item.temperature ?? 0,
-            humidity: item.humidity ?? 0,
-            gas: item.gas ?? 0,
-            pressure: item.pressure ?? 0,
-            waterLevel: item.waterLevel ?? 0,
-            time: new Date(ts).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          };
-        }
-      );
-
-      // Sort oldest → newest
+      const arr: HistoryPoint[] = Object.entries(raw).map(([_, item]: any) => {
+        const ts = item.timestamp < 1e12 ? item.timestamp * 1000 : item.timestamp;
+        return {
+          timestamp: ts,
+          temperature: item.temperature ?? 0,
+          humidity: item.humidity ?? 0,
+          gas: item.gas ?? 0,
+          pressure: item.pressure ?? 0,
+          waterLevel: item.waterLevel ?? 0,
+          time: new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+        };
+      });
       arr.sort((a, b) => a.timestamp - b.timestamp);
       setHistory(arr);
     });
-
     return () => unsubscribe();
   }, []);
 
-  // ================= RANGE FILTER =================
   const now = Date.now();
-  const filteredHistory = history.filter(
-    (item) => now - item.timestamp <= range * 60 * 60 * 1000
-  );
+  const filteredHistory = history.filter((item) => now - item.timestamp <= range * 60 * 60 * 1000);
 
-  const colors = {
-    temperature: "#ef4444",
-    humidity: "#3b82f6",
-    gas: "#10b981",
-    pressure: "#f59e0b",
-    waterLevel: "#6366f1"
-  };
+  const colors = { temperature: "#ef4444", humidity: "#3b82f6", gas: "#10b981", pressure: "#f59e0b", waterLevel: "#6366f1" };
 
-  if (loading) {
-    return (
-      <Layout>
-        <p>Loading sensor data...</p>
-      </Layout>
-    );
-  }
+  const sensorCards = [
+    { label: "Temperature", value: `${sensorData?.temperature.toFixed(1)}°C` },
+    { label: "Humidity",    value: `${sensorData?.humidity.toFixed(1)}%` },
+    { label: "Air Quality", value: `${sensorData?.gas.toFixed(0)} PPM` },
+    { label: "Pressure",    value: `${(sensorData?.pressure ?? 0).toFixed(0)} hPa` },
+    { label: "Water Level", value: `${(sensorData?.WaterLevel ?? 0).toFixed(0)} cm` },
+  ];
 
-  if (error) {
-    return (
-      <Layout>
-        <p className="text-red-500">Error: {error}</p>
-      </Layout>
-    );
-  }
+  if (loading) return <Layout><p className="text-muted-foreground animate-pulse">Loading sensor data...</p></Layout>;
+  if (error)   return <Layout><p className="text-red-500">Error: {error}</p></Layout>;
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-6" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
 
-        {/* CURRENT SENSOR CARDS */}
+        {/* Current sensor cards */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="border-border/40 bg-card/40 p-6">
-            <h2>Temperature</h2>
-            <p className="text-4xl font-bold text-primary">
-              {sensorData?.temperature.toFixed(1)}°C
-            </p>
-          </Card>
-
-          <Card className="border-border/40 bg-card/40 p-6">
-            <h2>Humidity</h2>
-            <p className="text-4xl font-bold text-primary">
-              {sensorData?.humidity.toFixed(1)}%
-            </p>
-          </Card>
-
-          <Card className="border-border/40 bg-card/40 p-6">
-            <h2>Air Quality</h2>
-            <p className="text-4xl font-bold text-primary">
-              {sensorData?.gas.toFixed(0)} PPM
-            </p>
-          </Card>
-
-          <Card className="border-border/40 bg-card/40 p-6">
-            <h2>Pressure</h2>
-            <p className="text-4xl font-bold text-primary">
-              {(sensorData?.pressure ?? 0).toFixed(0)} hPa
-            </p>
-          </Card>
-
-          <Card className="border-border/40 bg-card/40 p-6">
-            <h2>Water Level</h2>
-            <p className="text-4xl font-bold text-primary">
-              {(sensorData?.WaterLevel ?? 0).toFixed(0)} cm
-            </p>
-          </Card>
+          {sensorCards.map((s, i) => (
+            <Card
+              key={s.label}
+              className="border-border/40 bg-card/40 p-6 hover:border-border/70 transition-all duration-300 hover:scale-[1.02]"
+              style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${i * 0.07}s` }}
+            >
+              <h2 className="text-sm text-muted-foreground mb-1">{s.label}</h2>
+              <p className="text-4xl font-bold text-primary">{s.value}</p>
+            </Card>
+          ))}
         </div>
 
-        {/* HISTORY GRAPH */}
-        <Card className="border-border/40 bg-card/40 p-6">
+        {/* History graph */}
+        <Card
+          className="border-border/40 bg-card/40 p-6"
+          style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.35s" }}
+        >
           <h2 className="text-xl font-semibold mb-4">Historical Data</h2>
 
-          <div className="flex gap-2 mb-4">
-            <Button variant={range === 1 ? "default" : "outline"} onClick={() => setRange(1)}>
-              Last 1 Hr
-            </Button>
-            <Button variant={range === 12 ? "default" : "outline"} onClick={() => setRange(12)}>
-              Last 12 Hr
-            </Button>
-            <Button variant={range === 24 ? "default" : "outline"} onClick={() => setRange(24)}>
-              Last 24 Hr
-            </Button>
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {([1, 12, 24] as const).map((r) => (
+              <Button key={r} variant={range === r ? "default" : "outline"} onClick={() => setRange(r)}>
+                Last {r} Hr
+              </Button>
+            ))}
           </div>
 
-          <div className="flex gap-2 mb-6">
-            <Button variant={selectedMetric === "temperature" ? "default" : "outline"} onClick={() => setSelectedMetric("temperature")}>Temperature</Button>
-            <Button variant={selectedMetric === "humidity" ? "default" : "outline"} onClick={() => setSelectedMetric("humidity")}>Humidity</Button>
-            <Button variant={selectedMetric === "gas" ? "default" : "outline"} onClick={() => setSelectedMetric("gas")}>Gas</Button>
-            <Button variant={selectedMetric === "pressure" ? "default" : "outline"} onClick={() => setSelectedMetric("pressure")}>Pressure</Button>
-            <Button variant={selectedMetric === "waterLevel" ? "default" : "outline"} onClick={() => setSelectedMetric("waterLevel")}>Water Level</Button>
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {(["temperature", "humidity", "gas", "pressure", "waterLevel"] as const).map((m) => (
+              <Button key={m} variant={selectedMetric === m ? "default" : "outline"} onClick={() => setSelectedMetric(m)}>
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </Button>
+            ))}
           </div>
 
           <div className="h-80">
@@ -204,18 +121,19 @@ export default function Sensors() {
                 <XAxis dataKey="time" />
                 <YAxis />
                 <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey={selectedMetric}
-                  stroke={colors[selectedMetric]}
-                  strokeWidth={2}
-                  dot={false}
-                />
+                <Line type="monotone" dataKey={selectedMetric} stroke={colors[selectedMetric]} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
       </div>
+
+      <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </Layout>
   );
 }
