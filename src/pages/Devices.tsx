@@ -7,6 +7,7 @@ import { firebaseService } from "@/lib/firebase";
 import { toast } from "sonner";
 import { ControlData } from "@/lib/firebase";
 import { sounds } from "@/lib/sounds";
+import { haptic } from "@/lib/haptic";
 
 export default function Devices() {
   const [controls, setControls] = useState<ControlData>({} as ControlData);
@@ -21,6 +22,7 @@ export default function Devices() {
   const update = async (key: keyof ControlData, value: boolean) => {
     if (nightMode && (key === "lock" || key === "motion")) {
       sounds.error();
+      haptic.error();
       toast.error("Security is locked in Night Mode");
       return;
     }
@@ -42,6 +44,7 @@ export default function Devices() {
     ALL_NON_SECURITY.forEach((k) => (updates[k] = false));
     await firebaseService.updateMultipleSwitches(updates);
     sounds.success();
+    haptic.heavy();
     toast.success("All devices OFF (Security unchanged)");
   };
 
@@ -49,18 +52,21 @@ export default function Devices() {
     await firebaseService.updateMultipleSwitches({ nightMode: true, lock: true, motion: true });
     toast.success("Night Mode Activated 🌙");
     sounds.success();
+    haptic.medium();
   };
 
   const disableNightMode = async () => {
     await firebaseService.updateMultipleSwitches({ nightMode: false, lock: false, motion: false });
     toast.success("Night Mode OFF → Day Mode Active ☀️");
     sounds.success();
+    haptic.medium();
   };
 
   const activateDayMode = async () => {
     if (nightMode) { toast.error("Disable Night Mode first"); return; }
     toast.success("Day Mode Active ☀️");
     sounds.success();
+    haptic.medium();
   };
 
   return (
