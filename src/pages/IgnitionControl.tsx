@@ -8,23 +8,10 @@ import { Layout } from "@/components/Layout";
 import { ShieldAlert, Zap, AlertTriangle, Lock, LockOpen, KeyRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
-
-// ── Haptic feedback — silently ignored on desktop ──
-const haptic = {
-  light:    () => navigator.vibrate?.(50),
-  medium:   () => navigator.vibrate?.(100),
-  heavy:    () => navigator.vibrate?.(200),
-  armed:    () => navigator.vibrate?.([80, 40, 80, 40, 80]),
-  disarmed: () => navigator.vibrate?.(150),
-  wrong:    () => navigator.vibrate?.([100, 50, 100]),
-  fire:     () => navigator.vibrate?.([300, 100, 300]),
-  complete: () => navigator.vibrate?.(400),
-  tick:     () => navigator.vibrate?.(30),
-  countdown:(r: number) => navigator.vibrate?.(r === 1 ? 120 : 60),
-};
+import { haptic } from "@/lib/haptic";
 
 // ── Arm password — change this to whatever you want ──
-const ARM_PASSWORD = "2244";
+const ARM_PASSWORD = import.meta.env.VITE_ARM_PASSWORD;
 
 export default function IgnitionControl() {
   const { role } = useAuth();
