@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { sounds } from "@/lib/sounds";
+import { haptic } from "@/lib/haptic";
 
 // ── Scroll-reveal hook ──
 function useInView(threshold = 0.15) {
@@ -54,9 +56,29 @@ function CtaSection() {
         <h2>Ready to Build <span style={{ color: "var(--cyan)" }}>Intelligent Systems?</span></h2>
         <p>Whether automating a smart home, developing an IoT startup, or deploying industrial-grade monitoring — IoTMesh provides the infrastructure, scalability, and intelligence you need.</p>
         <div className="hero-btns">
-          <Link to="/auth" className="btn-primary">Access IoTMesh Platform</Link>
-          <a href="https://anubhavb-tech-hub.web.app/" target="_blank" rel="noopener noreferrer" className="btn-secondary">Meet the Founder</a>
-          <a href="mailto:iotmesh4123@gmail.com" className="btn-secondary">Contact Us</a>
+          <Link
+            to="/auth"
+            className="btn-primary"
+            onClick={() => { sounds.click(); haptic.click(); }}
+          >
+            Access IoTMesh Platform
+          </Link>
+          <a
+            href="https://anubhavb-tech-hub.web.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            onClick={() => { sounds.click(); haptic.click(); }}
+          >
+            Meet the Founder
+          </a>
+          <a
+            href="mailto:iotmesh4123@gmail.com"
+            className="btn-secondary"
+            onClick={() => { sounds.click(); haptic.click(); }}
+          >
+            Contact Us
+          </a>
         </div>
       </div>
     </div>
@@ -588,7 +610,7 @@ const IotMesh = () => {
             <a href="#industry-automation">Industry</a>
             <a href="#contact">Contact</a>
           </div>
-          <Link to="/auth" className="nav-links" style={{ display: "flex" }}>
+          <Link to="/auth" className="nav-links" style={{ display: "flex" }} onClick={() => { sounds.click(); haptic.click(); }}>
             <a className="nav-cta">Launch App</a>
           </Link>
         </nav>
@@ -610,8 +632,8 @@ const IotMesh = () => {
               SECURE · SCALABLE · REAL-TIME · BUILT FOR THE FUTURE
             </p>
             <div className="hero-btns">
-              <Link to="/auth" className="btn-primary">Access IoTMesh Platform</Link>
-              <a href="#explore" className="btn-secondary">Explore Solutions</a>
+              <Link to="/auth" className="btn-primary" onClick={() => { sounds.click(); haptic.click(); }}>Access IoTMesh Platform</Link>
+              <a href="#explore" className="btn-secondary" onClick={() => { sounds.click(); haptic.click(); }}>Explore Solutions</a>
             </div>
             <div className="hero-badges">
               <span className="hero-badge">Real-Time Monitoring</span>
