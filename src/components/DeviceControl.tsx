@@ -3,6 +3,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { sounds } from "@/lib/sounds";
+import { haptic } from "@/lib/haptic";
 
 interface DeviceControlProps {
   title: string;
@@ -12,7 +14,7 @@ interface DeviceControlProps {
   type?: 'switch' | 'button';
   disabled?: boolean;
 }
-// =A reusable component for controlling a device (light, fan, relay) with a nice UI
+
 export const DeviceControl = ({
   title,
   icon: Icon,
@@ -21,9 +23,17 @@ export const DeviceControl = ({
   type = 'switch',
   disabled = false
 }: DeviceControlProps) => {
+
+  const handleToggle = (newState: boolean) => {
+    newState ? sounds.toggleOn() : sounds.toggleOff();
+    onToggle(newState);
+    haptic.light();
+  };
+
   return (
     <Card className={cn(
-      "border-border/50 bg-card/10 ",
+      "relative border-border/50 bg-card/10",
+      "transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5",
       isActive && "border-primary/70 shadow-[0_0_30px_hsl(var(--primary)/0.2)]"
     )}>
       <div className="p-6">
@@ -31,44 +41,43 @@ export const DeviceControl = ({
           <div className="flex items-center gap-4">
             <div className={cn(
               "p-3 rounded-xl transition-all duration-300",
-              isActive 
-                ? "bg-primary text-primary-foreground shadow-[0_0_15px_hsl(var(--primary)/0.5)]" 
+              isActive
+                ? "bg-primary text-primary-foreground shadow-[0_0_15px_hsl(var(--primary)/0.5)] scale-110"
                 : "bg-secondary text-secondary-foreground"
             )}>
-              <Icon className="h-6 w-6" />
+              <Icon className={cn("h-6 w-6 transition-transform duration-300", isActive && "rotate-[360deg]")} />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">{title}</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className={cn(
+                "text-sm transition-colors duration-300",
+                isActive ? "text-primary" : "text-muted-foreground"
+              )}>
                 {isActive ? 'Active' : 'Inactive'}
               </p>
             </div>
           </div>
-          
+
           {type === 'switch' ? (
             <Switch
               checked={isActive}
-              onCheckedChange={onToggle}
+              onCheckedChange={handleToggle}
               disabled={disabled}
               className="data-[state=checked]:bg-primary"
             />
           ) : (
             <Button
-              onClick={() => onToggle(!isActive)}
+              onClick={() => handleToggle(!isActive)}
               disabled={disabled}
               variant={isActive ? "default" : "secondary"}
               size="sm"
+              className="transition-transform duration-150 active:scale-95"
             >
               {isActive ? 'Turn Off' : 'Turn On'}
             </Button>
           )}
         </div>
       </div>
-      
-      {/* Active indicator line */}
-      {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/0 via-primary to-primary/0" />
-      )}
     </Card>
   );
 };
