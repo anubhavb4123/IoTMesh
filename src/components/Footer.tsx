@@ -1,87 +1,66 @@
-import { Github, Instagram, Mail, Globe } from "lucide-react";
+import { Github, Instagram, Mail, Globe, Cpu } from "lucide-react";
+
+const socialLinks = [
+  { href: "https://anubhavb-tech-hub.web.app/",   label: "Website",   Icon: Globe },
+  { href: "https://github.com/anubhavb4123",       label: "GitHub",    Icon: Github },
+  { href: "https://www.instagram.com/anubhhhav_b_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==", label: "Instagram", Icon: Instagram },
+  { href: "mailto:anubhavb4123@gmail.com",         label: "Email",     Icon: Mail },
+];
 
 export default function Footer() {
   return (
-    <footer className="relative mt-12 rounded-2xl border border-border/40 bg-gradient-to-br from-card/30 via-card/20 to-card/10 backdrop-blur-xl shadow-xl overflow-hidden">
+    <footer
+      className="relative mt-8 overflow-hidden"
+      style={{ animation: "fadeSlideIn 0.5s ease both", animationDelay: "0.3s" }}
+    >
+      {/* Top cyan line */}
+      <div className="h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
 
-      {/* subtle animated glow background */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_120%,rgba(56,189,248,0.15),transparent_70%)]" />
+      <div className="relative bg-card/30 backdrop-blur-md border border-t-0 border-border/25 rounded-b-xl px-5 py-3">
 
-      <div className="relative max-w-7xl mx-auto px-6 py-7 grid gap-8 md:grid-cols-3 items-center text-sm text-muted-foreground">
+        {/* Faint bottom glow */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-10 bg-cyan-400/10 blur-2xl pointer-events-none" />
 
-        {/*====== LEFT ======*/}
-        <div className="space-y-1 text-center md:text-left">
-          <p className="text-base font-semibold text-foreground tracking-wide">
-            IoTMesh
-          </p>
-          <p>Smart home automation & monitoring</p>
-          <p>Real-time control • Alerts • Analytics</p>
-        </div>
+        <div className="relative flex flex-col sm:flex-row items-center justify-between gap-3">
 
-        {/* CENTER ICONS */}
-        <div className="flex justify-center gap-6">
-          {[
-            {
-              href: "https://anubhavb-tech-hub.web.app/",
-              label: "Website",
-              Icon: Globe,
-            },
-            {
-              href: "https://github.com/anubhavb4123",
-              label: "GitHub",
-              Icon: Github,
-            },
-            {
-              href: "https://www.instagram.com/anubhhhav_b_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
-              label: "Instagram",
-              Icon: Instagram,
-            },
-            {
-              href: "mailto:anubhavb4123@gmail.com",
-              label: "Email",
-              Icon: Mail,
-            },
-          ].map(({ href, label, Icon }) => (
-            <a
-              key={label}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={label}
-              className="
-                group relative p-3 rounded-full
-                border border-border/40
-                bg-background/40
-                transition-all duration-300
-                hover:-translate-y-1
-                hover:border-primary
-              "
-            >
-              {/* glow ring */}
-              <span className="
-                absolute inset-0 rounded-full
-                opacity-0 group-hover:opacity-100
-                transition duration-300
-                bg-[radial-gradient(circle,rgba(56,189,248,0.35),transparent_60%)]
-              " />
-              <Icon className="relative h-5 w-5 group-hover:text-primary transition" />
-            </a>
-          ))}
-        </div>
-
-        {/* RIGHT */}
-        <div className="space-y-1 text-center md:text-right">
-          <p>
-            Built by{" "}
-            <span className="font-semibold text-foreground">
-              Anubhav Bajpai
+          {/* Left — brand */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex items-center justify-center w-6 h-6 rounded-md border border-cyan-400/30 bg-cyan-400/10">
+              <Cpu className="h-3 w-3 text-cyan-400" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            </div>
+            <span className="text-xs font-bold tracking-widest text-foreground/80 uppercase">
+              I<span className="glow-o">O</span>TMesh
             </span>
-          </p>
-          <p className="text-xs tracking-wide">
-            B.Tech IT • IoT • Full-Stack Web
-          </p>
-        </div>
+            <span className="text-[9px] text-muted-foreground/50 tracking-wider">v05.03.26 TSXR</span>
+          </div>
 
+          {/* Center — social icons */}
+          <div className="flex items-center gap-2">
+            {socialLinks.map(({ href, label, Icon }, i) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${0.4 + i * 0.06}s` }}
+                className="group w-7 h-7 flex items-center justify-center rounded-lg border border-border/30 bg-background/30 hover:border-cyan-400/50 hover:bg-cyan-400/10 hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <Icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-cyan-400 transition-colors duration-200" />
+              </a>
+            ))}
+          </div>
+
+          {/* Right — author */}
+          <p className="text-[11px] text-muted-foreground/60 tracking-wide">
+            Built by{" "}
+            <span className="text-foreground/70 font-medium">Anubhav Bajpai</span>
+            {" · "}
+            <span className="text-muted-foreground/40">© {new Date().getFullYear()}</span>
+          </p>
+
+        </div>
       </div>
     </footer>
   );
