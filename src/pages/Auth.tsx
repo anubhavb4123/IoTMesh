@@ -11,10 +11,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { database } from "@/lib/firebase";
 import { ref, push } from "firebase/database";
 import { sounds } from "@/lib/sounds";
+import { haptic } from "@/lib/haptic";
 
-// PASSWORDS
-const GUEST_PASSWORD = "1111";
-const ADMIN_PASSWORD = "4123";
+// PASSWORDS — stored in .env as VITE_GUEST_PASSWORD and VITE_ADMIN_PASSWORD
+const GUEST_PASSWORD = import.meta.env.VITE_GUEST_PASSWORD;
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -72,15 +73,18 @@ export default function Auth() {
     e.preventDefault();
     if (!name.trim()) {
       sounds.error();
+      haptic.warning();
       toast.error("Enter your name", { className: "toast-admin-warning" });
       return;
     }
     if (password !== GUEST_PASSWORD) {
       sounds.wrongPass();
+      haptic.error();
       toast.error("Incorrect login password", { className: "toast-admin-warning" });
       return;
     }
     sounds.success();
+    haptic.success();
     toast.success("Login password correct", { className: "toast-success" });
     setStep("admin_password");
   };
@@ -92,10 +96,12 @@ export default function Auth() {
       setRole("admin");
       saveLoginToFirebase("admin");
       sounds.loginSuccess();
+      haptic.success();
       toast.success("Logged in as Admin", { className: "toast-success" });
       navigate("/dashboard");
     } else {
       sounds.wrongPass();
+      haptic.error();
       toast.error("Wrong admin password", { className: "toast-admin-warning" });
     }
   };
@@ -106,6 +112,7 @@ export default function Auth() {
     setRole("guest");
     saveLoginToFirebase("guest");
     sounds.loginSuccess();
+    haptic.success();
     toast.success("Logged in as Guest", { className: "toast-success" });
     navigate("/dashboard");
   };
@@ -249,7 +256,7 @@ export default function Auth() {
       >
         <div className="text-center text-xs text-white/80 py-2 backdrop-blur-md">
           <span className="font-medium">IoTMesh</span> ·
-          <span className="mx-1">v16.01.26 ZUX</span> ·
+          <span className="mx-1">v05.03.26 TSXR</span> ·
           <span>© {new Date().getFullYear()} IoTMesh. All rights reserved.</span>
         </div>
       </div>
