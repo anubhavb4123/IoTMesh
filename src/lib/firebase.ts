@@ -41,7 +41,8 @@ const PATHS = {
   CONTROLS: "home/room1/controls",
   STATUS: "home/room1/status",
   USERS: "users",
-  ALERTS: "home/room1/alerts/logs"
+  ALERTS: "home/room1/alerts/logs",
+  IGNITION: "special/ignition",
 } as const;
 
 // INTERFACES
@@ -196,6 +197,15 @@ class FirebaseService {
   updateMultipleSwitches(updates: Partial<ControlData>) {
     return update(ref(database, CONTROL_PATH), updates);
   }
+  // ── Ignition ──
+  triggerIgnition() {
+    return set(ref(database, PATHS.IGNITION), 1);
+  }
+
+  resetIgnition() {
+    return set(ref(database, PATHS.IGNITION), 0);
+  }
+
   async updateDeviceStatus(online: boolean) {
     await set(ref(database, PATHS.STATUS), {
       online,
