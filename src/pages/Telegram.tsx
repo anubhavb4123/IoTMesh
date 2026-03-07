@@ -9,6 +9,7 @@ import { MessageSquare, Bot } from "lucide-react";
 import { database } from "@/lib/firebase";
 import { ref, set, onValue } from "firebase/database";
 import { sounds } from "@/lib/sounds";
+import { haptic } from "@/lib/haptic";
 
 export default function Telegram() {
   const [name, setName] = useState("");
@@ -24,6 +25,7 @@ export default function Telegram() {
         await set(metaRef, index + 1);
         toast.success("Subscriber saved!");
         sounds.loginSuccess();
+        haptic.success();
         setName("");
         setChatId("");
       }, { onlyOnce: true });
@@ -31,6 +33,7 @@ export default function Telegram() {
       console.error(err);
       toast.error("Failed to save subscriber");
       sounds.wrongPass();
+      haptic.error();
     }
   };
 
