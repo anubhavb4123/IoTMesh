@@ -9,6 +9,7 @@ import { ref, onValue, remove } from "firebase/database";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { sounds } from "@/lib/sounds";
+import { haptic } from "@/lib/haptic";
 
 interface UserProfile { id: string; name: string; role: string; timestamp: number; }
 interface TelegramSubscriber { id: string; name: string; chatId: string; createdAt: number; }
@@ -45,11 +46,12 @@ export default function Users() {
   }, []);
 
   const deleteUser = async (id: string) => {
-    if (currentUserRole !== "admin") { toast.error("Only admin can delete users!"); sounds.error(); return; }
+    if (currentUserRole !== "admin") { toast.error("Only admin can delete users!"); haptic.error(); sounds.error(); return; }
     if (!window.confirm("Delete this user? This cannot be undone.")) return;
     await remove(ref(database, `home/users/${id}`));
     toast.success("User deleted");
     sounds.delete();
+    haptic.medium();
   };
 
   const deleteSubscriber = async (id: string) => {
@@ -58,6 +60,7 @@ export default function Users() {
     await remove(ref(database, `telegram/subscribers/list/${id}`));
     toast.success("Subscriber removed");
     sounds.delete();
+    haptic.medium();
   };
 
   const getRoleBadge = (role: string) => {
