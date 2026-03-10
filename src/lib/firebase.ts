@@ -66,16 +66,20 @@ export const DEFAULT_CONTROLS: ControlData = {
   room1Light: false,
   room1Switch: false,
   room1Fan: false,
+  room1FanSpeed: 50,
 
   room2Light: false,
   room2Switch: false,
   room2Fan: false,
+  room2FanSpeed: 50,
 
   room3Light: false,
   room3Switch: false,
   room3Fan: false,
+  room3FanSpeed: 50,
 
   lobbyFan: false,
+  lobbyFanSpeed: 50,
   lobbyLight: false,
   lobbyTV: false,
   refrigerator: false,
@@ -93,20 +97,24 @@ export interface ControlData {
   // ===== ROOMS =====
   room1Light: boolean;
   room1Fan: boolean;
+  room1FanSpeed: number;
   room1Switch: boolean;
 
   room2Light: boolean;
   room2Fan: boolean;
+  room2FanSpeed: number;
   room2Switch: boolean;
 
   room3Light: boolean;
   room3Fan: boolean;
+  room3FanSpeed: number;
   room3Switch: boolean;
 
   // ===== COMMON =====
   lobbyLight: boolean;
   refrigerator: boolean;
   lobbyFan: boolean;
+  lobbyFanSpeed: number;
   lobbyTV: boolean;
 
   // ===== RELAYS =====
@@ -156,7 +164,7 @@ class FirebaseService {
       }
     });
   }
-  
+
   async getControlStates(): Promise<ControlData> {
     const snap = await get(ref(database, PATHS.CONTROLS));
     return snap.exists()
@@ -184,18 +192,19 @@ class FirebaseService {
     });
   }
 
- updateSwitchState(
+  updateSwitchState(
     key: keyof ControlData,
     value: boolean
   ) {
-    const updates: Partial<ControlData> = {};
-    updates[key] = value;
-
-    return update(ref(database, CONTROL_PATH), updates);
+    return update(ref(database, CONTROL_PATH), { [key]: value });
   }
   // ✅ ADD THIS
   updateMultipleSwitches(updates: Partial<ControlData>) {
     return update(ref(database, CONTROL_PATH), updates);
+  }
+
+  updateFanSpeed(key: keyof ControlData, speed: number) {
+    return update(ref(database, CONTROL_PATH), { [key]: speed });
   }
   // ── Ignition ──
   triggerIgnition() {
@@ -217,7 +226,7 @@ class FirebaseService {
     return onValue(ref(database, PATHS.STATUS), (snap) => {
       if (snap.exists()) callback(snap.val());
     });
-  }  
+  }
 }
 
 // ------------------------------------------------------
