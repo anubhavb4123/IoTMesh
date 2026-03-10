@@ -102,7 +102,7 @@ export const Layout = ({ children }: LayoutProps) => {
       <BackgroundVideo />
 
       {/* SIDEBAR */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col border-r border-sidebar-border backdrop-blur-lg">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col border-r border-border/40 bg-card/20 ">
 
         <div className="flex grow flex-col gap-y-5 overflow-y-auto px-3 pb-4">
 
@@ -194,7 +194,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
       {/* MOBILE HEADER */}
 
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-card/70 backdrop-blur-xl">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-card/40 backdrop-blur-xl">
 
         <div className="flex items-center justify-between px-4 py-3">
 
@@ -219,7 +219,7 @@ export const Layout = ({ children }: LayoutProps) => {
         {mobileMenuOpen && (
 
           <div
-            className="absolute top-full left-0 right-0 bg-card/95 backdrop-blur border-t border-border z-50"
+            className="absolute top-full left-0 right-0 bg-card/40 backdrop-blur-xl border-t border-border/40 z-50"
             style={{ animation: "fadeSlideIn .35s cubic-bezier(.22,.61,.36,1) both" }}
           >
 
