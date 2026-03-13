@@ -37,7 +37,7 @@ export default function Auth() {
     }
   }, []);
 
-  // ── Audio enable on first interaction ──
+  // Audio enable on first interaction
   useEffect(() => {
     const enableAudio = async () => {
       if (audioRef.current) {
