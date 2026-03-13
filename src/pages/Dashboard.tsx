@@ -124,7 +124,7 @@ export default function Dashboard() {
           </span>
         </h2>
 
-        {/* Sensor Cards — staggered */}
+        {/* Sensor Cards */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {([
             <SensorCard title="Temperature" value={dashboard.temp} unit="°C" icon={Thermometer} status={getTempStatus(dashboard.temp)} description="Ambient temperature" />,
@@ -179,14 +179,14 @@ function StatusItem({ label, ok, value, icon: Icon, indicatorClass }: {
 }) {
   const derivedStatus =
     indicatorClass === "battery-ok" ? "ok"
-    : indicatorClass === "battery-warning" ? "warning"
-    : indicatorClass === "battery-critical" ? "alert"
-    : ok ? "ok" : "alert";
+      : indicatorClass === "battery-warning" ? "warning"
+        : indicatorClass === "battery-critical" ? "alert"
+          : ok ? "ok" : "alert";
 
   const iconStrokeClass =
     derivedStatus === "ok" ? "icon-ok"
-    : derivedStatus === "warning" ? "icon-warning"
-    : "icon-critical";
+      : derivedStatus === "warning" ? "icon-warning"
+        : "icon-critical";
 
   return (
     <div className={cn(
