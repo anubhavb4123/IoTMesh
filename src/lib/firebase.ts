@@ -263,9 +263,7 @@ class AlertService {
 
 export const alertService = new AlertService();
 
-// ------------------------------------------------------
 // USER LOGIN STORE
-// ------------------------------------------------------
 export const userStore = {
   async addLogin(name: string, role: string) {
     await push(ref(database, PATHS.USERS), {
