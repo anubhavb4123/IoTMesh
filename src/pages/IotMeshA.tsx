@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 
-// ── Scroll-reveal hook ──
+// Scroll-reveal hook
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -649,7 +649,7 @@ const IotMesh = () => {
           <div className="stats-inner">
             {[
               { n: 10, s: "+", label: "Sensors Monitored" },
-              { n: 3,  s: "+", label: "ESP Nodes" },
+              { n: 3, s: "+", label: "ESP Nodes" },
               { n: 24, s: "/7", label: "Real-Time Uptime" },
               { n: 100, s: "%", label: "Firebase Sync" },
             ].map(({ n, s, label }) => (
