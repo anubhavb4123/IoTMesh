@@ -101,7 +101,7 @@ export const Layout = ({ children }: LayoutProps) => {
     <div className="relative min-h-screen z-10 flex flex-col">
       <BackgroundVideo />
 
-      {/* SIDEBAR */}
+      {/* ====== SIDEBAR ===*/}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col border-r border-border/40 bg-card/20 ">
 
         <div className="flex grow flex-col gap-y-5 overflow-y-auto px-3 pb-4">
