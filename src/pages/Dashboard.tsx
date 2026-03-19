@@ -3,36 +3,22 @@ import { Layout } from "@/components/Layout";
 import { SensorCard } from "@/components/SensorCard";
 import { cn } from "@/lib/utils";
 import {
-  Thermometer,
-  Droplets,
-  Wind,
-  Gauge,
-  Waves,
-  CloudRain,
-  Activity,
-  DoorOpen,
-  Database,
-  Zap,
-  BatteryCharging,
-  Cpu,
+  Thermometer, Droplets, Wind, Gauge, Waves,
+  CloudRain, Activity, DoorOpen, Database,
+  Zap, BatteryCharging, Cpu, LayoutDashboard, WifiOff,
 } from "lucide-react";
+import { LucideIcon } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 
+// ── Types ─────────────────────────────────────────────────────
 interface DashboardData {
-  temp: number;
-  humidity: number;
-  pressure: number;
-  gas: number;
-  rain: string;
-  waterLevel: number;
-  motion: string;
-  door: number;
-  power?: number;
-  last_update?: string;
-  batteryVoltage?: number;
-  batteryPercent?: number;
+  temp: number; humidity: number; pressure: number; gas: number;
+  rain: string; waterLevel: number; motion: string; door: number;
+  power?: number; last_update?: string;
+  batteryVoltage?: number; batteryPercent?: number;
 }
 
+// ── Helpers ───────────────────────────────────────────────────
 function parseLastUpdateToMs(lastUpdate?: string): number | null {
   if (!lastUpdate) return null;
   const [timePart, datePart] = lastUpdate.split(" ");
@@ -42,121 +28,202 @@ function parseLastUpdateToMs(lastUpdate?: string): number | null {
   return new Date(y, mo - 1, d, h, m, s).getTime();
 }
 
-function formatLastUpdated(timeString?: string) {
-  if (!timeString) return "Last sync --";
-  const [timePart, datePart] = timeString.split(" ");
-  if (!timePart || !datePart) return "Last sync --";
-  const [hour, minute, second] = timePart.split(":").map(Number);
-  const [day, month, year] = datePart.split("-").map(Number);
-  const updateDate = new Date(year, month - 1, day, hour, minute, second);
-  const now = new Date();
-  const timeFormatted = updateDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
-  const today = updateDate.getDate() === now.getDate() && updateDate.getMonth() === now.getMonth() && updateDate.getFullYear() === now.getFullYear();
-  const yesterday = new Date(); yesterday.setDate(now.getDate() - 1);
-  const isYesterday = updateDate.getDate() === yesterday.getDate() && updateDate.getMonth() === yesterday.getMonth() && updateDate.getFullYear() === yesterday.getFullYear();
-  if (today) return `Last sync Today at ${timeFormatted}`;
-  if (isYesterday) return `Last sync Yesterday at ${timeFormatted}`;
-  return `Last sync ${updateDate.toLocaleDateString()} at ${timeFormatted}`;
+function formatLastUpdated(t?: string) {
+  if (!t) return "Last sync —";
+  const [tp, dp] = t.split(" ");
+  if (!tp || !dp) return "Last sync —";
+  const [h, m, s]   = tp.split(":").map(Number);
+  const [d, mo, y]  = dp.split("-").map(Number);
+  const date = new Date(y, mo - 1, d, h, m, s);
+  const now  = new Date();
+  const fmt  = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+  if (date.toDateString() === now.toDateString()) return `Today at ${fmt}`;
+  const yest = new Date(now); yest.setDate(now.getDate() - 1);
+  if (date.toDateString() === yest.toDateString()) return `Yesterday at ${fmt}`;
+  return `${date.toLocaleDateString()} at ${fmt}`;
 }
 
+// ── StatusItem ────────────────────────────────────────────────
+function StatusItem({ label, ok, value, icon: Icon, indicatorClass }: {
+  label: string; ok: boolean; value?: string;
+  icon: LucideIcon; indicatorClass?: string;
+}) {
+  const status =
+    indicatorClass === "battery-ok"       ? "ok"      :
+    indicatorClass === "battery-warning"  ? "warning" :
+    indicatorClass === "battery-critical" ? "alert"   :
+    ok ? "ok" : "alert";
+
+  const color  = status === "ok" ? "#22c55e" : status === "warning" ? "#f59e0b" : "#ef4444";
+  const iconCls = status === "ok" ? "icon-ok" : status === "warning" ? "icon-warning" : "icon-critical";
+
+  return (
+    <div
+      className="relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 hover:scale-[1.02] overflow-hidden"
+      style={{ borderColor: "rgba(255,255,255,0.07)", background: "transparent", boxShadow: "none" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = `${color}44`; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"; }}
+    >
+      <div className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0" style={{ background: `${color}15`, border: `1px solid ${color}30` }}>
+        <Icon className={cn("h-5 w-5 fill-none stroke-[1.8]", iconCls, label === "Battery" && "rotate-90 scale-x-[-1]")} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted-foreground/50 tracking-widest uppercase">{label}</p>
+        <p className="text-sm font-semibold mt-0.5 truncate" style={{ color }}>
+          {value ?? (ok ? "Online" : "Offline")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
 export default function Dashboard() {
-  const { sensorData: liveSensorData, loading, error } = useSensorData();
+  const { sensorData: live, loading, error } = useSensorData();
   const [sensorOnline, setSensorOnline] = useState(false);
+  const [syncAge,      setSyncAge]      = useState("—");
 
-  const safe = (v: any, fallback = 0) => typeof v === "number" && !isNaN(v) ? v : fallback;
-  const power = liveSensorData?.power;
+  const safe  = (v: any, fb = 0) => typeof v === "number" && !isNaN(v) ? v : fb;
+  const power = live?.power;
 
-  const dashboard: DashboardData = {
-    temp: safe(liveSensorData?.temperature),
-    humidity: safe(liveSensorData?.humidity),
-    gas: safe(liveSensorData?.gas),
-    pressure: safe(liveSensorData?.pressure),
-    rain: liveSensorData?.rain ? "Detected" : "Clear",
-    waterLevel: safe(liveSensorData?.WaterLevel),
-    motion: liveSensorData?.motion ? "Detected" : "Clear",
-    door: safe(liveSensorData?.door),
-    last_update: liveSensorData?.last_update,
-    batteryVoltage: safe(liveSensorData?.batteryVoltage),
-    batteryPercent: safe(liveSensorData?.batteryPercent),
+  const d: DashboardData = {
+    temp:           safe(live?.temperature),
+    humidity:       safe(live?.humidity),
+    gas:            safe(live?.gas),
+    pressure:       safe(live?.pressure),
+    rain:           live?.rain   ? "Detected" : "Clear",
+    waterLevel:     safe(live?.WaterLevel),
+    motion:         live?.motion ? "Detected" : "Clear",
+    door:           safe(live?.door),
+    last_update:    live?.last_update,
+    batteryVoltage: safe(live?.batteryVoltage),
+    batteryPercent: safe(live?.batteryPercent),
   };
 
+  // Online check every second
   useEffect(() => {
-    const checkStatus = () => {
-      const lastMs = parseLastUpdateToMs(dashboard.last_update);
-      if (!lastMs) { setSensorOnline(false); return; }
-      setSensorOnline(Date.now() - lastMs <= 120_000);
+    const tick = () => {
+      const lastMs = parseLastUpdateToMs(d.last_update);
+      if (!lastMs) { setSensorOnline(false); setSyncAge("—"); return; }
+      const diff = Date.now() - lastMs;
+      setSensorOnline(diff <= 120_000);
+      const s = Math.floor(diff / 1000);
+      setSyncAge(s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : `${Math.floor(s / 3600)}h ago`);
     };
-    checkStatus();
-    const interval = setInterval(checkStatus, 1000);
-    return () => clearInterval(interval);
-  }, [dashboard.last_update]);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [d.last_update]);
 
-  const getTempStatus = (t: number) => t < 25 ? "cold" : t < 30 ? "ok" : t < 35 ? "warning" : "alert";
+  const getTempStatus     = (t: number) => t < 25 ? "cold" : t < 30 ? "ok" : t < 35 ? "warning" : "alert";
   const getHumidityStatus = (h: number) => h < 30 || h > 70 ? "warning" : "ok";
-  const getGasStatus = (g: number) => g > 350 ? "alert" : g > 250 ? "warning" : "ok";
-  const getBatteryStatus = (percent = 0) => percent > 60 ? "battery-ok" : percent > 30 ? "battery-warning" : "battery-critical";
+  const getGasStatus      = (g: number) => g > 350 ? "alert" : g > 250 ? "warning" : "ok";
+  const getBatteryStatus  = (p = 0) => p > 60 ? "battery-ok" : p > 30 ? "battery-warning" : "battery-critical";
 
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center h-[70vh]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-20 h-20 rounded-full border-2 border-cyan-400 animate-pulse"></div>
-          <p className="text-white/80 tracking-widest animate-pulse">Loading IoTMesh...</p>
+          <div className="loader-o" style={{ width: 40, height: 40, borderWidth: 3 }} />
+          <p className="text-muted-foreground tracking-widest text-sm animate-pulse">Loading IoTMesh...</p>
         </div>
       </div>
     </Layout>
   );
 
   if (error) return (
-    <Layout><p className="text-red-500">Error: {error}</p></Layout>
+    <Layout>
+      <div className="flex items-center gap-2 text-red-400 mt-12 text-sm">
+        <WifiOff className="h-4 w-4" /> {error}
+      </div>
+    </Layout>
   );
+
+  const cards = [
+    <SensorCard title="Temperature" value={d.temp}       unit="°C"  icon={Thermometer} status={getTempStatus(d.temp)}            description="Ambient temperature"  />,
+    <SensorCard title="Humidity"    value={d.humidity}   unit="%"   icon={Droplets}    status={getHumidityStatus(d.humidity)}     description="Relative humidity"    />,
+    <SensorCard title="Air Quality" value={d.gas}        unit="PPM" icon={Wind}        status={getGasStatus(d.gas)}               description="Gas sensor (MQ135)"   />,
+    <SensorCard title="Pressure"    value={d.pressure}   unit="hPa" icon={Gauge}       status="ok"                                description="Atmospheric pressure" />,
+    <SensorCard title="Water Level" value={d.waterLevel} unit="cm"  icon={Waves}       status={d.waterLevel > 60 ? "ok" : d.waterLevel > 20 ? "warning" : "alert"} description="Tank water level" />,
+    <SensorCard title="Rain"        value={d.rain}                  icon={CloudRain}   status={d.rain === "Detected" ? "alert" : "ok"}    description="Rain detection"      />,
+    <SensorCard title="Motion"      value={d.motion}                icon={Activity}    status={d.motion === "Detected" ? "warning" : "ok"} description="PIR motion sensor"   />,
+    <SensorCard title="Door"        value={d.door === 1 ? "Open" : "Closed"} icon={DoorOpen} status={d.door === 1 ? "warning" : "ok"} description="Magnetic door sensor" />,
+  ];
 
   return (
     <Layout>
-      {/* Page fade-in */}
-      <div className="flex flex-col gap-6" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
+      <div className="flex flex-col gap-5" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
 
-        {/* Header */}
-        <h2 className="text-2xl font-bold tracking-tight" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
-          Dashboard{" "}
-          <span className="text-sm text-muted-foreground ml-2">
-            {formatLastUpdated(dashboard.last_update)}
-          </span>
-        </h2>
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between" style={{ animation: "fadeSlideIn 0.3s ease both" }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20">
+              <LayoutDashboard className="h-5 w-5 text-cyan-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+              <p className="text-xs text-muted-foreground/50 mt-0.5 tracking-wide">
+                {formatLastUpdated(d.last_update)}
+              </p>
+            </div>
+          </div>
 
-        {/* Sensor Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {([
-            <SensorCard title="Temperature" value={dashboard.temp} unit="°C" icon={Thermometer} status={getTempStatus(dashboard.temp)} description="Ambient temperature" />,
-            <SensorCard title="Humidity" value={dashboard.humidity} unit="%" icon={Droplets} status={getHumidityStatus(dashboard.humidity)} description="Relative humidity" />,
-            <SensorCard title="Air Quality" value={dashboard.gas} unit="PPM" icon={Wind} status={getGasStatus(dashboard.gas)} description="Gas sensor (MQ135)" />,
-            <SensorCard title="Pressure" value={dashboard.pressure} unit="hPa" icon={Gauge} status="ok" description="Atmospheric pressure" />,
-            <SensorCard title="Water Level" value={dashboard.waterLevel} unit="cm" icon={Waves} status={dashboard.waterLevel > 60 ? "ok" : dashboard.waterLevel > 20 ? "warning" : "alert"} description="Tank water level" />,
-            <SensorCard title="Rain Sensor" value={dashboard.rain} icon={CloudRain} status={dashboard.rain === "Detected" ? "alert" : "ok"} description="Rain detection" />,
-            <SensorCard title="Motion" value={dashboard.motion} icon={Activity} status={dashboard.motion === "Detected" ? "warning" : "ok"} description="PIR motion sensor" />,
-            <SensorCard title="Door Status" value={dashboard.door === 1 ? "Open" : "Closed"} icon={DoorOpen} status={dashboard.door === 1 ? "warning" : "ok"} description="Magnetic door sensor" />,
-          ]).map((card, i) => (
+          {/* Live / Offline badge */}
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-500"
+            style={
+              sensorOnline
+                ? { borderColor: "rgba(34,197,94,0.25)", background: "rgba(34,197,94,0.08)" }
+                : { borderColor: "rgba(239,68,68,0.25)",  background: "rgba(239,68,68,0.08)"  }
+            }
+          >
+            <span
+              className="w-2 h-2 rounded-full"
+              style={
+                sensorOnline
+                  ? { background: "#22c55e", boxShadow: "0 0 6px #22c55e", animation: "pulse 2s infinite" }
+                  : { background: "#ef4444", boxShadow: "0 0 6px #ef4444" }
+              }
+            />
+            <span className="text-[11px] font-medium tracking-wider" style={{ color: sensorOnline ? "#22c55e" : "#ef4444" }}>
+              {sensorOnline ? "LIVE" : "OFFLINE"}
+            </span>
+            <span className="text-[10px] text-muted-foreground/40 hidden sm:block">· {syncAge}</span>
+          </div>
+        </div>
+
+        {/* ── Sensor cards ── */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card, i) => (
             <div key={i} style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${i * 0.06}s` }}>
               {card}
             </div>
           ))}
         </div>
 
-        {/* System Status */}
+        {/* ── System status ── */}
         <div
-          className="border-border/40 bg-card/40 p-6 rounded-lg"
-          style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.5s" }}
+          className="rounded-2xl border border-border/40 bg-card/40 overflow-hidden"
+          style={{
+            
+            animation: "fadeSlideIn 0.4s ease both",
+            animationDelay: "0.5s",
+          }}
         >
-          <div className="grid gap-4 md:grid-cols-4">
-            <StatusItem label="Firebase Connection" ok={!!liveSensorData} icon={Database} />
-            <StatusItem label="ESP Device" ok={sensorOnline} value={sensorOnline ? "Online" : "Offline"} icon={Cpu} />
-            <StatusItem label="Power Source" ok={power === 1} value={power === 1 ? "GRID" : power === 0 ? "INVERTER" : "Unknown"} icon={Zap} />
-            <StatusItem
-              label="Internal Battery"
-              ok={dashboard.batteryPercent !== undefined}
-              value={`${dashboard.batteryPercent ?? "--"}% • ${dashboard.batteryVoltage?.toFixed(2) ?? "--"}V`}
-              indicatorClass={getBatteryStatus(dashboard.batteryPercent)}
-              icon={BatteryCharging}
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" style={{ boxShadow: "0 0 6px #22d3ee" }} />
+            <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+              System Status
+            </span>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4 p-4">
+            <StatusItem label="Firebase"     ok={!!live}       value={live ? "Connected" : "Disconnected"}                                                   icon={Database}       />
+            <StatusItem label="ESP Device"   ok={sensorOnline} value={sensorOnline ? `Online` : `Offline`} icon={Cpu} />
+            <StatusItem label="Power Source" ok={power === 1}  value={power === 1 ? "Grid ⚡" : power === 0 ? "Inverter 🔋" : "Unknown"}                      icon={Zap}            />
+            <StatusItem label="Battery"      ok={!!d.batteryPercent} value={`${d.batteryPercent ?? "—"}%  ${d.batteryVoltage?.toFixed(2) ?? "—"}V`}
+              indicatorClass={getBatteryStatus(d.batteryPercent)} icon={BatteryCharging}
             />
           </div>
         </div>
@@ -169,39 +236,5 @@ export default function Dashboard() {
         }
       `}</style>
     </Layout>
-  );
-}
-
-import { LucideIcon } from "lucide-react";
-
-function StatusItem({ label, ok, value, icon: Icon, indicatorClass }: {
-  label: string; ok: boolean; value?: string; icon: LucideIcon; indicatorClass?: string;
-}) {
-  const derivedStatus =
-    indicatorClass === "battery-ok" ? "ok"
-      : indicatorClass === "battery-warning" ? "warning"
-        : indicatorClass === "battery-critical" ? "alert"
-          : ok ? "ok" : "alert";
-
-  const iconStrokeClass =
-    derivedStatus === "ok" ? "icon-ok"
-      : derivedStatus === "warning" ? "icon-warning"
-        : "icon-critical";
-
-  return (
-    <div className={cn(
-      "flex items-center gap-1 p-2 rounded-lg border border-border/50 bg-background/40 transition-all duration-300 hover:scale-[1.02] hover:border-border/80",
-      derivedStatus === "ok" && "shadow-[0_0_10px_rgba(34,197,94,0.25)]",
-      derivedStatus === "warning" && "shadow-[0_0_10px_rgba(245,158,11,0.28)]",
-      derivedStatus === "alert" && "shadow-[0_0_10px_rgba(239,68,68,0.35)]"
-    )}>
-      <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-background/70">
-        <Icon className={cn("h-6 w-6 fill-none stroke-[1.8] transition-transform", iconStrokeClass, label === "Internal Battery" && "rotate-90 scale-x-[-1]")} />
-      </div>
-      <div className="flex flex-col">
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-sm text-muted-foreground">{value !== undefined && value !== null ? value : ok ? "Online" : "Offline"}</p>
-      </div>
-    </div>
   );
 }
