@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Layout } from "@/components/Layout";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer,
+} from "recharts";
 import { useSensorData } from "@/hooks/useSensorData";
 import { database } from "@/lib/firebase";
 import { ref, onValue } from "firebase/database";
-import { TooltipProps } from "recharts";
+import {
+  Thermometer, Droplets, Wind, Gauge,
+  Waves, TrendingUp, TrendingDown, Minus, Activity,
+} from "lucide-react";
 
+// ── Types ─────────────────────────────────────────────────────
 interface HistoryPoint {
   timestamp: number;
   temperature: number;
@@ -18,114 +23,338 @@ interface HistoryPoint {
   time: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
-  if (!active || !payload || !payload.length) return null;
+type Metric = "temperature" | "humidity" | "gas" | "pressure" | "waterLevel";
+type Range  = 1 | 12 | 24;
+
+// ── Metric config ─────────────────────────────────────────────
+const METRICS = [
+  { key: "temperature" as Metric, label: "Temperature", unit: "°C",   icon: Thermometer, color: "#ef4444", glow: "#ef444440", bg: "#ef444412", warn: 35,   critical: 42   },
+  { key: "humidity"    as Metric, label: "Humidity",    unit: "%",    icon: Droplets,    color: "#38bdf8", glow: "#38bdf840", bg: "#38bdf812", warn: 75,   critical: 90   },
+  { key: "gas"         as Metric, label: "Air Quality", unit: " PPM", icon: Wind,        color: "#10b981", glow: "#10b98140", bg: "#10b98112", warn: 300,  critical: 500  },
+  { key: "pressure"    as Metric, label: "Pressure",    unit: " hPa", icon: Gauge,       color: "#f59e0b", glow: "#f59e0b40", bg: "#f59e0b12", warn: 1020, critical: 1040 },
+  { key: "waterLevel"  as Metric, label: "Water Level", unit: " cm",  icon: Waves,       color: "#6366f1", glow: "#6366f140", bg: "#6366f112", warn: 70,   critical: 90   },
+];
+
+// ── Parse last_update string → ms (same logic as Dashboard) ────
+function parseLastUpdateToMs(lastUpdate?: string): number | null {
+  if (!lastUpdate) return null;
+  const [timePart, datePart] = lastUpdate.split(" ");
+  if (!timePart || !datePart) return null;
+  const [h, m, s] = timePart.split(":").map(Number);
+  const [d, mo, y] = datePart.split("-").map(Number);
+  return new Date(y, mo - 1, d, h, m, s).getTime();
+}
+
+// ── Custom chart tooltip ──────────────────────────────────────
+const CustomTooltip = ({
+  active, payload, label, color, unit,
+}: {
+  active?: boolean;
+  payload?: Array<{ value?: number | string }>;
+  label?: string;
+  color: string;
+  unit: string;
+}) => {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg bg-black/80 px-3 py-2 text-white text-sm border border-white/20">
-      <p className="font-semibold">🕒 {label}</p>
-      <p>{payload[0].name}: <span className="font-bold">{payload[0].value}</span></p>
+    <div
+      className="rounded-xl px-3 py-2 text-sm border backdrop-blur-md"
+      style={{ background: "rgba(10,14,24,0.95)", borderColor: `${color}55`, boxShadow: `0 0 16px ${color}33` }}
+    >
+      <p className="text-muted-foreground text-xs mb-1">{label}</p>
+      <p className="font-bold tabular-nums" style={{ color }}>
+        {Number(payload[0].value).toFixed(1)}{unit}
+      </p>
     </div>
   );
 };
 
+// ── Sensor card ───────────────────────────────────────────────
+function SensorCard({ cfg, value, index }: { cfg: typeof METRICS[number]; value: number; index: number }) {
+  const Icon   = cfg.icon;
+  const status = value >= cfg.critical ? "critical" : value >= cfg.warn ? "warn" : "ok";
+  const sc     = status === "critical" ? "#ef4444" : status === "warn" ? "#f59e0b" : cfg.color;
+
+  return (
+    <div
+      className="relative rounded-2xl border border-border/40 bg-card/40 overflow-hidden transition-all duration-300 group hover:-translate-y-0.5 hover:border-border/70"
+      style={{
+        animation: "fadeSlideIn 0.4s ease both",
+        animationDelay: `${index * 0.06}s`,
+      }}
+    >
+
+
+
+
+      <div className="relative p-4">
+        {/* Icon row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: cfg.bg, border: `1px solid ${cfg.color}33` }}>
+            <Icon className="h-4.5 w-4.5" style={{ color: cfg.color, width: 18, height: 18 }} />
+          </div>
+          {status !== "ok" && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded tracking-widest uppercase"
+              style={{ background: `${sc}22`, color: sc, border: `1px solid ${sc}44` }}>
+              {status}
+            </span>
+          )}
+        </div>
+
+        {/* Value */}
+        <div className="mb-1 flex items-end gap-1">
+          <span className="text-3xl font-bold tabular-nums leading-none" style={{ color: sc }}>
+            {value >= 100 ? value.toFixed(0) : value.toFixed(1)}
+          </span>
+          <span className="text-xs text-muted-foreground mb-0.5">{cfg.unit.trim()}</span>
+        </div>
+
+        {/* Label */}
+        <p className="text-[11px] text-muted-foreground/60 tracking-widest uppercase">{cfg.label}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────
 export default function Sensors() {
   const { sensorData, loading, error } = useSensorData();
-  const [history, setHistory] = useState<HistoryPoint[]>([]);
-  const [range, setRange] = useState<1 | 12 | 24>(24);
-  const [selectedMetric, setSelectedMetric] = useState<"temperature" | "humidity" | "gas" | "pressure" | "waterLevel">("temperature");
+  const [history,        setHistory]        = useState<HistoryPoint[]>([]);
+  const [range,          setRange]          = useState<Range>(24);
+  const [selectedMetric, setSelectedMetric] = useState<Metric>("temperature");
+  const [isOnline,        setIsOnline]        = useState(false);
 
   useEffect(() => {
-    const historyRef = ref(database, "home/room1/history/h24");
-    const unsubscribe = onValue(historyRef, (snapshot) => {
-      if (!snapshot.exists()) { setHistory([]); return; }
-      const raw = snapshot.val();
-      const arr: HistoryPoint[] = Object.entries(raw).map(([_, item]: any) => {
+    const histRef = ref(database, "home/room1/history/h24");
+    return onValue(histRef, (snap) => {
+      if (!snap.exists()) { setHistory([]); return; }
+      const arr: HistoryPoint[] = Object.entries(snap.val()).map(([, item]: any) => {
         const ts = item.timestamp < 1e12 ? item.timestamp * 1000 : item.timestamp;
         return {
-          timestamp: ts,
+          timestamp:   ts,
           temperature: item.temperature ?? 0,
-          humidity: item.humidity ?? 0,
-          gas: item.gas ?? 0,
-          pressure: item.pressure ?? 0,
-          waterLevel: item.waterLevel ?? 0,
+          humidity:    item.humidity    ?? 0,
+          gas:         item.gas         ?? 0,
+          pressure:    item.pressure    ?? 0,
+          waterLevel:  item.waterLevel  ?? 0,
           time: new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
         };
       });
       arr.sort((a, b) => a.timestamp - b.timestamp);
       setHistory(arr);
     });
-    return () => unsubscribe();
   }, []);
 
-  const now = Date.now();
-  const filteredHistory = history.filter((item) => now - item.timestamp <= range * 60 * 60 * 1000);
+  // ── Online/offline detection — same logic as Dashboard ──────────
+  useEffect(() => {
+    const check = () => {
+      const lastMs = parseLastUpdateToMs(sensorData?.last_update);
+      if (!lastMs) { setIsOnline(false); return; }
+      setIsOnline(Date.now() - lastMs <= 120_000);  // 2 min threshold
+    };
+    check();
+    const id = setInterval(check, 1000);  // recheck every second
+    return () => clearInterval(id);
+  }, [sensorData?.last_update]);
 
-  const colors = { temperature: "#ef4444", humidity: "#3b82f6", gas: "#10b981", pressure: "#f59e0b", waterLevel: "#6366f1" };
+  const filteredHistory = history.filter((p) => Date.now() - p.timestamp <= range * 3_600_000);
+  const activeCfg       = METRICS.find((m) => m.key === selectedMetric)!;
 
-  const sensorCards = [
-    { label: "Temperature", value: `${sensorData?.temperature.toFixed(1)}°C` },
-    { label: "Humidity",    value: `${sensorData?.humidity.toFixed(1)}%` },
-    { label: "Air Quality", value: `${sensorData?.gas.toFixed(0)} PPM` },
-    { label: "Pressure",    value: `${(sensorData?.pressure ?? 0).toFixed(0)} hPa` },
-    { label: "Water Level", value: `${(sensorData?.WaterLevel ?? 0).toFixed(0)} cm` },
-  ];
+  // ── Compute mini-sparkline stats ──
+  const recent = filteredHistory.slice(-10);
+  const avg    = recent.length ? recent.reduce((s, p) => s + p[selectedMetric], 0) / recent.length : 0;
+  const mx     = recent.length ? Math.max(...recent.map((p) => p[selectedMetric])) : 0;
+  const mn     = recent.length ? Math.min(...recent.map((p) => p[selectedMetric])) : 0;
 
-  if (loading) return <Layout><p className="text-muted-foreground animate-pulse">Loading sensor data...</p></Layout>;
-  if (error)   return <Layout><p className="text-red-500">Error: {error}</p></Layout>;
+  if (loading) return (
+    <Layout>
+      <div className="flex items-center gap-3 text-muted-foreground mt-12">
+        <div className="loader-o" />
+        <span className="animate-pulse text-sm tracking-wide">Reading sensors...</span>
+      </div>
+    </Layout>
+  );
+
+  if (error) return (
+    <Layout>
+      <div className="flex items-center gap-2 text-red-400 mt-12 text-sm">
+        <Activity className="h-4 w-4" /> Sensor error: {error}
+      </div>
+    </Layout>
+  );
 
   return (
     <Layout>
-      <div className="space-y-6" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
+      <div className="space-y-5" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
 
-        {/* Current sensor cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {sensorCards.map((s, i) => (
-            <Card
-              key={s.label}
-              className="border-border/40 bg-card/40 p-6 hover:border-border/70 transition-all duration-300 hover:scale-[1.02]"
-              style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${i * 0.07}s` }}
+        {/* ── Page header ── */}
+        <div className="flex items-center justify-between" style={{ animation: "fadeSlideIn 0.3s ease both" }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20">
+              <Activity className="h-5 w-5 text-cyan-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Sensor Monitor</h1>
+              <p className="text-xs text-muted-foreground/60 mt-0.5 tracking-wide">
+                {isOnline ? "Live" : "Last seen"} · {sensorData?.last_update ?? "—"}
+              </p>
+            </div>
+          </div>
+          {/* Live / Offline badge */}
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-500"
+            style={
+              isOnline
+                ? { borderColor: "rgba(34,197,94,0.25)", background: "rgba(34,197,94,0.08)" }
+                : { borderColor: "rgba(239,68,68,0.25)",  background: "rgba(239,68,68,0.08)"  }
+            }
+          >
+            <span
+              className="w-2 h-2 rounded-full transition-colors duration-500"
+              style={
+                isOnline
+                  ? { background: "#22c55e", boxShadow: "0 0 6px #22c55e", animation: "pulse 2s infinite" }
+                  : { background: "#ef4444", boxShadow: "0 0 6px #ef4444" }
+              }
+            />
+            <span
+              className="text-[11px] font-medium tracking-wider transition-colors duration-500"
+              style={{ color: isOnline ? "#22c55e" : "#ef4444" }}
             >
-              <h2 className="text-sm text-muted-foreground mb-1">{s.label}</h2>
-              <p className="text-4xl font-bold text-primary">{s.value}</p>
-            </Card>
-          ))}
+              {isOnline ? "LIVE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
 
-        {/* History graph */}
-        <Card
-          className="border-border/40 bg-card/40 p-6"
-          style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.35s" }}
+        {/* ── Sensor cards ── */}
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          {METRICS.map((cfg, i) => {
+            const val =
+              cfg.key === "waterLevel"
+                ? (sensorData?.WaterLevel ?? 0)
+                : ((sensorData?.[cfg.key as keyof typeof sensorData] as number) ?? 0);
+            return <SensorCard key={cfg.key} cfg={cfg} value={val} index={i} />;
+          })}
+        </div>
+
+        {/* ── History chart card ── */}
+        <div
+          className="rounded-2xl border border-border/40 bg-card/40 overflow-hidden"
+          style={{
+  
+            animation:   "fadeSlideIn 0.4s ease both",
+            animationDelay: "0.28s",
+          }}
         >
-          <h2 className="text-xl font-semibold mb-4">Historical Data</h2>
+          {/* Chart header */}
+          <div className="px-5 pt-4 pb-3 border-b border-border/20">
 
-          <div className="flex gap-2 mb-4 flex-wrap">
-            {([1, 12, 24] as const).map((r) => (
-              <Button key={r} variant={range === r ? "default" : "outline"} onClick={() => setRange(r)}>
-                Last {r} Hr
-              </Button>
-            ))}
+            {/* Top row: title + range */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-4 rounded-full" style={{ background: activeCfg.color, boxShadow: `0 0 6px ${activeCfg.color}` }} />
+                <span className="text-sm font-semibold">{activeCfg.label} History</span>
+                <span className="text-xs text-muted-foreground/40">· {filteredHistory.length} pts</span>
+              </div>
+
+              <div className="flex gap-1">
+                {([1, 12, 24] as Range[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium tracking-wider transition-all duration-200"
+                    style={
+                      range === r
+                        ? { background: `${activeCfg.color}22`, color: activeCfg.color, border: `1px solid ${activeCfg.color}50` }
+                        : { background: "rgba(255,255,255,0.03)", color: "#444", border: "1px solid rgba(255,255,255,0.07)" }
+                    }
+                  >
+                    {r}h
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div className="flex gap-4 mb-3">
+              {[
+                { label: "Avg", value: avg, icon: Minus },
+                { label: "Max", value: mx,  icon: TrendingUp },
+                { label: "Min", value: mn,  icon: TrendingDown },
+              ].map(({ label, value, icon: Icon }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <Icon className="h-3 w-3" style={{ color: activeCfg.color, opacity: 0.7 }} />
+                  <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">{label}</span>
+                  <span className="text-xs font-bold tabular-nums" style={{ color: activeCfg.color }}>
+                    {value.toFixed(1)}{activeCfg.unit.trim()}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Metric selector */}
+            <div className="flex gap-1.5 flex-wrap">
+              {METRICS.map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setSelectedMetric(m.key)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200"
+                  style={
+                    selectedMetric === m.key
+                      ? { background: `${m.color}22`, color: m.color, border: `1px solid ${m.color}55`, boxShadow: `0 0 8px ${m.color}22` }
+                      : { background: "rgba(255,255,255,0.03)", color: "#444", border: "1px solid rgba(255,255,255,0.07)" }
+                  }
+                >
+                  <m.icon style={{ width: 11, height: 11 }} />
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex gap-2 mb-6 flex-wrap">
-            {(["temperature", "humidity", "gas", "pressure", "waterLevel"] as const).map((m) => (
-              <Button key={m} variant={selectedMetric === m ? "default" : "outline"} onClick={() => setSelectedMetric(m)}>
-                {m.charAt(0).toUpperCase() + m.slice(1)}
-              </Button>
-            ))}
+          {/* Chart area */}
+          <div className="px-2 py-4 h-64">
+            {filteredHistory.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-muted-foreground/30 text-sm">
+                No data for this range
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={filteredHistory} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={activeCfg.color} stopOpacity={0.25} />
+                      <stop offset="100%" stopColor={activeCfg.color} stopOpacity={0}    />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="time" tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    content={({ active, payload, label }) => (
+                      <CustomTooltip
+                        active={active}
+                        payload={payload as Array<{ value?: number | string }>}
+                        label={label}
+                        color={activeCfg.color}
+                        unit={activeCfg.unit}
+                      />
+                    )}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey={selectedMetric}
+                    stroke={activeCfg.color}
+                    strokeWidth={2}
+                    fill="url(#grad)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: activeCfg.color, stroke: "#0a0e18", strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
-
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={filteredHistory}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey={selectedMetric} stroke={colors[selectedMetric]} strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        </div>
       </div>
 
       <style>{`
