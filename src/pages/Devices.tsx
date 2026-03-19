@@ -10,124 +10,179 @@ import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 
 // ── Fan Speed Slider ──────────────────────────────────────────
-// Defined at module level (NOT inside Devices) — required for hooks to work
 interface FanSliderProps {
   fanOn: boolean;
-  speed: number;                     // 0–100 synced from Firebase
-  onSpeedChange: (v: number) => void; // called on pointer release only
+  speed: number;                      // 0–5
+  onSpeedChange: (v: number) => void;
 }
 
-function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
-  // Local state for smooth dragging — Firebase only written on release
-  const [local, setLocal] = useState(speed);
-  const lastHapticStep = useRef(-1);
-  const isDragging = useRef(false);
+const SPEED_LABELS = ["Off", "Low", "2", "Mid", "4", "High"] as const;
+const SPEED_COLORS = ["#555", "#38bdf8", "#22d3ee", "#06b6d4", "#f97316", "#ef4444"] as const;
+const SPEED_GLOW   = ["transparent", "#38bdf855", "#22d3ee55", "#06b6d455", "#f9731655", "#ef444455"] as const;
 
-  // Sync from Firebase when not dragging
+function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
+  const [local, setLocal]   = useState(speed);
+  const isDragging          = useRef(false);
+  const lastStep            = useRef(-1);
+
   useEffect(() => {
     if (!isDragging.current) setLocal(speed);
   }, [speed]);
 
-  if (!fanOn) return null;
-
-  const label =
-    local === 0 ? "Off" :
-      local <= 33 ? "Low" :
-        local <= 66 ? "Medium" : "High";
-
-  const labelColor =
-    local === 0 ? "text-muted-foreground" :
-      local <= 33 ? "text-blue-400" :
-        local <= 66 ? "text-cyan-400" : "text-orange-400";
-
-  const trackColor =
-    local <= 33
-      ? "linear-gradient(90deg, #3b82f6, #60a5fa)"
-      : local <= 66
-        ? "linear-gradient(90deg, #22d3ee, #67e8f9)"
-        : "linear-gradient(90deg, #f97316, #fb923c)";
-
-  const thumbColor =
-    local <= 33 ? "#60a5fa" :
-      local <= 66 ? "#22d3ee" : "#f97316";
+  const pct        = (local / 5) * 100;
+  const color      = SPEED_COLORS[local] ?? SPEED_COLORS[0];
+  const glow       = SPEED_GLOW[local]   ?? "transparent";
+  const label      = SPEED_LABELS[local] ?? "Off";
+  const isOff      = local === 0 || !fanOn;
+  const spinSpeed  = local === 0 ? "0s" : local <= 2 ? "1.2s" : local <= 4 ? "0.5s" : "0.2s";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!fanOn) return;
     const v = Number(e.target.value);
     setLocal(v);
-
-    // Haptic tick every 10 units like physical detents
-    const step = Math.floor(v / 10);
-    if (step !== lastHapticStep.current) {
+    if (v !== lastStep.current) {
       haptic.tick();
       sounds.click();
-      lastHapticStep.current = step;
+      lastStep.current = v;
     }
   };
 
   const handleRelease = () => {
     isDragging.current = false;
-    onSpeedChange(local); // write to Firebase only on release
+    onSpeedChange(local);
   };
 
   return (
     <div
-      className="mt-2 px-1 space-y-1.5"
-      style={{ animation: "fadeSlideIn 0.3s ease both" }}
+      className="rounded-xl border px-3 pt-2.5 pb-3 mt-1 space-y-3 transition-all duration-300"
+      style={{
+        borderColor: fanOn && local > 0 ? `${color}55` : "rgba(255,255,255,0.08)",
+        background: "transparent",
+      }}
     >
-      {/* Label row */}
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <Wind className="h-3 w-3" />
-          <span>Speed</span>
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* Animated fan icon */}
+          <div
+            className="relative flex items-center justify-center w-7 h-7 rounded-lg"
+            style={{
+              background: fanOn && local > 0 ? `${color}22` : "rgba(255,255,255,0.05)",
+              border: `1px solid ${fanOn && local > 0 ? color + "44" : "rgba(255,255,255,0.08)"}`,
+            }}
+          >
+            <Fan
+              className="h-3.5 w-3.5 transition-colors duration-300"
+              style={{
+                color: fanOn && local > 0 ? color : "#555",
+                animation: fanOn && local > 0 ? `spin ${spinSpeed} linear infinite` : "none",
+              }}
+            />
+          </div>
+          <span className="text-xs font-medium text-muted-foreground tracking-wide">Fan Speed</span>
         </div>
-        <span className={`font-semibold tabular-nums ${labelColor}`}>
-          {label} · {local}%
-        </span>
-      </div>
 
-      {/* Slider track */}
-      <div className="relative h-5 flex items-center">
-        {/* Background track */}
-        <div className="absolute w-full h-1.5 rounded-full bg-white/5 border border-white/10" />
-
-        {/* Filled portion */}
+        {/* Speed badge */}
         <div
-          className="absolute left-0 h-1.5 rounded-full pointer-events-none transition-none"
-          style={{ width: `${local}%`, background: trackColor }}
-        />
-
-        {/* Custom thumb */}
-        <div
-          className="absolute w-4 h-4 rounded-full border-2 border-background shadow-lg pointer-events-none transition-none"
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold tracking-wider transition-all duration-300"
           style={{
-            left: `calc(${local}% - 8px)`,
-            background: thumbColor,
-            boxShadow: `0 0 6px ${thumbColor}88`,
+            background: isOff ? "rgba(255,255,255,0.05)" : `${color}22`,
+            color:       isOff ? "#555" : color,
+            border:      `1px solid ${isOff ? "rgba(255,255,255,0.08)" : color + "44"}`,
+            boxShadow:   isOff ? "none" : `0 0 8px ${glow}`,
           }}
-        />
-
-        {/* Native range — full area, invisible */}
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={local}
-          onChange={handleChange}
-          onMouseDown={() => { isDragging.current = true; }}
-          onTouchStart={() => { isDragging.current = true; }}
-          onMouseUp={handleRelease}
-          onTouchEnd={handleRelease}
-          className="absolute w-full opacity-0 cursor-pointer h-5"
-          style={{ zIndex: 10 }}
-        />
+        >
+          <span>{fanOn ? label : "Fan Off"}</span>
+          {fanOn && local > 0 && (
+            <span className="opacity-60 font-normal">{local}/5</span>
+          )}
+        </div>
       </div>
 
-      {/* Tick labels */}
-      <div className="flex justify-between px-0.5">
-        {["0", "25", "50", "75", "100"].map((t) => (
-          <span key={t} className="text-[9px] text-muted-foreground/40">{t}</span>
-        ))}
+      {/* Step dots + slider */}
+      <div className="space-y-2">
+        {/* Step dots */}
+        <div className="flex justify-between px-0.5">
+          {[0, 1, 2, 3, 4, 5].map((s) => (
+            <button
+              key={s}
+              disabled={!fanOn}
+              onClick={() => {
+                if (!fanOn) return;
+                setLocal(s);
+                haptic.tick();
+                sounds.click();
+                onSpeedChange(s);
+              }}
+              className="flex flex-col items-center gap-1 group"
+            >
+              <div
+                className="w-2 h-2 rounded-full transition-all duration-200"
+                style={{
+                  background: fanOn && s <= local && local > 0
+                    ? color
+                    : s === local && local === 0
+                    ? "rgba(255,255,255,0.25)"
+                    : "rgba(255,255,255,0.1)",
+                  boxShadow: fanOn && s === local && local > 0
+                    ? `0 0 6px ${color}`
+                    : "none",
+                  transform: s === local ? "scale(1.4)" : "scale(1)",
+                }}
+              />
+              <span
+                className="text-[9px] tabular-nums transition-colors duration-200"
+                style={{ color: fanOn && s <= local && local > 0 ? color : "rgba(255,255,255,0.2)" }}
+              >
+                {s}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Slider track */}
+        <div className="relative h-4 flex items-center mx-0.5">
+          {/* Base track */}
+          <div className="absolute w-full h-1 rounded-full bg-white/5 border border-white/8" />
+
+          {/* Filled track */}
+          <div
+            className="absolute left-0 h-1 rounded-full transition-all duration-150"
+            style={{
+              width: `${pct}%`,
+              background: isOff
+                ? "rgba(255,255,255,0.08)"
+                : `linear-gradient(90deg, ${color}88, ${color})`,
+              boxShadow: "none",
+            }}
+          />
+
+          {/* Thumb */}
+          <div
+            className="absolute w-4 h-4 rounded-full border-2 pointer-events-none transition-all duration-150"
+            style={{
+              left: `calc(${pct}% - 8px)`,
+              background: isOff ? "#2a2a2a" : color,
+              borderColor: isOff ? "#444" : color,
+              boxShadow: "none",
+            }}
+          />
+
+          {/* Native invisible input */}
+          <input
+            type="range"
+            min={0} max={5} step={1}
+            value={local}
+            disabled={!fanOn}
+            onChange={handleChange}
+            onMouseDown={() => { if (fanOn) isDragging.current = true; }}
+            onTouchStart={() => { if (fanOn) isDragging.current = true; }}
+            onMouseUp={handleRelease}
+            onTouchEnd={handleRelease}
+            className="absolute w-full opacity-0 h-4"
+            style={{ cursor: fanOn ? "pointer" : "not-allowed", zIndex: 10 }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -219,7 +274,7 @@ export default function Devices() {
             const fanKey = `${prefix}Fan` as keyof ControlData;
             const speedKey = `${prefix}FanSpeed` as keyof ControlData;
             const fanOn = !!(controls[fanKey]);
-            const fanSpeed = (controls[speedKey] as number) ?? 50;
+            const fanSpeed = (controls[speedKey] as number) ?? 0;
 
             return (
               <Card
@@ -248,7 +303,7 @@ export default function Devices() {
               <DeviceControl title="Lobby Fan" icon={Fan} isActive={!!controls.lobbyFan} onToggle={(v) => update("lobbyFan", v)} />
               <FanSlider
                 fanOn={!!controls.lobbyFan}
-                speed={(controls.lobbyFanSpeed as number) ?? 50}
+                speed={(controls.lobbyFanSpeed as number) ?? 0}
                 onSpeedChange={(v) => updateSpeed("lobbyFanSpeed", v)}
               />
             </div>
@@ -258,7 +313,7 @@ export default function Devices() {
           </div>
         </Card>
 
-        {/* ======Relays =====*/}
+        {/* Relays */}
         <Card
           className="border-border/40 bg-card/40 p-4 space-y-4 hover:border-border/70 transition-all duration-300"
           style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.38s" }}
