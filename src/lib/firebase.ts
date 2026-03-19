@@ -66,20 +66,20 @@ export const DEFAULT_CONTROLS: ControlData = {
   room1Light: false,
   room1Switch: false,
   room1Fan: false,
-  room1FanSpeed: 50,
+  room1FanSpeed: 0,
 
   room2Light: false,
   room2Switch: false,
   room2Fan: false,
-  room2FanSpeed: 50,
+  room2FanSpeed: 0,
 
   room3Light: false,
   room3Switch: false,
   room3Fan: false,
-  room3FanSpeed: 50,
+  room3FanSpeed: 0,
 
   lobbyFan: false,
-  lobbyFanSpeed: 50,
+  lobbyFanSpeed: 0,
   lobbyLight: false,
   lobbyTV: false,
   refrigerator: false,
@@ -164,7 +164,7 @@ class FirebaseService {
       }
     });
   }
-
+  
   async getControlStates(): Promise<ControlData> {
     const snap = await get(ref(database, PATHS.CONTROLS));
     return snap.exists()
@@ -226,7 +226,7 @@ class FirebaseService {
     return onValue(ref(database, PATHS.STATUS), (snap) => {
       if (snap.exists()) callback(snap.val());
     });
-  }
+  }  
 }
 
 // ------------------------------------------------------
@@ -263,7 +263,9 @@ class AlertService {
 
 export const alertService = new AlertService();
 
+// ------------------------------------------------------
 // USER LOGIN STORE
+// ------------------------------------------------------
 export const userStore = {
   async addLogin(name: string, role: string) {
     await push(ref(database, PATHS.USERS), {
