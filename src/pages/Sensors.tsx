@@ -160,11 +160,11 @@ export default function Sensors() {
   const filteredHistory = history.filter((p) => Date.now() - p.timestamp <= range * 3_600_000);
   const activeCfg       = METRICS.find((m) => m.key === selectedMetric)!;
 
-  // ── Compute mini-sparkline stats ──
-  const recent = filteredHistory.slice(-10);
-  const avg    = recent.length ? recent.reduce((s, p) => s + p[selectedMetric], 0) / recent.length : 0;
-  const mx     = recent.length ? Math.max(...recent.map((p) => p[selectedMetric])) : 0;
-  const mn     = recent.length ? Math.min(...recent.map((p) => p[selectedMetric])) : 0;
+  // ── Stats computed from the full filtered range (matches what graph shows) ──
+  const vals = filteredHistory.map((p) => p[selectedMetric]);
+  const avg  = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+  const mx   = vals.length ? Math.max(...vals) : 0;
+  const mn   = vals.length ? Math.min(...vals) : 0;
 
   if (loading) return (
     <Layout>
