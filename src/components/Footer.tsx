@@ -32,7 +32,7 @@ export default function Footer() {
             <span className="text-xs font-bold tracking-widest text-foreground/80 uppercase">
               I<span className="glow-o">O</span>TMesh
             </span>
-            <span className="text-[9px] text-muted-foreground/50 tracking-wider">v05.03.26 TSXR</span>
+            <span className="text-[9px] text-muted-foreground/50 tracking-wider">v24.03.26 SHUXB</span>
           </div>
 
           {/* Center — social icons */}
