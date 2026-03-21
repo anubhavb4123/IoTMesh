@@ -41,7 +41,7 @@ export default function Telegram() {
     <Layout>
       <div className="space-y-6 pb-5" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
 
-        {/* Header */}
+        {/* Header*/}
         <div style={{ animation: "fadeSlideIn 0.4s ease both" }}>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
             Telegram Alerts
