@@ -256,7 +256,7 @@ export default function Auth() {
       >
         <div className="text-center text-xs text-white/80 py-2 backdrop-blur-md">
           <span className="font-medium">IoTMesh</span> ·
-          <span className="mx-1">v05.03.26 TSXR</span> ·
+          <span className="mx-1">v24.03.26 SHUXB</span> ·
           <span>© {new Date().getFullYear()} IoTMesh. All rights reserved.</span>
         </div>
       </div>
