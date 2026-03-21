@@ -54,7 +54,7 @@ export default function InfoDialog() {
                 </p>
               </section>
 
-              {/* Links */}
+              {/* Links*/}
               <section style={{ animation: "fadeSlideIn 0.3s ease both", animationDelay: "0.15s" }}>
                 <h3 className="font-semibold text-foreground mb-2">🔗 Links & Contact</h3>
                 <div className="space-y-2">
