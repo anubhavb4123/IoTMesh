@@ -120,7 +120,7 @@ export const Layout = ({ children }: LayoutProps) => {
             <span className="text-xl font-bold bg-gradient-to-r from-primary bg-clip-text text-transparent">
               I<span className="glow-o">O</span>TMesh
               <span className="ml-2 text-xs text-muted-foreground">
-                v05.03.26 TSXR
+                v24.03.26 SHUXB
               </span>
             </span>
           </div>
@@ -201,7 +201,7 @@ export const Layout = ({ children }: LayoutProps) => {
           <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
             I<span className="glow-o">O</span>TMesh
             <span className="ml-2 text-xs text-muted-foreground">
-              v05.03.26 TSXR
+              v24.03.26 SHUXB
             </span>
           </span>
 
@@ -219,7 +219,7 @@ export const Layout = ({ children }: LayoutProps) => {
         {mobileMenuOpen && (
 
           <div
-            className="absolute top-full left-0 right-0 bg-card/40 backdrop-blur-xl border-t border-border/40 z-50"
+            className="absolute top-full left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border/40 z-50"
             style={{ animation: "fadeSlideIn .35s cubic-bezier(.22,.61,.36,1) both" }}
           >
 
