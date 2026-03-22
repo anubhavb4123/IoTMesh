@@ -38,7 +38,7 @@ export default function IgnitionControl() {
     };
   }, []);
 
-  // ── Arm password submit ──
+  // ── Arm password submit 
   const handleArmSubmit = () => {
     if (armInput === ARM_PASSWORD) {
       setArmed(true);
