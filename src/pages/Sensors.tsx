@@ -145,7 +145,7 @@ export default function Sensors() {
     });
   }, []);
 
-  // ── Online/offline detection — same logic as Dashboard ──────────
+  // ── Online/offline detection — same logic as Dashboard 
   useEffect(() => {
     const check = () => {
       const lastMs = parseLastUpdateToMs(sensorData?.last_update);
