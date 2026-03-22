@@ -600,7 +600,7 @@ const IotMesh = () => {
       <div className="iotmesh-page">
         <div className="scanline" />
 
-        {/* NAV */}
+        {/* NAV  */}
         <nav className={`iot-nav ${scrolled ? "scrolled" : ""}`}>
           <a href="#" className="nav-logo">I<span>O</span>TMesh</a>
           <div className="nav-links">
