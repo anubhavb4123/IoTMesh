@@ -64,7 +64,7 @@ export default function Alerts() {
           <p className="text-muted-foreground mt-1">System alerts and notifications history</p>
         </div>
 
-        {/* Table card*/}
+        {/* Table card */}
         <Card
           className="border-border/40 bg-card/40"
           style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.1s" }}
