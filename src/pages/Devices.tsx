@@ -326,7 +326,7 @@ export default function Devices() {
           </div>
         </Card>
 
-        {/* Security*/}
+        {/* Security */}
         <Card
           className="border-border/40 bg-card/40 p-4 space-y-4 hover:border-border/70 transition-all duration-300"
           style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.45s" }}
