@@ -202,7 +202,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* ── System status */}
+        {/* System status */}
         <div
           className="rounded-2xl border border-border/40 bg-card/40 overflow-hidden"
           style={{
