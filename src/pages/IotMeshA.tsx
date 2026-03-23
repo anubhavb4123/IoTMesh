@@ -845,7 +845,7 @@ const IotMesh = () => {
           <CtaSection />
         </div>
 
-        {/* FOOTER */}
+        {/* FOOTER*/}
         <footer className="iot-footer">
           <span>IoTMesh</span> © {new Date().getFullYear()} — Engineered for Intelligent Automation · Built by Anubhav Bajpai
         </footer>
