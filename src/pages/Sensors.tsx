@@ -9,7 +9,7 @@ import { database } from "@/lib/firebase";
 import { ref, onValue } from "firebase/database";
 import {
   Thermometer, Droplets, Wind, Gauge,
-  Waves, TrendingUp, TrendingDown, Minus, Activity,
+  Waves, TrendingUp, TrendingDown, Minus, Activity, BatteryCharging,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────
@@ -20,11 +20,12 @@ interface HistoryPoint {
   gas: number;
   pressure: number;
   waterLevel: number;
+  batteryPercent: number;
   time: string;
 }
 
-type Metric = "temperature" | "humidity" | "gas" | "pressure" | "waterLevel";
-type Range  = 1 | 12 | 24;
+type Metric = "temperature" | "humidity" | "gas" | "pressure" | "waterLevel" | "battery";
+type Range  = 1 | 12 | 24;``
 
 // ── Metric config ─────────────────────────────────────────────
 const METRICS = [
@@ -32,10 +33,11 @@ const METRICS = [
   { key: "humidity"    as Metric, label: "Humidity",    unit: "%",    icon: Droplets,    color: "#38bdf8", glow: "#38bdf840", bg: "#38bdf812", warn: 75,   critical: 90   },
   { key: "gas"         as Metric, label: "Air Quality", unit: " PPM", icon: Wind,        color: "#10b981", glow: "#10b98140", bg: "#10b98112", warn: 300,  critical: 500  },
   { key: "pressure"    as Metric, label: "Pressure",    unit: " hPa", icon: Gauge,       color: "#f59e0b", glow: "#f59e0b40", bg: "#f59e0b12", warn: 1020, critical: 1040 },
-  { key: "waterLevel"  as Metric, label: "Water Level", unit: " cm",  icon: Waves,       color: "#6366f1", glow: "#6366f140", bg: "#6366f112", warn: 70,   critical: 90   },
+  { key: "waterLevel"     as Metric, label: "Water Level",    unit: " cm",  icon: Waves,          color: "#6366f1", glow: "#6366f140", bg: "#6366f112", warn: 70,  critical: 90  },
+  { key: "battery" as Metric, label: "Invertor Battery",         unit: "%",    icon: BatteryCharging, color: "#c57c22", glow: "#c5ba2240", bg: "#22c55e12", warn: 30,  critical: 15  },
 ];
 
-// ── Parse last_update string → ms (same logic as Dashboard) ────
+// ── Parse last_update string → ms (same logic as Dashboard)
 function parseLastUpdateToMs(lastUpdate?: string): number | null {
   if (!lastUpdate) return null;
   const [timePart, datePart] = lastUpdate.split(" ");
@@ -136,7 +138,8 @@ export default function Sensors() {
           humidity:    item.humidity    ?? 0,
           gas:         item.gas         ?? 0,
           pressure:    item.pressure    ?? 0,
-          waterLevel:  item.waterLevel  ?? 0,
+          waterLevel:     item.waterLevel     ?? 0,
+          batteryPercent: item.batteryPercent ?? 0,
           time: new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
         };
       });
@@ -145,7 +148,7 @@ export default function Sensors() {
     });
   }, []);
 
-  // ── Online/offline detection — same logic as Dashboard 
+  // ── Online/offline detection — same logic as Dashboard ──────────
   useEffect(() => {
     const check = () => {
       const lastMs = parseLastUpdateToMs(sensorData?.last_update);
@@ -160,7 +163,7 @@ export default function Sensors() {
   const filteredHistory = history.filter((p) => Date.now() - p.timestamp <= range * 3_600_000);
   const activeCfg       = METRICS.find((m) => m.key === selectedMetric)!;
 
-  // ── Stats computed from the full filtered range (matches what graph shows) 
+  // ── Stats computed from the full filtered range (matches what graph shows) ──
   const vals = filteredHistory.map((p) => p[selectedMetric]);
   const avg  = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
   const mx   = vals.length ? Math.max(...vals) : 0;
@@ -232,6 +235,8 @@ export default function Sensors() {
             const val =
               cfg.key === "waterLevel"
                 ? (sensorData?.WaterLevel ?? 0)
+                : cfg.key === "battery"
+                ? (sensorData?.batteryPercent ?? 0)
                 : ((sensorData?.[cfg.key as keyof typeof sensorData] as number) ?? 0);
             return <SensorCard key={cfg.key} cfg={cfg} value={val} index={i} />;
           })}
