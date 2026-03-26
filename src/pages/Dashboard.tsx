@@ -193,7 +193,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Sensor cards ── */}
+        {/* ── Sensor cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {cards.map((card, i) => (
             <div key={i} style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${i * 0.06}s` }}>
