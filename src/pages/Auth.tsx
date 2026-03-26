@@ -160,7 +160,7 @@ export default function Auth() {
         >
           <CardHeader className="space-y-4 text-center">
 
-            {/* Video logo*/}
+            {/* Video logo */}
             <div
               className="mx-auto h-16 w-16 rounded-2xl overflow-hidden shadow-lg border border-white/20"
               style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.3s" }}
