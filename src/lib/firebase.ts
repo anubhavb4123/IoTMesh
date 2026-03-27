@@ -164,7 +164,7 @@ class FirebaseService {
       }
     });
   }
-  
+
   async getControlStates(): Promise<ControlData> {
     const snap = await get(ref(database, PATHS.CONTROLS));
     return snap.exists()
@@ -226,7 +226,7 @@ class FirebaseService {
     return onValue(ref(database, PATHS.STATUS), (snap) => {
       if (snap.exists()) callback(snap.val());
     });
-  }  
+  }
 }
 
 // ------------------------------------------------------
