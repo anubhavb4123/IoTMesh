@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
+  AreaChart, Area, Line, LineChart, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ComposedChart,
 } from "recharts";
 import { useSensorData } from "@/hooks/useSensorData";
 import { database } from "@/lib/firebase";
@@ -21,20 +21,21 @@ interface HistoryPoint {
   pressure: number;
   waterLevel: number;
   batteryPercent: number;
+  batteryVolt: number;
   time: string;
 }
 
-type Metric = "temperature" | "humidity" | "gas" | "pressure" | "waterLevel" | "battery";
-type Range  = 1 | 12 | 24;``
+type Metric = "temperature" | "humidity" | "gas" | "pressure" | "waterLevel" | "batteryPercent";
+type Range = 1 | 12 | 24; ``
 
 // ── Metric config ─────────────────────────────────────────────
 const METRICS = [
-  { key: "temperature" as Metric, label: "Temperature", unit: "°C",   icon: Thermometer, color: "#ef4444", glow: "#ef444440", bg: "#ef444412", warn: 35,   critical: 42   },
-  { key: "humidity"    as Metric, label: "Humidity",    unit: "%",    icon: Droplets,    color: "#38bdf8", glow: "#38bdf840", bg: "#38bdf812", warn: 75,   critical: 90   },
-  { key: "gas"         as Metric, label: "Air Quality", unit: " PPM", icon: Wind,        color: "#10b981", glow: "#10b98140", bg: "#10b98112", warn: 300,  critical: 500  },
-  { key: "pressure"    as Metric, label: "Pressure",    unit: " hPa", icon: Gauge,       color: "#f59e0b", glow: "#f59e0b40", bg: "#f59e0b12", warn: 1020, critical: 1040 },
-  { key: "waterLevel"     as Metric, label: "Water Level",    unit: " cm",  icon: Waves,          color: "#6366f1", glow: "#6366f140", bg: "#6366f112", warn: 70,  critical: 90  },
-  { key: "battery" as Metric, label: "Invertor Battery",         unit: "%",    icon: BatteryCharging, color: "#c57c22", glow: "#c5ba2240", bg: "#22c55e12", warn: 30,  critical: 15  },
+  { key: "temperature" as Metric, label: "Temperature", unit: "°C", icon: Thermometer, color: "#ef4444", glow: "#ef444440", bg: "#ef444412", warn: 35, critical: 42 },
+  { key: "humidity" as Metric, label: "Humidity", unit: "%", icon: Droplets, color: "#38bdf8", glow: "#38bdf840", bg: "#38bdf812", warn: 75, critical: 90 },
+  { key: "gas" as Metric, label: "Air Quality", unit: " PPM", icon: Wind, color: "#10b981", glow: "#10b98140", bg: "#10b98112", warn: 300, critical: 500 },
+  { key: "pressure" as Metric, label: "Pressure", unit: " hPa", icon: Gauge, color: "#f59e0b", glow: "#f59e0b40", bg: "#f59e0b12", warn: 1020, critical: 1040 },
+  { key: "waterLevel" as Metric, label: "Water Level", unit: " cm", icon: Waves, color: "#6366f1", glow: "#6366f140", bg: "#6366f112", warn: 70, critical: 90 },
+  { key: "batteryPercent" as Metric, label: "Battery", unit: "%", icon: BatteryCharging, color: "#c57c22", glow: "#c5ba2240", bg: "#22c55e12", warn: 30, critical: 15 },
 ];
 
 // ── Parse last_update string → ms (same logic as Dashboard)
@@ -71,11 +72,42 @@ const CustomTooltip = ({
   );
 };
 
+// ── Battery dual tooltip ─────────────────────────────────────
+const BatteryTooltip = ({
+  active, payload, label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number | string; color?: string }>;
+  label?: string;
+}) => {
+  if (!active || !payload?.length) return null;
+  const pctEntry = payload.find((p) => p.name === "batteryPercent");
+  const voltEntry = payload.find((p) => p.name === "batteryVolt");
+  return (
+    <div
+      className="rounded-xl px-3 py-2 text-sm border backdrop-blur-md space-y-1"
+      style={{ background: "rgba(10,14,24,0.95)", borderColor: "#22c55e55" }}
+    >
+      <p className="text-muted-foreground text-xs">{label}</p>
+      {pctEntry && (
+        <p className="font-bold tabular-nums" style={{ color: "#22c55e" }}>
+          {Number(pctEntry.value).toFixed(1)}%
+        </p>
+      )}
+      {voltEntry && (
+        <p className="font-bold tabular-nums" style={{ color: "#86efac" }}>
+          {Number(voltEntry.value).toFixed(2)} V
+        </p>
+      )}
+    </div>
+  );
+};
+
 // ── Sensor card ───────────────────────────────────────────────
 function SensorCard({ cfg, value, index }: { cfg: typeof METRICS[number]; value: number; index: number }) {
-  const Icon   = cfg.icon;
+  const Icon = cfg.icon;
   const status = value >= cfg.critical ? "critical" : value >= cfg.warn ? "warn" : "ok";
-  const sc     = status === "critical" ? "#ef4444" : status === "warn" ? "#f59e0b" : cfg.color;
+  const sc = status === "critical" ? "#ef4444" : status === "warn" ? "#f59e0b" : cfg.color;
 
   return (
     <div
@@ -121,10 +153,10 @@ function SensorCard({ cfg, value, index }: { cfg: typeof METRICS[number]; value:
 // ── Main Page ─────────────────────────────────────────────────
 export default function Sensors() {
   const { sensorData, loading, error } = useSensorData();
-  const [history,        setHistory]        = useState<HistoryPoint[]>([]);
-  const [range,          setRange]          = useState<Range>(24);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [range, setRange] = useState<Range>(24);
   const [selectedMetric, setSelectedMetric] = useState<Metric>("temperature");
-  const [isOnline,        setIsOnline]        = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
     const histRef = ref(database, "home/room1/history/h24");
@@ -133,13 +165,14 @@ export default function Sensors() {
       const arr: HistoryPoint[] = Object.entries(snap.val()).map(([, item]: any) => {
         const ts = item.timestamp < 1e12 ? item.timestamp * 1000 : item.timestamp;
         return {
-          timestamp:   ts,
+          timestamp: ts,
           temperature: item.temperature ?? 0,
-          humidity:    item.humidity    ?? 0,
-          gas:         item.gas         ?? 0,
-          pressure:    item.pressure    ?? 0,
-          waterLevel:     item.waterLevel     ?? 0,
-          batteryPercent: item.batteryPercent ?? 0,
+          humidity: item.humidity ?? 0,
+          gas: item.gas ?? 0,
+          pressure: item.pressure ?? 0,
+          waterLevel: item.waterLevel ?? 0,
+          batteryPercent: item.batteryPercent ?? item.batteryPercent ?? 0,
+          batteryVolt: item.batteryVolt ?? 0,
           time: new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
         };
       });
@@ -161,13 +194,17 @@ export default function Sensors() {
   }, [sensorData?.last_update]);
 
   const filteredHistory = history.filter((p) => Date.now() - p.timestamp <= range * 3_600_000);
-  const activeCfg       = METRICS.find((m) => m.key === selectedMetric)!;
+  const activeCfg = METRICS.find((m) => m.key === selectedMetric)!;
 
   // ── Stats computed from the full filtered range (matches what graph shows) ──
-  const vals = filteredHistory.map((p) => p[selectedMetric]);
-  const avg  = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
-  const mx   = vals.length ? Math.max(...vals) : 0;
-  const mn   = vals.length ? Math.min(...vals) : 0;
+  const vals = filteredHistory.map((p) => selectedMetric === "batteryPercent" ? p.batteryPercent : (p[selectedMetric as keyof typeof p] as number));
+  const voltVals = filteredHistory.map((p) => p.batteryVolt);
+  const avg = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+  const mx = vals.length ? Math.max(...vals) : 0;
+  const mn = vals.length ? Math.min(...vals) : 0;
+  const avgV = voltVals.length ? voltVals.reduce((s, v) => s + v, 0) / voltVals.length : 0;
+  const mxV = voltVals.length ? Math.max(...voltVals) : 0;
+  const mnV = voltVals.length ? Math.min(...voltVals) : 0;
 
   if (loading) return (
     <Layout>
@@ -209,7 +246,7 @@ export default function Sensors() {
             style={
               isOnline
                 ? { borderColor: "rgba(34,197,94,0.25)", background: "rgba(34,197,94,0.08)" }
-                : { borderColor: "rgba(239,68,68,0.25)",  background: "rgba(239,68,68,0.08)"  }
+                : { borderColor: "rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.08)" }
             }
           >
             <span
@@ -235,9 +272,9 @@ export default function Sensors() {
             const val =
               cfg.key === "waterLevel"
                 ? (sensorData?.WaterLevel ?? 0)
-                : cfg.key === "battery"
-                ? (sensorData?.batteryPercent ?? 0)
-                : ((sensorData?.[cfg.key as keyof typeof sensorData] as number) ?? 0);
+                : cfg.key === "batteryPercent"
+                  ? (sensorData?.batteryPercent ?? 0)
+                  : ((sensorData?.[cfg.key as keyof typeof sensorData] as number) ?? 0);
             return <SensorCard key={cfg.key} cfg={cfg} value={val} index={i} />;
           })}
         </div>
@@ -246,8 +283,8 @@ export default function Sensors() {
         <div
           className="rounded-2xl border border-border/40 bg-card/40 overflow-hidden"
           style={{
-  
-            animation:   "fadeSlideIn 0.4s ease both",
+
+            animation: "fadeSlideIn 0.4s ease both",
             animationDelay: "0.28s",
           }}
         >
@@ -281,20 +318,39 @@ export default function Sensors() {
             </div>
 
             {/* Stats row */}
-            <div className="flex gap-4 mb-3">
-              {[
-                { label: "Avg", value: avg, icon: Minus },
-                { label: "Max", value: mx,  icon: TrendingUp },
-                { label: "Min", value: mn,  icon: TrendingDown },
-              ].map(({ label, value, icon: Icon }) => (
-                <div key={label} className="flex items-center gap-1.5">
-                  <Icon className="h-3 w-3" style={{ color: activeCfg.color, opacity: 0.7 }} />
-                  <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">{label}</span>
-                  <span className="text-xs font-bold tabular-nums" style={{ color: activeCfg.color }}>
-                    {value.toFixed(1)}{activeCfg.unit.trim()}
-                  </span>
-                </div>
-              ))}
+            <div className="flex gap-4 mb-3 flex-wrap">
+              {selectedMetric === "batteryPercent" ? (
+                <>
+                  {[{ label: "Avg", pct: avg, v: avgV, icon: Minus }, { label: "Max", pct: mx, v: mxV, icon: TrendingUp }, { label: "Min", pct: mn, v: mnV, icon: TrendingDown }].map(({ label, pct, v, icon: Icon }) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <Icon className="h-3 w-3" style={{ color: "#22c55e", opacity: 0.7 }} />
+                      <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">{label}</span>
+                      <span className="text-xs font-bold tabular-nums" style={{ color: "#22c55e" }}>{pct.toFixed(1)}%</span>
+                      <span className="text-xs tabular-nums" style={{ color: "#86efac" }}>{v.toFixed(2)}V</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border/20">
+                    <span className="w-6 border-t-2 border-dashed border-[#86efac] opacity-70" />
+                    <span className="text-[10px] text-muted-foreground/50">Voltage</span>
+                    <span className="w-4 h-0.5 bg-[#22c55e] rounded opacity-70" />
+                    <span className="text-[10px] text-muted-foreground/50">%</span>
+                  </div>
+                </>
+              ) : (
+                [
+                  { label: "Avg", value: avg, icon: Minus },
+                  { label: "Max", value: mx, icon: TrendingUp },
+                  { label: "Min", value: mn, icon: TrendingDown },
+                ].map(({ label, value, icon: Icon }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <Icon className="h-3 w-3" style={{ color: activeCfg.color, opacity: 0.7 }} />
+                    <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">{label}</span>
+                    <span className="text-xs font-bold tabular-nums" style={{ color: activeCfg.color }}>
+                      {value.toFixed(1)}{activeCfg.unit.trim()}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Metric selector */}
@@ -325,37 +381,59 @@ export default function Sensors() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={filteredHistory} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor={activeCfg.color} stopOpacity={0.25} />
-                      <stop offset="100%" stopColor={activeCfg.color} stopOpacity={0}    />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="time" tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    content={({ active, payload, label }) => (
-                      <CustomTooltip
-                        active={active}
-                        payload={payload as Array<{ value?: number | string }>}
-                        label={label}
-                        color={activeCfg.color}
-                        unit={activeCfg.unit}
-                      />
-                    )}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={selectedMetric}
-                    stroke={activeCfg.color}
-                    strokeWidth={2}
-                    fill="url(#grad)"
-                    dot={false}
-                    activeDot={{ r: 4, fill: activeCfg.color, stroke: "#0a0e18", strokeWidth: 2 }}
-                  />
-                </AreaChart>
+                {selectedMetric === "batteryPercent" ? (
+                  <ComposedChart data={filteredHistory} margin={{ top: 4, right: 40, left: -24, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="grad-batt" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22c55e" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="time" tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis yAxisId="pct" tick={{ fill: "#22c55e", fontSize: 9 }} tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                    <YAxis yAxisId="volt" orientation="right" tick={{ fill: "#86efac", fontSize: 9 }} tickLine={false} axisLine={false} domain={[3.0, 4.3]} tickFormatter={(v: number) => `${v.toFixed(1)}V`} />
+                    <Tooltip
+                      content={({ active, payload, label }) => (
+                        <BatteryTooltip active={active} payload={payload as any} label={label} />
+                      )}
+                    />
+                    <Area yAxisId="pct" type="monotone" dataKey="batteryPercent" name="batteryPercent" stroke="#22c55e" strokeWidth={2} fill="url(#grad-batt)" dot={false} activeDot={{ r: 4, fill: "#22c55e", stroke: "#0a0e18", strokeWidth: 2 }} />
+                    <Line yAxisId="volt" type="monotone" dataKey="batteryVolt" name="batteryVolt" stroke="#86efac" strokeWidth={1.5} dot={false} strokeDasharray="4 2" activeDot={{ r: 3, fill: "#86efac", stroke: "#0a0e18", strokeWidth: 2 }} />
+                  </ComposedChart>
+                ) : (
+                  <AreaChart data={filteredHistory} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={activeCfg.color} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={activeCfg.color} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="time" tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      content={({ active, payload, label }) => (
+                        <CustomTooltip
+                          active={active}
+                          payload={payload as Array<{ value?: number | string }>}
+                          label={label}
+                          color={activeCfg.color}
+                          unit={activeCfg.unit}
+                        />
+                      )}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={selectedMetric}
+                      stroke={activeCfg.color}
+                      strokeWidth={2}
+                      fill="url(#grad)"
+                      dot={false}
+                      activeDot={{ r: 4, fill: activeCfg.color, stroke: "#0a0e18", strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                )}
               </ResponsiveContainer>
             )}
           </div>
