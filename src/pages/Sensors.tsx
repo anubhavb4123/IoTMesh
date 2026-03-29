@@ -26,17 +26,16 @@ interface HistoryPoint {
   time: string;
 }
 
-type Metric = "temperature" | "temperatureBMP" | "humidity" | "gas" | "pressure" | "waterLevel" | "batteryPercent";
+type Metric = "temperature" | "humidity" | "gas" | "pressure" | "waterLevel" | "batteryPercent";
 type Range  = 1 | 12 | 24;``
 
 // ── Metric config ─────────────────────────────────────────────
 const METRICS = [
-  { key: "temperature"    as Metric, label: "Temp DHT11",  unit: "°C", icon: Thermometer, color: "#ef4444", glow: "#ef444440", bg: "#ef444412", warn: 35, critical: 42 },
-  { key: "temperatureBMP" as Metric, label: "Temp BMP180", unit: "°C", icon: Thermometer, color: "#f97316", glow: "#f9731640", bg: "#f9731612", warn: 35, critical: 42 },
+  { key: "temperature" as Metric, label: "Temperature", unit: "°C", icon: Thermometer, color: "#ef4444", glow: "#ef444440", bg: "#ef444412", warn: 35, critical: 42 },
   { key: "humidity"    as Metric, label: "Humidity",    unit: "%",    icon: Droplets,    color: "#38bdf8", glow: "#38bdf840", bg: "#38bdf812", warn: 75,   critical: 90   },
   { key: "gas"         as Metric, label: "Air Quality", unit: " PPM", icon: Wind,        color: "#10b981", glow: "#10b98140", bg: "#10b98112", warn: 300,  critical: 500  },
   { key: "pressure"    as Metric, label: "Pressure",    unit: " hPa", icon: Gauge,       color: "#f59e0b", glow: "#f59e0b40", bg: "#f59e0b12", warn: 1020, critical: 1040 },
-  { key: "waterLevel"     as Metric, label: "Water Level",    unit: " cm",  icon: Waves,          color: "#6366f1", glow: "#6366f140", bg: "#6366f112", warn: 70,  critical: 90  },
+  { key: "waterLevel"     as Metric, label: "Water Level",    unit: " cm",  icon: Waves,          color: "#6366f1", glow: "#6366f140", bg: "#6366f112", warn: 30,  critical: 15  },
   { key: "batteryPercent" as Metric, label: "Battery",         unit: "%",    icon: BatteryCharging, color: "#c57c22", glow: "#c5ba2240", bg: "#22c55e12", warn: 30,  critical: 15  },
 ];
 
@@ -99,6 +98,37 @@ const BatteryTooltip = ({
       {voltEntry && (
         <p className="font-bold tabular-nums" style={{ color: "#86efac" }}>
           {Number(voltEntry.value).toFixed(2)} V
+        </p>
+      )}
+    </div>
+  );
+};
+
+// ── Temperature dual-line tooltip ────────────────────────────
+const TempTooltip = ({
+  active, payload, label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number | string; color?: string }>;
+  label?: string;
+}) => {
+  if (!active || !payload?.length) return null;
+  const dht = payload.find((p) => p.name === "temperature");
+  const bmp = payload.find((p) => p.name === "temperatureBMP");
+  return (
+    <div
+      className="rounded-xl px-3 py-2 text-sm border backdrop-blur-md space-y-1"
+      style={{ background: "rgba(10,14,24,0.95)", borderColor: "#ef444455" }}
+    >
+      <p className="text-muted-foreground text-xs">{label}</p>
+      {dht && (
+        <p className="font-bold tabular-nums" style={{ color: "#ef4444" }}>
+          DHT11: {Number(dht.value).toFixed(1)}°C
+        </p>
+      )}
+      {bmp && (
+        <p className="font-bold tabular-nums" style={{ color: "#f97316" }}>
+          BMP180: {Number(bmp.value).toFixed(1)}°C
         </p>
       )}
     </div>
@@ -200,14 +230,18 @@ export default function Sensors() {
   const activeCfg       = METRICS.find((m) => m.key === selectedMetric)!;
 
   // ── Stats computed from the full filtered range (matches what graph shows) ──
-  const vals     = filteredHistory.map((p) => selectedMetric === "batteryPercent" ? p.batteryPercent : selectedMetric === "temperatureBMP" ? p.temperatureBMP : (p[selectedMetric as keyof typeof p] as number));
+  const vals     = filteredHistory.map((p) => selectedMetric === "batteryPercent" ? p.batteryPercent : (p[selectedMetric as keyof typeof p] as number));
   const voltVals = filteredHistory.map((p) => p.batteryVoltage);
+  const bmpVals  = filteredHistory.map((p) => p.temperatureBMP);
   const avg  = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
   const mx   = vals.length ? Math.max(...vals) : 0;
   const mn   = vals.length ? Math.min(...vals) : 0;
   const avgV = voltVals.length ? voltVals.reduce((s, v) => s + v, 0) / voltVals.length : 0;
   const mxV  = voltVals.length ? Math.max(...voltVals) : 0;
   const mnV  = voltVals.length ? Math.min(...voltVals) : 0;
+  const avgB = bmpVals.length ? bmpVals.reduce((s, v) => s + v, 0) / bmpVals.length : 0;
+  const mxB  = bmpVals.length ? Math.max(...bmpVals) : 0;
+  const mnB  = bmpVals.length ? Math.min(...bmpVals) : 0;
 
   if (loading) return (
     <Layout>
@@ -297,7 +331,10 @@ export default function Sensors() {
             {/* Top row: title + range */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-4 rounded-full" style={{ background: activeCfg.color, boxShadow: `0 0 6px ${activeCfg.color}` }} />
+                <div className="w-1.5 h-4 rounded-full" style={{ background: activeCfg.color }} />
+                {selectedMetric === "temperature" && (
+                  <div className="w-1.5 h-4 rounded-full ml-0.5" style={{ background: "#f97316" }} />
+                )}
                 <span className="text-sm font-semibold">{activeCfg.label} History</span>
                 <span className="text-xs text-muted-foreground/40">· {filteredHistory.length} pts</span>
               </div>
@@ -322,7 +359,34 @@ export default function Sensors() {
 
             {/* Stats row */}
             <div className="flex gap-4 mb-3 flex-wrap">
-              {selectedMetric === "batteryPercent" ? (
+              {selectedMetric === "temperature" ? (
+                <>
+                  {/* DHT11 stats */}
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border/20">
+                    <div className="w-2 h-2 rounded-full bg-[#ef4444] mr-1" />
+                    <span className="text-[10px] text-muted-foreground/50 mr-1">DHT11</span>
+                    {[{ label: "Avg", value: avg, icon: Minus }, { label: "Max", value: mx, icon: TrendingUp }, { label: "Min", value: mn, icon: TrendingDown }].map(({ label, value, icon: Icon }) => (
+                      <div key={label} className="flex items-center gap-1 ml-2">
+                        <Icon className="h-3 w-3" style={{ color: "#ef4444", opacity: 0.7 }} />
+                        <span className="text-[10px] text-muted-foreground/50">{label}</span>
+                        <span className="text-xs font-bold tabular-nums" style={{ color: "#ef4444" }}>{value.toFixed(1)}°C</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* BMP180 stats */}
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border/20">
+                    <div className="w-2 h-2 rounded-full bg-[#f97316] mr-1" />
+                    <span className="text-[10px] text-muted-foreground/50 mr-1">BMP180</span>
+                    {[{ label: "Avg", value: avgB, icon: Minus }, { label: "Max", value: mxB, icon: TrendingUp }, { label: "Min", value: mnB, icon: TrendingDown }].map(({ label, value, icon: Icon }) => (
+                      <div key={label} className="flex items-center gap-1 ml-2">
+                        <Icon className="h-3 w-3" style={{ color: "#f97316", opacity: 0.7 }} />
+                        <span className="text-[10px] text-muted-foreground/50">{label}</span>
+                        <span className="text-xs font-bold tabular-nums" style={{ color: "#f97316" }}>{value.toFixed(1)}°C</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : selectedMetric === "batteryPercent" ? (
                 <>
                   {[{ label: "Avg", pct: avg, v: avgV, icon: Minus }, { label: "Max", pct: mx, v: mxV, icon: TrendingUp }, { label: "Min", pct: mn, v: mnV, icon: TrendingDown }].map(({ label, pct, v, icon: Icon }) => (
                     <div key={label} className="flex items-center gap-1.5">
@@ -384,7 +448,26 @@ export default function Sensors() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                {selectedMetric === "batteryPercent" ? (
+                {selectedMetric === "temperature" ? (
+                  <ComposedChart data={filteredHistory} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="grad-dht" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"   stopColor="#ef4444" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0}   />
+                      </linearGradient>
+                      <linearGradient id="grad-bmp" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"   stopColor="#f97316" stopOpacity={0.15} />
+                        <stop offset="100%" stopColor="#f97316" stopOpacity={0}    />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="time" tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fill: "#333", fontSize: 9 }} tickLine={false} axisLine={false} />
+                    <Tooltip content={({ active, payload, label }) => <TempTooltip active={active} payload={payload as any} label={label} />} />
+                    <Area type="monotone" dataKey="temperature"    name="temperature"    stroke="#ef4444" strokeWidth={2}   fill="url(#grad-dht)" dot={false} activeDot={{ r: 4, fill: "#ef4444", stroke: "#0a0e18", strokeWidth: 2 }} />
+                    <Area type="monotone" dataKey="temperatureBMP" name="temperatureBMP" stroke="#f97316" strokeWidth={1.5} fill="url(#grad-bmp)" dot={false} activeDot={{ r: 4, fill: "#f97316", stroke: "#0a0e18", strokeWidth: 2 }} />
+                  </ComposedChart>
+                ) : selectedMetric === "batteryPercent" ? (
                   <ComposedChart data={filteredHistory} margin={{ top: 4, right: 40, left: -24, bottom: 0 }}>
                     <defs>
                       <linearGradient id="grad-batt" x1="0" y1="0" x2="0" y2="1">
