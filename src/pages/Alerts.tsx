@@ -43,7 +43,7 @@ export default function Alerts() {
       critical: { variant: "destructive" as const,  icon: AlertCircle,   label: "Critical" },
     };
     const config = variants[severity as keyof typeof variants] || variants.info;
-    const Icon = config.icon;
+    const Icon = config.icon; 
     return (
       <Badge variant={config.variant} className="gap-1">
         <Icon className="h-3 w-3" />
