@@ -34,5 +34,5 @@ export const useSensorData = () => {
     return () => unsubscribe?.();
   }, []);
 
-  return { sensorData, loading, error };
+  return { sensorData, loading, error }; 
 };
