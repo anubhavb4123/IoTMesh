@@ -12,29 +12,29 @@ import { haptic } from "@/lib/haptic";
 // ── Fan Speed Slider ──────────────────────────────────────────
 interface FanSliderProps {
   fanOn: boolean;
-  speed: number;                      // 0–5
+  speed: number;                      // 0–3
   onSpeedChange: (v: number) => void;
 }
 
-const SPEED_LABELS = ["Off", "Low", "2", "Mid", "4", "High"] as const;
-const SPEED_COLORS = ["#555", "#38bdf8", "#22d3ee", "#06b6d4", "#f97316", "#ef4444"] as const;
-const SPEED_GLOW   = ["transparent", "#38bdf855", "#22d3ee55", "#06b6d455", "#f9731655", "#ef444455"] as const;
+const SPEED_LABELS = ["Off", "Low", "Medium", "High"] as const;
+const SPEED_COLORS = ["#555", "#38bdf8", "#f59e0b", "#ef4444"] as const;
+const SPEED_GLOW = ["transparent", "#38bdf855", "#f59e0b55", "#ef444455"] as const;
 
 function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
-  const [local, setLocal]   = useState(speed);
-  const isDragging          = useRef(false);
-  const lastStep            = useRef(-1);
+  const [local, setLocal] = useState(speed);
+  const isDragging = useRef(false);
+  const lastStep = useRef(-1);
 
   useEffect(() => {
     if (!isDragging.current) setLocal(speed);
   }, [speed]);
 
-  const pct        = (local / 5) * 100;
-  const color      = SPEED_COLORS[local] ?? SPEED_COLORS[0];
-  const glow       = SPEED_GLOW[local]   ?? "transparent";
-  const label      = SPEED_LABELS[local] ?? "Off";
-  const isOff      = local === 0 || !fanOn;
-  const spinSpeed  = local === 0 ? "0s" : local <= 2 ? "1.2s" : local <= 4 ? "0.5s" : "0.2s";
+  const pct = ((local - 1) / 2) * 100;
+  const color = SPEED_COLORS[local] ?? SPEED_COLORS[0];
+  const glow = SPEED_GLOW[local] ?? "transparent";
+  const label = SPEED_LABELS[local] ?? "Off";
+  const isOff = local === 0 || !fanOn;
+  const spinSpeed = local === 0 ? "0s" : local === 1 ? "1.2s" : local === 2 ? "0.6s" : "0.25s";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!fanOn) return;
@@ -87,15 +87,12 @@ function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
           className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold tracking-wider transition-all duration-300"
           style={{
             background: isOff ? "rgba(255,255,255,0.05)" : `${color}22`,
-            color:       isOff ? "#555" : color,
-            border:      `1px solid ${isOff ? "rgba(255,255,255,0.08)" : color + "44"}`,
-            boxShadow:   isOff ? "none" : `0 0 8px ${glow}`,
+            color: isOff ? "#555" : color,
+            border: `1px solid ${isOff ? "rgba(255,255,255,0.08)" : color + "44"}`,
+            boxShadow: isOff ? "none" : `0 0 8px ${glow}`,
           }}
         >
           <span>{fanOn ? label : "Fan Off"}</span>
-          {fanOn && local > 0 && (
-            <span className="opacity-60 font-normal">{local}/5</span>
-          )}
         </div>
       </div>
 
@@ -103,7 +100,7 @@ function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
       <div className="space-y-2">
         {/* Step dots */}
         <div className="flex justify-between px-0.5">
-          {[0, 1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3].map((s) => (
             <button
               key={s}
               disabled={!fanOn}
@@ -119,22 +116,20 @@ function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
               <div
                 className="w-2 h-2 rounded-full transition-all duration-200"
                 style={{
-                  background: fanOn && s <= local && local > 0
+                  background: fanOn && s <= local
                     ? color
-                    : s === local && local === 0
-                    ? "rgba(255,255,255,0.25)"
                     : "rgba(255,255,255,0.1)",
-                  boxShadow: fanOn && s === local && local > 0
+                  boxShadow: fanOn && s === local
                     ? `0 0 6px ${color}`
                     : "none",
                   transform: s === local ? "scale(1.4)" : "scale(1)",
                 }}
               />
               <span
-                className="text-[9px] tabular-nums transition-colors duration-200"
-                style={{ color: fanOn && s <= local && local > 0 ? color : "rgba(255,255,255,0.2)" }}
+                className="text-[9px] transition-colors duration-200"
+                style={{ color: fanOn && s <= local ? color : "rgba(255,255,255,0.2)" }}
               >
-                {s}
+                {SPEED_LABELS[s]}
               </span>
             </button>
           ))}
@@ -171,7 +166,7 @@ function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
           {/* Native invisible input */}
           <input
             type="range"
-            min={0} max={5} step={1}
+            min={1} max={3} step={1}
             value={local}
             disabled={!fanOn}
             onChange={handleChange}
