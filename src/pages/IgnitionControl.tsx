@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 
-// ── Arm password — change this to whatever you want ──
+// Arm password
 const ARM_PASSWORD = import.meta.env.VITE_ARM_PASSWORD;
 
 export default function IgnitionControl() {
