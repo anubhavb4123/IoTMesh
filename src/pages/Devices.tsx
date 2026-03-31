@@ -183,7 +183,7 @@ function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────
+// ── Main Page 
 export default function Devices() {
   const [controls, setControls] = useState<ControlData>({} as ControlData);
 
