@@ -440,7 +440,7 @@ export default function Sensors() {
             </div>
           </div>
 
-          {/* Chart area */}
+          {/* Chart area*/}
           <div className="px-2 py-4 h-64">
             {filteredHistory.length === 0 ? (
               <div className="h-full flex items-center justify-center text-muted-foreground/30 text-sm">
