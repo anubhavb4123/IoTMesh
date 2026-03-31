@@ -49,7 +49,7 @@ export default function Telegram() {
           <p className="text-muted-foreground mt-1">Subscribe users to receive system alerts on Telegram</p>
         </div>
 
-        {/* QR Code card */}
+        {/* QR Code card*/}
         <Card
           className="border-border/40 bg-card/40"
           style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.1s" }}
