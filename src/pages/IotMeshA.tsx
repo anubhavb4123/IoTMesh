@@ -819,7 +819,7 @@ const IotMesh = () => {
 
         <div className="divider" />
 
-        {/* VISION */}
+        {/* VISION*/}
         <Section id="vision">
           <div className="container">
             <div className="text-center" style={{ marginBottom: "3.5rem" }}>
