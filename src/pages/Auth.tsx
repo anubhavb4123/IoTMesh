@@ -15,6 +15,7 @@ import { haptic } from "@/lib/haptic";
 
 // PASSWORDS — stored in .env as VITE_GUEST_PASSWORD and VITE_ADMIN_PASSWORD
 const GUEST_PASSWORD = import.meta.env.VITE_GUEST_PASSWORD;
+const GUEST_PASSWORD_New = import.meta.env.VITE_GUEST_PASSWORD_New;
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 export default function Auth() {
@@ -71,22 +72,32 @@ export default function Auth() {
   // ── Step 1: verify guest password ──
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!name.trim()) {
       sounds.error();
       haptic.warning();
-      toast.error("Enter your name", { className: "toast-admin-warning" });
+      toast.error("Please enter your name", { className: "toast-admin-warning" });
       return;
     }
-    if (password !== GUEST_PASSWORD) {
+
+    if (password === GUEST_PASSWORD) {
       sounds.wrongPass();
       haptic.error();
-      toast.error("Incorrect login password", { className: "toast-admin-warning" });
+      toast.error("System Update: Password has been changed. Please use the latest access key.", { className: "toast-admin-warning" });
       return;
     }
-    sounds.success();
-    haptic.success();
-    toast.success("Login password correct", { className: "toast-success" });
-    setStep("admin_password");
+
+    if (password === GUEST_PASSWORD_New) {
+      sounds.success();
+      haptic.success();
+      toast.success("Login password correct", { className: "toast-success" });
+      setStep("admin_password");
+      return;
+    }
+
+    sounds.wrongPass();
+    haptic.error();
+    toast.error("Incorrect login password", { className: "toast-admin-warning" });
   };
 
   // ── Admin login ──
