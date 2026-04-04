@@ -27,8 +27,6 @@ export default function Auth() {
   const [adminPassword, setAdminPassword] = useState("");
   const [step, setStep] = useState<"signin" | "admin_password">("signin");
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   // ── Auto redirect if already logged in ──
   useEffect(() => {
     const stored = localStorage.getItem("mock_user");
@@ -36,26 +34,6 @@ export default function Auth() {
       const user = JSON.parse(stored);
       setRole(user.role);
     }
-  }, []);
-
-  // Audio enable on first interaction
-  useEffect(() => {
-    const enableAudio = async () => {
-      if (audioRef.current) {
-        audioRef.current.muted = false;
-        audioRef.current.volume = 0.25;
-        try { await audioRef.current.play(); }
-        catch (err) { console.warn("Audio blocked until interaction"); }
-      }
-      window.removeEventListener("click", enableAudio);
-      window.removeEventListener("touchstart", enableAudio);
-    };
-    window.addEventListener("click", enableAudio);
-    window.addEventListener("touchstart", enableAudio);
-    return () => {
-      window.removeEventListener("click", enableAudio);
-      window.removeEventListener("touchstart", enableAudio);
-    };
   }, []);
 
   // ── Save login to Firebase ──
@@ -138,11 +116,6 @@ export default function Auth() {
 
       {/* Dark overlay */}
       <div className="fixed inset-0 bg-black/50 -z-10" />
-
-      {/* Background music */}
-      <audio ref={audioRef} loop muted>
-        <source src="/login-music.mp3" type="audio/mpeg" />
-      </audio>
 
       <div className="flex flex-col min-h-screen items-center justify-center p-4 relative z-10">
 
