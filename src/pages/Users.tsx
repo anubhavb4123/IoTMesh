@@ -86,7 +86,7 @@ export default function Users() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* Users table */}
+          {/* ===== Users table ==== */}
           <Card
             className="border-border/40 bg-card/40"
             style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.1s" }}
