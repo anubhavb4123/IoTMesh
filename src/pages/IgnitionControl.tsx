@@ -16,7 +16,7 @@ const ARM_PASSWORD = import.meta.env.VITE_ARM_PASSWORD;
 export default function IgnitionControl() {
   const { role } = useAuth();
 
-  // ── Arm state ──
+  // Arm state
   const [armed,        setArmed]        = useState(false);
   const [showArmModal, setShowArmModal] = useState(false);
   const [armInput,     setArmInput]     = useState("");
