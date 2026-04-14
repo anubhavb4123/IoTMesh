@@ -100,7 +100,7 @@ export default function Auth() {
     setIsLoading(false);
   };
 
-  // ── Guest login ──
+  // Guest login
   const handleGuestLogin = async () => {
     setIsLoading(true);
     await new Promise((r) => setTimeout(r, 300));
