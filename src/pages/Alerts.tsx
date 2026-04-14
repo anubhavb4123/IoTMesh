@@ -48,7 +48,7 @@ function formatTime(ts: number) {
   return { primary: time, secondary: d.toLocaleDateString() };
 }
 
-// ── Page ──────────────────────────────────────────────────────
+// ── Page 
 export default function Alerts() {
   const [alerts,  setAlerts]  = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
