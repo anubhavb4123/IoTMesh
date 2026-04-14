@@ -230,9 +230,7 @@ class FirebaseService {
   }  
 }
 
-// ------------------------------------------------------
 // ALERT SERVICE
-// ------------------------------------------------------
 class AlertService {
   private lastAlert: Record<string, number> = {};
   private COOLDOWN = 60000;
