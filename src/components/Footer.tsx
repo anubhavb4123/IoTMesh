@@ -1,10 +1,10 @@
 import { Github, Instagram, Mail, Globe, Cpu } from "lucide-react";
 
 const socialLinks = [
-  { href: "https://anubhavb-tech-hub.web.app/",   label: "Website",   Icon: Globe },
-  { href: "https://github.com/anubhavb4123",       label: "GitHub",    Icon: Github },
+  { href: "https://anubhavb-tech-hub.web.app/", label: "Website", Icon: Globe },
+  { href: "https://github.com/anubhavb4123", label: "GitHub", Icon: Github },
   { href: "https://www.instagram.com/anubhhhav_b_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==", label: "Instagram", Icon: Instagram },
-  { href: "mailto:anubhavb4123@gmail.com",         label: "Email",     Icon: Mail },
+  { href: "mailto:anubhavb4123@gmail.com", label: "Email", Icon: Mail },
 ];
 
 export default function Footer() {
@@ -32,7 +32,7 @@ export default function Footer() {
             <span className="text-xs font-bold tracking-widest text-foreground/80 uppercase">
               I<span className="glow-o">O</span>TMesh
             </span>
-            <span className="text-[9px] text-muted-foreground/50 tracking-wider">v24.03.26 SHUXB</span>
+            <span className="text-[9px] text-muted-foreground/50 tracking-wider">v18.04.26 XSEY</span>
           </div>
 
           {/* Center — social icons */}
