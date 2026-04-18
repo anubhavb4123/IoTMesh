@@ -43,6 +43,7 @@ const PATHS = {
   USERS: "users",
   ALERTS: "home/room1/alerts/logs",
   IGNITION: "special/ignition",
+  WEATHER: "home/room1/weather",
 } as const;
 
 // INTERFACES
@@ -133,6 +134,16 @@ export interface ControlData {
 export interface StatusData {
   online: boolean;
   lastSeen: number;
+}
+
+export interface WeatherData {
+  trend: number;
+  prediction: string;
+  latest_hpa: number;
+  oldest_hpa: number;
+  samples: number;
+  updated_at: string;
+  timestamp?: number;
 }
 
 export interface NewAlert {
@@ -227,7 +238,13 @@ class FirebaseService {
     return onValue(ref(database, PATHS.STATUS), (snap) => {
       if (snap.exists()) callback(snap.val());
     });
-  }  
+  }
+
+  listenToWeather(callback: (data: WeatherData | null) => void): () => void {
+    return onValue(ref(database, PATHS.WEATHER), (snap) => {
+      callback(snap.exists() ? (snap.val() as WeatherData) : null);
+    });
+  }
 }
 
 // ALERT SERVICE
