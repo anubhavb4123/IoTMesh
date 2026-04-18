@@ -120,7 +120,7 @@ export const Layout = ({ children }: LayoutProps) => {
             <span className="text-xl font-bold bg-gradient-to-r from-primary bg-clip-text text-transparent">
               I<span className="glow-o">O</span>TMesh
               <span className="ml-2 text-xs text-muted-foreground">
-                v24.03.26 SHUXB
+                v18.04.26 XSEY
               </span>
             </span>
           </div>
@@ -201,7 +201,7 @@ export const Layout = ({ children }: LayoutProps) => {
           <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
             I<span className="glow-o">O</span>TMesh
             <span className="ml-2 text-xs text-muted-foreground">
-              v24.03.26 SHUXB
+              v18.04.26 XSEY
             </span>
           </span>
 
