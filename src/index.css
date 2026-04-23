@@ -356,3 +356,30 @@ All colors MUST be HSL.
 .animate-logo-glow {
   animation: logoGlow 1.8s ease-in-out infinite;
 }
+
+/* ═══ Skeleton Shimmer ═══ */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.06) 60%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmerSlide 1.8s ease-in-out infinite;
+}
+
+@keyframes shimmerSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
