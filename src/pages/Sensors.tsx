@@ -11,6 +11,7 @@ import {
   Thermometer, Droplets, Wind, Gauge,
   Waves, TrendingUp, TrendingDown, Minus, Activity, BatteryCharging,
 } from "lucide-react";
+import { SensorsSkeleton } from "@/components/skeletons/SensorsSkeleton";
 
 // ── Types ─────────────────────────────────────────────────────
 interface HistoryPoint {
@@ -243,14 +244,7 @@ export default function Sensors() {
   const mxB  = bmpVals.length ? Math.max(...bmpVals) : 0;
   const mnB  = bmpVals.length ? Math.min(...bmpVals) : 0;
 
-  if (loading) return (
-    <Layout>
-      <div className="flex items-center gap-3 text-muted-foreground mt-12">
-        <div className="loader-o" />
-        <span className="animate-pulse text-sm tracking-wide">Reading sensors...</span>
-      </div>
-    </Layout>
-  );
+  if (loading) return <SensorsSkeleton />;
 
   if (error) return (
     <Layout>
