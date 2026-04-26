@@ -11,6 +11,7 @@ import {
 import { LucideIcon } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 import { firebaseService, WeatherData } from "@/lib/firebase";
+import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 
 // ── Types ─────────────────────────────────────────────────────
 interface DashboardData {
@@ -109,7 +110,7 @@ export default function Dashboard() {
 
   // Online check every second
   useEffect(() => {
-    const tick = () => {
+    const tick = () => { 
       const lastMs = parseLastUpdateToMs(d.last_update);
       if (!lastMs) { setSensorOnline(false); setSyncAge("—"); return; }
       const diff = Date.now() - lastMs;
@@ -128,16 +129,7 @@ export default function Dashboard() {
   const getGasStatus = (g: number) => g > 350 ? "alert" : g > 250 ? "warning" : "ok";
   const getBatteryStatus = (p = 0) => p > 60 ? "battery-ok" : p > 30 ? "battery-warning" : "battery-critical";
 
-  if (loading) return (
-    <Layout>
-      <div className="flex items-center justify-center h-[70vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="loader-o" style={{ width: 40, height: 40, borderWidth: 3 }} />
-          <p className="text-muted-foreground tracking-widest text-sm animate-pulse">Loading IoTMesh...</p>
-        </div>
-      </div>
-    </Layout>
-  );
+  if (loading) return <DashboardSkeleton />;
 
   if (error) return (
     <Layout>
