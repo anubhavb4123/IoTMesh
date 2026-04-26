@@ -6,6 +6,7 @@ import {
   AlertCircle, AlertTriangle, Info, Zap,
   DoorOpen, Wind, BatteryLow, Activity, Flame,
 } from "lucide-react";
+import { AlertsSkeleton } from "@/components/skeletons/AlertsSkeleton";
 
 // ── Types ─────────────────────────────────────────────────────
 interface Alert {
@@ -82,6 +83,8 @@ export default function Alerts() {
   const filterTypes = ["ALL", "GAS", "DOOR", "POWER", "BATT", "IGNITION"];
   const ignitionCount = counts["IGNITION"] ?? 0;
 
+  if (loading) return <AlertsSkeleton />;
+
   return (
     <Layout>
       <div className="space-y-5" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
@@ -155,12 +158,7 @@ export default function Alerts() {
           className="rounded-2xl border border-border/40 bg-card/40 overflow-hidden"
           style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.15s" }}
         >
-          {loading ? (
-            <div className="flex items-center gap-3 px-6 py-8 text-muted-foreground">
-              <div className="loader-o" />
-              <span className="text-sm animate-pulse">Loading alerts...</span>
-            </div>
-          ) : filtered.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="px-6 py-12 text-center text-muted-foreground/30 text-sm">
               {filter === "ALL" ? "No alerts recorded yet" : `No ${getCfg(filter).label} alerts`}
             </div>
