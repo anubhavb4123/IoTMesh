@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
+import { UsersSkeleton } from "@/components/skeletons/UsersSkeleton";
 
 interface UserProfile { id: string; name: string; role: string; timestamp: number; }
 interface TelegramSubscriber { id: string; name: string; chatId: string; createdAt: number; }
@@ -71,6 +72,8 @@ export default function Users() {
       </Badge>
     );
   };
+
+  if (loading && loadingSubs) return <UsersSkeleton />;
 
   return (
     <Layout>
