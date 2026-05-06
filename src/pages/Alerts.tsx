@@ -4,7 +4,7 @@ import { onValue, ref } from "firebase/database";
 import { database } from "@/lib/firebase";
 import {
   AlertCircle, AlertTriangle, Info, Zap,
-  DoorOpen, Wind, BatteryLow, Activity, Flame,
+  DoorOpen, Wind, BatteryLow, Activity, Flame, CloudSun,
 } from "lucide-react";
 import { AlertsSkeleton } from "@/components/skeletons/AlertsSkeleton";
 
@@ -28,6 +28,7 @@ const TYPE_CFG: Record<string, {
   POWER:    { icon: Zap,          color: "#f59e0b", bg: "#f59e0b12", border: "#f59e0b33", label: "Power"    },
   BATT:     { icon: BatteryLow,   color: "#f97316", bg: "#f9731612", border: "#f9731633", label: "Battery"  },
   IGNITION: { icon: Flame,        color: "#ef4444", bg: "#ef444412", border: "#ef444433", label: "Ignition" },
+  WEATHER:  { icon: CloudSun,     color: "#818cf8", bg: "#818cf812", border: "#818cf833", label: "Weather"  },
   INFO:     { icon: Info,         color: "#6b7280", bg: "#6b728012", border: "#6b728033", label: "Info"     },
 };
 
@@ -80,7 +81,7 @@ export default function Alerts() {
     ? alerts
     : alerts.filter((a) => (a.alert_type?.toUpperCase() ?? "INFO") === filter);
 
-  const filterTypes = ["ALL", "GAS", "DOOR", "POWER", "BATT", "IGNITION"];
+  const filterTypes = ["ALL", "GAS", "DOOR", "POWER", "BATT", "IGNITION", "WEATHER"];
   const ignitionCount = counts["IGNITION"] ?? 0;
 
   if (loading) return <AlertsSkeleton />;
