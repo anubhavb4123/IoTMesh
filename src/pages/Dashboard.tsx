@@ -18,7 +18,7 @@ interface DashboardData {
   temp: number; tempBMP: number; humidity: number; pressure: number; gas: number;
   rain: string; waterLevel: number; motion: string; door: number;
   power?: number; last_update?: string;
-  batteryVoltage?: number; batteryPercent?: number;
+  batteryVolt?: number; batteryPercent?: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -104,13 +104,13 @@ export default function Dashboard() {
     motion: live?.motion ? "Detected" : "Clear",
     door: safe(live?.door),
     last_update: live?.last_update,
-    batteryVoltage: safe(live?.batteryVoltage),
+    batteryVolt: safe(live?.batteryVolt),
     batteryPercent: safe(live?.batteryPercent),
   };
 
   // Online check every second
   useEffect(() => {
-    const tick = () => { 
+    const tick = () => {
       const lastMs = parseLastUpdateToMs(d.last_update);
       if (!lastMs) { setSensorOnline(false); setSyncAge("—"); return; }
       const diff = Date.now() - lastMs;
@@ -240,7 +240,7 @@ export default function Dashboard() {
             <StatusItem label="Firebase" ok={!!live} value={live ? "Connected" : "Disconnected"} icon={Database} />
             <StatusItem label="ESP Device" ok={sensorOnline} value={sensorOnline ? `Online · ${syncAge}` : `Offline · ${syncAge}`} icon={Cpu} />
             <StatusItem label="Power Source" ok={power === 1} value={power === 1 ? "Grid ⚡" : power === 0 ? "Inverter 🔋" : "Unknown"} icon={Zap} />
-            <StatusItem label="Battery" ok={!!d.batteryPercent} value={`${d.batteryPercent ?? "—"}%  ${d.batteryVoltage?.toFixed(2) ?? "—"}V`}
+            <StatusItem label="Battery" ok={!!d.batteryPercent} value={`${d.batteryPercent ?? "—"}%  ${d.batteryVolt?.toFixed(2) ?? "—"}V`}
               indicatorClass={getBatteryStatus(d.batteryPercent)} icon={BatteryCharging}
             />
           </div>
