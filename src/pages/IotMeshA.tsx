@@ -1,7 +1,16 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
+import "@/styles/homepage-sections.css";
+import HardwareShowcase from "@/components/homepage/HardwareShowcase";
+import SystemFlowchart from "@/components/homepage/SystemFlowchart";
+import RoomNodeArchitecture from "@/components/homepage/RoomNodeArchitecture";
+import TelegramEngine from "@/components/homepage/TelegramEngine";
+import FirebaseCloudEngine from "@/components/homepage/FirebaseCloudEngine";
+import FeatureFlowcharts from "@/components/homepage/FeatureFlowcharts";
+import AdvancedFeatures from "@/components/homepage/AdvancedFeatures";
+import TechStack from "@/components/homepage/TechStack";
 
 // Scroll-reveal hook
 function useInView(threshold = 0.15) {
@@ -111,6 +120,120 @@ function ShowcaseRow({ img, alt, title, desc, reverse = false }: { img: string; 
   );
 }
 
+// ── Particle Canvas ──
+function ParticleCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animId: number;
+    let particles: { x: number; y: number; vx: number; vy: number; r: number; o: number }[] = [];
+
+    function resize() {
+      canvas!.width = canvas!.offsetWidth;
+      canvas!.height = canvas!.offsetHeight;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Create particles
+    const count = Math.min(60, Math.floor(canvas.width * canvas.height / 12000));
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: Math.random() * 1.5 + 0.5,
+        o: Math.random() * 0.5 + 0.2,
+      });
+    }
+
+    function draw() {
+      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+
+      // Draw connections
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx!.beginPath();
+            ctx!.moveTo(particles[i].x, particles[i].y);
+            ctx!.lineTo(particles[j].x, particles[j].y);
+            ctx!.strokeStyle = `rgba(34,211,238,${0.08 * (1 - dist / 120)})`;
+            ctx!.lineWidth = 0.5;
+            ctx!.stroke();
+          }
+        }
+      }
+
+      // Draw & update particles
+      for (const p of particles) {
+        ctx!.beginPath();
+        ctx!.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx!.fillStyle = `rgba(34,211,238,${p.o})`;
+        ctx!.fill();
+
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > canvas!.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas!.height) p.vy *= -1;
+      }
+
+      animId = requestAnimationFrame(draw);
+    }
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="particle-canvas" />;
+}
+
+// ── Typing Effect Hook ──
+function useTypingEffect(texts: string[], speed = 50, pause = 2000) {
+  const [display, setDisplay] = useState("");
+  const [textIdx, setTextIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const current = texts[textIdx];
+    let timeout: ReturnType<typeof setTimeout>;
+
+    if (!deleting && charIdx <= current.length) {
+      timeout = setTimeout(() => {
+        setDisplay(current.slice(0, charIdx));
+        setCharIdx(c => c + 1);
+      }, speed);
+    } else if (!deleting && charIdx > current.length) {
+      timeout = setTimeout(() => setDeleting(true), pause);
+    } else if (deleting && charIdx >= 0) {
+      timeout = setTimeout(() => {
+        setDisplay(current.slice(0, charIdx));
+        setCharIdx(c => c - 1);
+      }, speed / 2);
+    } else {
+      setDeleting(false);
+      setTextIdx(i => (i + 1) % texts.length);
+      setCharIdx(0);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [charIdx, deleting, textIdx, texts, speed, pause]);
+
+  return display;
+}
+
 const IotMesh = () => {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -118,6 +241,12 @@ const IotMesh = () => {
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  const typedText = useTypingEffect([
+    "Distributed IoT Automation Ecosystem",
+    "Realtime Cloud-Synchronized Smart Infrastructure",
+    "Multi-Node Distributed Sensor Network",
+  ], 45, 2500);
 
   return (
     <>
@@ -604,10 +733,11 @@ const IotMesh = () => {
         <nav className={`iot-nav ${scrolled ? "scrolled" : ""}`}>
           <a href="#" className="nav-logo">I<span>O</span>TMesh</a>
           <div className="nav-links">
+            <a href="#hardware">Hardware</a>
             <a href="#explore">Platform</a>
-            <a href="#about">About</a>
-            <a href="#home-automation">Home</a>
-            <a href="#industry-automation">Industry</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#telegram-engine">Telegram</a>
+            <a href="#tech-stack">Stack</a>
             <a href="#contact">Contact</a>
           </div>
           <Link to="/auth" className="nav-links" style={{ display: "flex" }} onClick={() => { sounds.click(); haptic.click(); }}>
@@ -617,6 +747,7 @@ const IotMesh = () => {
 
         {/* HERO */}
         <section className="hero">
+          <ParticleCanvas />
           <div className="hero-glow" />
           <div style={{ position: "relative", zIndex: 1 }}>
             <div className="hero-tag">⬡ INTELLIGENT AUTOMATION ENGINE</div>
@@ -628,7 +759,10 @@ const IotMesh = () => {
               Bridging embedded systems, cloud infrastructure, and real-time analytics
               into one unified automation ecosystem — from smart homes to industrial scale.
             </p>
-            <p className="hero-sub2">
+            <div className="hero-typing">
+              {typedText}<span className="cursor" />
+            </div>
+            <p className="hero-sub2" style={{ marginTop: "1rem" }}>
               SECURE · SCALABLE · REAL-TIME · BUILT FOR THE FUTURE
             </p>
             <div className="hero-btns">
@@ -661,6 +795,13 @@ const IotMesh = () => {
           </div>
         </div>
 
+        {/* HARDWARE SHOWCASE — NEW */}
+        <Section id="hardware">
+          <HardwareShowcase />
+        </Section>
+
+        <div className="divider" />
+
         {/* EXPLORE — SHOWCASE */}
         <Section id="explore">
           <div className="container">
@@ -676,6 +817,20 @@ const IotMesh = () => {
             <ShowcaseRow img="/pictures/alerts.png" alt="Alerts" title="Smart Alerts & Notifications" desc="Intelligent alert system for critical events and threshold breaches. Customize notification preferences and response protocols." />
             <ShowcaseRow img="/pictures/users.png" alt="Users" title="User & Role Management" desc="Manage user accounts, permissions, and access levels. Ensure secure and organized control over your IoT ecosystem." reverse />
           </div>
+        </Section>
+
+        <div className="divider" />
+
+        {/* SYSTEM FLOWCHART — NEW */}
+        <Section id="architecture">
+          <SystemFlowchart />
+        </Section>
+
+        <div className="divider" />
+
+        {/* ROOM NODE ARCHITECTURE — NEW */}
+        <Section id="room-nodes">
+          <RoomNodeArchitecture />
         </Section>
 
         <div className="divider" />
@@ -704,6 +859,20 @@ const IotMesh = () => {
               ))}
             </ul>
           </div>
+        </Section>
+
+        <div className="divider" />
+
+        {/* TELEGRAM ENGINE — NEW */}
+        <Section id="telegram-engine">
+          <TelegramEngine />
+        </Section>
+
+        <div className="divider" />
+
+        {/* FIREBASE CLOUD ENGINE — NEW */}
+        <Section id="cloud-engine">
+          <FirebaseCloudEngine />
         </Section>
 
         <div className="divider" />
@@ -754,6 +923,13 @@ const IotMesh = () => {
               ))}
             </div>
           </div>
+        </Section>
+
+        <div className="divider" />
+
+        {/* FEATURE FLOWCHARTS — NEW */}
+        <Section id="feature-flows">
+          <FeatureFlowcharts />
         </Section>
 
         <div className="divider" />
@@ -815,6 +991,20 @@ const IotMesh = () => {
               ))}
             </div>
           </div>
+        </Section>
+
+        <div className="divider" />
+
+        {/* ADVANCED FEATURES — NEW */}
+        <Section id="advanced-features">
+          <AdvancedFeatures />
+        </Section>
+
+        <div className="divider" />
+
+        {/* TECH STACK — NEW */}
+        <Section id="tech-stack">
+          <TechStack />
         </Section>
 
         <div className="divider" />
