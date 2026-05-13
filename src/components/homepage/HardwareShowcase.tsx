@@ -9,7 +9,7 @@ type HWItem = {
   role: string;
   comm: string;
 };
-
+// hardware showcase of iotmesh
 const hardware: HWItem[] = [
   { name: "ESP32", img: "/hardware/esp32.png", category: "Controllers", role: "Primary WiFi+BLE microcontroller powering lobby, bedroom, and kitchen nodes with dual-core processing.", comm: "WiFi → Firebase RTDB" },
   { name: "ESP8266 NodeMCU", img: "/hardware/esp8266.png", category: "Controllers", role: "Cost-effective WiFi-enabled controller for auxiliary room nodes with Arduino-compatible firmware.", comm: "WiFi → Firebase RTDB" },
