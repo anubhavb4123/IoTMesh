@@ -5,6 +5,7 @@ const rooms = [
   { id: "security", icon: "🛡️", name: "Security Node", desc: "PIR motion, servo lock, buzzer alerts", x: "80%", y: "65%" },
   { id: "water", icon: "💧", name: "Water Monitor", desc: "HC-SR04 tank level, rain detection", x: "50%", y: "85%" },
 ];
+// room node architecture of iotmesh
 
 export default function RoomNodeArchitecture() {
   return (
@@ -31,7 +32,7 @@ export default function RoomNodeArchitecture() {
           {/* Central hub */}
           <div className="room-hub">
             <div className="room-hub-icon">🔥</div>
-            <div className="room-hub-label">FIREBASE<br/>RTDB</div>
+            <div className="room-hub-label">FIREBASE<br />RTDB</div>
           </div>
 
           {/* Room nodes */}
