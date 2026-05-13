@@ -5,7 +5,7 @@ const forwardFlow = [
   { icon: "📲", title: "Telegram Notification", desc: "Alert dispatch" },
   { icon: "👥", title: "Subscribers / Admins", desc: "End-user delivery" },
 ];
-
+// system flowchart of iotmesh
 const reverseFlow = [
   { icon: "💬", title: "Telegram / Web Command", desc: "User sends command" },
   { icon: "🔥", title: "Firebase State Update", desc: "Cloud state changed" },
