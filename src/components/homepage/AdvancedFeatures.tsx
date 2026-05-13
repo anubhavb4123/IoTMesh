@@ -9,7 +9,7 @@ const features = [
   { icon: "⚡", title: "Event-Driven Backend", desc: "Render-hosted backend listens for Firebase data change events and triggers automation chains — no polling, no delays, pure reactive architecture." },
   { icon: "🛡️", title: "Cloud-Controlled Automation", desc: "Automation rules defined in the cloud execute across all nodes. Change a rule once, it applies everywhere — centralized intelligence with distributed execution." },
 ];
-
+// advanced features of iotmesh
 export default function AdvancedFeatures() {
   return (
     <div>
