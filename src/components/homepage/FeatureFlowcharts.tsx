@@ -6,7 +6,7 @@ type FlowData = {
   cssClass: string;
   steps: { icon: string; title: string; desc: string }[];
 };
-
+// feature flowcharts of iotmesh
 const flows: Record<string, FlowData> = {
   gas: {
     label: "Gas Leak Detection",
