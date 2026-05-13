@@ -4,6 +4,7 @@ const cloudNodes = [
   { icon: "⚙️", title: "Render Backend", desc: "Event engine" },
   { icon: "📲", title: "Telegram API", desc: "Alert dispatch" },
 ];
+// firebase cloud engine of iotmesh
 
 const cloudFeatures = [
   { title: "Realtime Synchronization", desc: "Firebase RTDB ensures sub-second data sync between ESP nodes and the cloud. Every sensor reading, relay state, and user command is reflected instantly across all connected clients." },
