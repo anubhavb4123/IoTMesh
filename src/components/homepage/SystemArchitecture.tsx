@@ -27,7 +27,7 @@ const cloudNodes: NodeDef[] = [
 const backendNodes: NodeDef[] = [
   { id: "render", icon: "⚙️", title: "Render Backend", sub: "Node.js Event Engine", color: "#22d3ee", glow: "rgba(34,211,238,0.3)" },
   { id: "alert-proc", icon: "🔔", title: "Alert Processor", sub: "Threshold Detection", color: "#ef4444", glow: "rgba(239,68,68,0.25)" },
-  { id: "weather", icon: "🌤️", title: "Weather API", sub: "Forecast Engine", color: "#22d3ee", glow: "rgba(34,211,238,0.2)" },
+  { id: "weather", icon: "🎙️", title: "Google Voice Agent", sub: "Voice AI Interface", color: "#22d3ee", glow: "rgba(34,211,238,0.2)" },
 ];
 
 const notifyNodes: NodeDef[] = [
