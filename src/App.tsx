@@ -15,6 +15,7 @@ import Telegram from "./pages/Telegram";
 import NotFound from "./pages/NotFound";
 import IotMesh from "./pages/IotMeshA";
 import IgnitionControl from "@/pages/IgnitionControl";
+import Automation from "@/pages/Automation";
 
 const queryClient = new QueryClient();
 
@@ -89,6 +90,14 @@ const App = () => {
                   element={
                     <ProtectedRoute >
                       <IgnitionControl />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/automation"
+                  element={
+                    <ProtectedRoute>
+                      <Automation />
                     </ProtectedRoute>
                   }
                 />
