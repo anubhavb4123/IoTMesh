@@ -13,9 +13,9 @@ import Alerts from "./pages/Alerts";
 import Users from "./pages/Users";
 import Telegram from "./pages/Telegram";
 import NotFound from "./pages/NotFound";
-import IotMesh from "./pages/IotMeshA";
 import IgnitionControl from "@/pages/IgnitionControl";
 import Automation from "@/pages/Automation";
+import IotMeshA from "./pages/IotMeshA";
 
 const queryClient = new QueryClient();
 
@@ -32,7 +32,7 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Navigate to="/auth" replace />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/iotmesh" element={<IotMesh />} />
+                <Route path="/iotmesh" element={<IotMeshA />} />
 
                 {/* 🔐 PROTECTED ROUTES */}
                 <Route
