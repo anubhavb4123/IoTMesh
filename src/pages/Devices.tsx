@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceControl } from "@/components/DeviceControl";
 import { Card } from "@/components/ui/card";
-import { Lightbulb, Fan, ToggleLeft, Tv, Zap, Lock, Activity, Sun, Refrigerator, Wind } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Lightbulb, Fan, ToggleLeft, Tv, Zap, Lock, LockOpen, Activity, Sun, Refrigerator, Wind, ShieldAlert, KeyRound, X } from "lucide-react";
 import { firebaseService } from "@/lib/firebase";
 import { toast } from "sonner";
 import { ControlData } from "@/lib/firebase";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
+import { useAuth } from "@/contexts/AuthContext";
+
+const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD;
 
 // ── Fan Speed Slider ──────────────────────────────────────────
 interface FanSliderProps {
@@ -186,6 +191,13 @@ function FanSlider({ fanOn, speed, onSpeedChange }: FanSliderProps) {
 // ── Main Page 
 export default function Devices() {
   const [controls, setControls] = useState<ControlData>({} as ControlData);
+  const { role } = useAuth();
+
+  // Security password modal state (guests only)
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [securityInput, setSecurityInput] = useState("");
+  const [securityError, setSecurityError] = useState(false);
+  const [pendingLockValue, setPendingLockValue] = useState<boolean>(false);
 
   useEffect(() => {
     const unsub = firebaseService.listenToControlStates(setControls);
@@ -203,6 +215,49 @@ export default function Devices() {
       return;
     }
     await firebaseService.updateSwitchState(key, value);
+  };
+
+  // Intercept lock toggle for guests
+  const handleLockToggle = (value: boolean) => {
+    if (nightMode) {
+      sounds.error();
+      haptic.error();
+      toast.error("Security is locked in Night Mode");
+      return;
+    }
+    if (role === "admin") {
+      update("lock", value);
+      return;
+    }
+    // Guest → require password
+    setPendingLockValue(value);
+    setShowSecurityModal(true);
+    setSecurityInput("");
+    setSecurityError(false);
+  };
+
+  const handleSecuritySubmit = () => {
+    if (securityInput === SECURITY_PASSWORD) {
+      setShowSecurityModal(false);
+      setSecurityInput("");
+      setSecurityError(false);
+      sounds.success();
+      haptic.success();
+      toast.success(pendingLockValue ? "Door Locked 🔒" : "Door Unlocked 🔓");
+      firebaseService.updateSwitchState("lock", pendingLockValue);
+    } else {
+      setSecurityError(true);
+      setSecurityInput("");
+      sounds.wrongPass();
+      haptic.error();
+      toast.error("Incorrect security password");
+    }
+  };
+
+  const closeSecurityModal = () => {
+    setShowSecurityModal(false);
+    setSecurityInput("");
+    setSecurityError(false);
   };
 
   const updateSpeed = (key: keyof ControlData, speed: number) => {
@@ -328,11 +383,120 @@ export default function Devices() {
         >
           <h2 className="font-semibold text-lg">Security</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <DeviceControl title="Door Lock" icon={Lock} isActive={!!controls.lock} onToggle={(v) => update("lock", v)} />
+            <DeviceControl title="Door Lock" icon={Lock} isActive={!!controls.lock} onToggle={handleLockToggle} />
             <DeviceControl title="Motion Sensor" icon={Activity} isActive={!!controls.motion} onToggle={(v) => update("motion", v)} />
           </div>
         </Card>
       </div>
+
+      {/* ── SECURITY PASSWORD MODAL (Guests only) ── */}
+      {showSecurityModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          style={{ animation: "fadeSlideIn 0.2s ease both" }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeSecurityModal(); }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-xl shadow-2xl p-6 space-y-5"
+            style={{
+              background: "rgba(14, 14, 20, 0.95)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset",
+            }}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div
+                  className="p-1.5 rounded-lg"
+                  style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}
+                >
+                  <KeyRound className="w-4 h-4 text-blue-400" />
+                </div>
+                <h2 className="text-base font-semibold text-foreground">
+                  {pendingLockValue ? "Lock Door" : "Unlock Door"}
+                </h2>
+              </div>
+              <button
+                onClick={closeSecurityModal}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Status badge */}
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
+              style={{
+                background: pendingLockValue ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)",
+                border: `1px solid ${pendingLockValue ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)"}`,
+                color: pendingLockValue ? "#fca5a5" : "#86efac",
+              }}
+            >
+              {pendingLockValue
+                ? <Lock className="w-3.5 h-3.5" />
+                : <LockOpen className="w-3.5 h-3.5" />
+              }
+              <span>
+                {pendingLockValue
+                  ? "You are about to lock the door"
+                  : "You are about to unlock the door"}
+              </span>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Guest users must enter the security password to control the door lock.
+            </p>
+
+            {/* Password input */}
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="Enter security password"
+                value={securityInput}
+                onChange={(e) => { setSecurityInput(e.target.value); setSecurityError(false); }}
+                onKeyDown={(e) => e.key === "Enter" && handleSecuritySubmit()}
+                autoFocus
+                className={`transition-all duration-200 ${
+                  securityError
+                    ? "border-red-500/60 focus:border-red-500 bg-red-500/5"
+                    : "border-border/60 focus:border-blue-500/60"
+                }`}
+                style={{ fontFamily: '"SF Mono", "Fira Code", "Cascadia Code", monospace', letterSpacing: "0.15em" }}
+              />
+              {securityError && (
+                <p className="text-xs text-red-400 flex items-center gap-1">
+                  <ShieldAlert className="w-3 h-3" /> Incorrect security password
+                </p>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 text-sm"
+                onClick={closeSecurityModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 text-sm text-white transition-transform active:scale-95"
+                style={{
+                  background: pendingLockValue ? "#dc2626" : "#16a34a",
+                }}
+                onClick={handleSecuritySubmit}
+              >
+                {pendingLockValue
+                  ? <><Lock className="w-3.5 h-3.5 mr-1.5" /> Lock Door</>
+                  : <><LockOpen className="w-3.5 h-3.5 mr-1.5" /> Unlock Door</>
+                }
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes fadeSlideIn {
