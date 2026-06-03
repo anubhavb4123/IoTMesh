@@ -81,7 +81,7 @@ function StatusItem({ label, ok, value, icon: Icon, indicatorClass }: {
   );
 }
 
-// ── Dashboard ─────────────────────────────────────────────────
+// ── Dashboard
 export default function Dashboard() {
   const { sensorData: live, loading, error } = useSensorData();
   const [sensorOnline, setSensorOnline] = useState(false);
