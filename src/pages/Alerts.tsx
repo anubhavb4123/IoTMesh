@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { AlertsSkeleton } from "@/components/skeletons/AlertsSkeleton";
 
-// ── Types ─────────────────────────────────────────────────────
+// ── Types 
 interface Alert {
   id: string;
   alert_type: string;
@@ -18,19 +18,19 @@ interface Alert {
   timestamp: number;
 }
 
-// ── Type config ───────────────────────────────────────────────
+// ── Type config 
 const TYPE_CFG: Record<string, {
   icon: React.ElementType; color: string;
   bg: string; border: string; label: string;
 }> = {
-  GAS:      { icon: Wind,         color: "#10b981", bg: "#10b98112", border: "#10b98133", label: "Gas"      },
-  DOOR:     { icon: DoorOpen,     color: "#38bdf8", bg: "#38bdf812", border: "#38bdf833", label: "Door"     },
-  POWER:    { icon: Zap,          color: "#f59e0b", bg: "#f59e0b12", border: "#f59e0b33", label: "Power"    },
-  BATT:     { icon: BatteryLow,   color: "#f97316", bg: "#f9731612", border: "#f9731633", label: "Battery"  },
-  IGNITION: { icon: Flame,        color: "#ef4444", bg: "#ef444412", border: "#ef444433", label: "Ignition" },
-  HUMIDITY: { icon: Droplets,     color: "#06b6d4", bg: "#06b6d412", border: "#06b6d433", label: "Humidity" },
-  WEATHER:  { icon: CloudSun,     color: "#818cf8", bg: "#818cf812", border: "#818cf833", label: "Weather"  },
-  INFO:     { icon: Info,         color: "#6b7280", bg: "#6b728012", border: "#6b728033", label: "Info"     },
+  GAS: { icon: Wind, color: "#10b981", bg: "#10b98112", border: "#10b98133", label: "Gas" },
+  DOOR: { icon: DoorOpen, color: "#38bdf8", bg: "#38bdf812", border: "#38bdf833", label: "Door" },
+  POWER: { icon: Zap, color: "#f59e0b", bg: "#f59e0b12", border: "#f59e0b33", label: "Power" },
+  BATT: { icon: BatteryLow, color: "#f97316", bg: "#f9731612", border: "#f9731633", label: "Battery" },
+  IGNITION: { icon: Flame, color: "#ef4444", bg: "#ef444412", border: "#ef444433", label: "Ignition" },
+  HUMIDITY: { icon: Droplets, color: "#06b6d4", bg: "#06b6d412", border: "#06b6d433", label: "Humidity" },
+  WEATHER: { icon: CloudSun, color: "#818cf8", bg: "#818cf812", border: "#818cf833", label: "Weather" },
+  INFO: { icon: Info, color: "#6b7280", bg: "#6b728012", border: "#6b728033", label: "Info" },
 };
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -42,20 +42,20 @@ function getCfg(type: string) {
 }
 
 function formatTime(ts: number) {
-  const d   = new Date(ts);
+  const d = new Date(ts);
   const now = new Date();
   const yest = new Date(now); yest.setDate(now.getDate() - 1);
   const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  if (d.toDateString() === now.toDateString())  return { primary: time, secondary: "Today" };
+  if (d.toDateString() === now.toDateString()) return { primary: time, secondary: "Today" };
   if (d.toDateString() === yest.toDateString()) return { primary: time, secondary: "Yesterday" };
   return { primary: time, secondary: d.toLocaleDateString() };
 }
 
 // ── Page 
 export default function Alerts() {
-  const [alerts,  setAlerts]  = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter,  setFilter]  = useState("ALL");
+  const [filter, setFilter] = useState("ALL");
 
   useEffect(() => {
     const r = ref(database, "home/room1/alerts/logs");
@@ -134,7 +134,7 @@ export default function Alerts() {
         {/* Filter bar */}
         <div className="flex gap-1.5 flex-wrap" style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.1s" }}>
           {filterTypes.map((type) => {
-            const cfg    = type === "ALL" ? null : TYPE_CFG[type];
+            const cfg = type === "ALL" ? null : TYPE_CFG[type];
             const active = filter === type;
             return (
               <button
@@ -167,9 +167,9 @@ export default function Alerts() {
           ) : (
             <div className="divide-y divide-border/20">
               {filtered.map((alert, i) => {
-                const cfg  = getCfg(alert.alert_type);
+                const cfg = getCfg(alert.alert_type);
                 const Icon = cfg.icon;
-                const t    = formatTime(alert.timestamp);
+                const t = formatTime(alert.timestamp);
                 const sevColor = SEVERITY_COLOR[alert.severity] ?? "#6b7280";
                 const isIgn = alert.alert_type?.toUpperCase() === "IGNITION";
 
@@ -206,9 +206,9 @@ export default function Alerts() {
                         {alert.sensor_value !== null && alert.sensor_value >= 0 && (
                           <span className="text-[10px] text-muted-foreground/50 tabular-nums">
                             {alert.sensor_value}
-                            {alert.alert_type?.toUpperCase() === "GAS"  ? " PPM" :
-                             alert.alert_type?.toUpperCase() === "BATT" ? "%" :
-                             alert.alert_type?.toUpperCase() === "POWER" ? (alert.sensor_value === 0 ? " · Inverter" : " · Grid") : ""}
+                            {alert.alert_type?.toUpperCase() === "GAS" ? " PPM" :
+                              alert.alert_type?.toUpperCase() === "BATT" ? "%" :
+                                alert.alert_type?.toUpperCase() === "POWER" ? (alert.sensor_value === 0 ? " · Inverter" : " · Grid") : ""}
                           </span>
                         )}
                       </div>
