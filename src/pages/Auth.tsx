@@ -36,12 +36,12 @@ export default function Auth() {
     }
   }, []);
 
-  // ── Save login to Firebase ──
+  // Save login to Firebase
   const saveLoginToFirebase = (role: "guest" | "admin") => {
     push(ref(database, "home/users"), { name, role, timestamp: Date.now() });
   };
 
-  // ── Step 1: Verify access key ──
+  // Step 1: Verify access key
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
