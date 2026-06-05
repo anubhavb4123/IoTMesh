@@ -10,7 +10,7 @@ import SystemArchitecture from "@/components/homepage/SystemArchitecture";
 import FinalCTA from "@/components/homepage/FinalCTA";
 
 // ── Scroll-reveal hook ──
-function useInView(threshold = 0.15) {
+function useInView(threshold = 0.02) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
