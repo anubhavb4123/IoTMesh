@@ -8,6 +8,7 @@ import SoftwareEcosystem from "@/components/homepage/SoftwareEcosystem";
 import AlertsBackendEngine from "@/components/homepage/AlertsBackendEngine";
 import SystemArchitecture from "@/components/homepage/SystemArchitecture";
 import FinalCTA from "@/components/homepage/FinalCTA";
+import FeaturesShowcase from "@/components/homepage/FeaturesShowcase";
 
 // ── Scroll-reveal hook ──
 function useInView(threshold = 0.02) {
@@ -507,10 +508,11 @@ const IotMesh = () => {
         <nav className={`iot-nav ${scrolled ? "scrolled" : ""}`}>
           <a href="#" className="nav-logo">I<span>O</span>TMesh</a>
           <div className="nav-links">
-            <a href="#hardware">Hardware</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#features">Features</a>
             <a href="#software">Software</a>
             <a href="#alerts">Alerts</a>
-            <a href="#architecture">Architecture</a>
+            <a href="#hardware">Hardware</a>
             <a href="#contact">Contact</a>
           </div>
           <Link to="/auth" className="nav-links" style={{ display: "flex" }} onClick={() => { sounds.click(); haptic.click(); }}>
@@ -560,6 +562,7 @@ const IotMesh = () => {
               { n: 24, s: "/7", label: "Real-Time Uptime" },
               { n: 100, s: "%", label: "Cloud Sync Rate" },
               { n: 6, s: "", label: "Software Layers" },
+              { n: 55, s: "+", label: "Features" },
             ].map(({ n, s, label }) => (
               <div key={label} className="stat-item">
                 <span className="stat-num"><Counter to={n} suffix={s} /></span>
@@ -569,14 +572,21 @@ const IotMesh = () => {
           </div>
         </div>
 
-        {/* ══ 2. HARDWARE ══ */}
-        <Section id="hardware">
-          <HardwareArchitecture />
+        {/* ══ 2. system architecture ══ */}
+        <Section id="architecture">
+          <SystemArchitecture />
         </Section>
 
         <div className="divider" />
 
-        {/* ══ 3. SOFTWARE ══ */}
+        {/* ══ 3. FEATURES SHOWCASE ══ */}
+        <Section id="features">
+          <FeaturesShowcase />
+        </Section>
+
+        <div className="divider" />
+
+        {/* ══ 4. SOFTWARE ══ */}
         <Section id="software">
           <SoftwareEcosystem />
         </Section>
@@ -590,9 +600,9 @@ const IotMesh = () => {
 
         <div className="divider" />
 
-        {/* ══ 5. SYSTEM ARCHITECTURE ══ */}
-        <Section id="architecture">
-          <SystemArchitecture />
+        {/* ══ 5. HARDWARE ══ */}
+        <Section id="hardware">
+          <HardwareArchitecture />
         </Section>
 
         <div className="divider" />
