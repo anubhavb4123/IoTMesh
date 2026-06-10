@@ -9,14 +9,14 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { database } from "@/lib/firebase";
-import { ref, push } from "firebase/database";
+import { ref, push, onValue } from "firebase/database";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 
-// ── Credentials from environment ──
-const GUEST_PASSWORD = import.meta.env.VITE_GUEST_PASSWORD;
-const GUEST_PASSWORD_New = import.meta.env.VITE_GUEST_PASSWORD_New;
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
+// ── Credentials from environment (defaults) ──
+const ENV_GUEST_PASSWORD = import.meta.env.VITE_GUEST_PASSWORD;
+const ENV_GUEST_PASSWORD_New = import.meta.env.VITE_GUEST_PASSWORD_New;
+const ENV_ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -26,6 +26,24 @@ export default function Auth() {
   const [adminPassword, setAdminPassword] = useState("");
   const [step, setStep] = useState<"signin" | "admin_password">("signin");
   const [isLoading, setIsLoading] = useState(false);
+
+  // ── Runtime password overrides from Firebase ──
+  const [fbPasswords, setFbPasswords] = useState<Record<string, string>>({});
+
+  // Derived passwords: Firebase override > env default
+  const GUEST_PASSWORD = ENV_GUEST_PASSWORD;
+  const GUEST_PASSWORD_New = fbPasswords.guestPassword || ENV_GUEST_PASSWORD_New;
+  const ADMIN_PASSWORD = fbPasswords.adminPassword || ENV_ADMIN_PASSWORD;
+
+  // ── Listen to Firebase password overrides ──
+  useEffect(() => {
+    const unsub = onValue(ref(database, "security/passwords"), (snap) => {
+      if (snap.exists()) {
+        setFbPasswords(snap.val());
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // ── Auto redirect if already logged in ──
   useEffect(() => {
