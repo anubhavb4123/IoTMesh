@@ -14,6 +14,7 @@ import {
   X,
   Flame,
   Workflow,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -35,6 +36,7 @@ const allNavigation = [
   { name: "Ignition", href: "/ignition", icon: Flame },
   { name: "Automation", href: "/automation", icon: Workflow },
   { name: "Users", href: "/users", icon: Users },
+  { name: "Security", href: "/security", icon: ShieldCheck },
 ];
 
 export const Layout = ({ children }: LayoutProps) => {
@@ -96,7 +98,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
   const navigation = allNavigation.map((item) => ({
     ...item,
-    adminOnly: ["Users"].includes(item.name),
+    adminOnly: ["Users", "Security"].includes(item.name),
   }));
 
   return (
