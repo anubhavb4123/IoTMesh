@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import IgnitionControl from "@/pages/IgnitionControl";
 import Automation from "@/pages/Automation";
 import IotMeshA from "./pages/IotMeshA";
+import Security from "./pages/Security";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +99,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Automation />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/security"
+                  element={
+                    <ProtectedRoute adminOnly>
+                      <Security />
                     </ProtectedRoute>
                   }
                 />
