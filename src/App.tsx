@@ -17,6 +17,7 @@ import IgnitionControl from "@/pages/IgnitionControl";
 import Automation from "@/pages/Automation";
 import IotMeshA from "./pages/IotMeshA";
 import Security from "./pages/Security";
+import FirmwareUpdate from "./pages/FirmwareUpdate";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +108,14 @@ const App = () => {
                   element={
                     <ProtectedRoute adminOnly>
                       <Security />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/firmware"
+                  element={
+                    <ProtectedRoute adminOnly>
+                      <FirmwareUpdate />
                     </ProtectedRoute>
                   }
                 />
