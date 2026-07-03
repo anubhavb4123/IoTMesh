@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { database } from "@/lib/firebase";
 import { ref, push, onValue } from "firebase/database";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
+import AuthBackground from "@/components/AuthBackground";
 
 // ── Credentials from environment (defaults) ──
 const ENV_GUEST_PASSWORD = import.meta.env.VITE_GUEST_PASSWORD;
@@ -133,10 +134,8 @@ export default function Auth() {
 
   return (
     <div className="auth-page">
-      {/* ── Background video ── */}
-      <video autoPlay muted loop playsInline className="auth-bg-video">
-        <source src="/login-bg.mp4" type="video/mp4" />
-      </video>
+      {/* ── Animated background ── */}
+      <AuthBackground />
 
       {/* ── Overlays ── */}
       <div className="auth-overlay" />
@@ -351,15 +350,7 @@ export default function Auth() {
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-
-        .auth-bg-video {
-          position: fixed;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          z-index: -2;
+          background-color: #000000;
         }
 
         .auth-overlay {
@@ -368,9 +359,9 @@ export default function Auth() {
           z-index: -1;
           background: linear-gradient(
             180deg,
-            rgba(0, 0, 0, 0.45) 0%,
-            rgba(0, 0, 0, 0.65) 50%,
-            rgba(0, 0, 0, 0.75) 100%
+            rgba(0, 0, 0, 0.30) 0%,
+            rgba(0, 0, 0, 0.45) 50%,
+            rgba(0, 0, 0, 0.55) 100%
           );
         }
 
