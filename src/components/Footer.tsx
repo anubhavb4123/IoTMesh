@@ -16,7 +16,7 @@ export default function Footer() {
       {/* Top cyan line */}
       <div className="h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
 
-      <div className="relative bg-card/30 backdrop-blur-md border border-t-0 border-border/25 rounded-b-xl px-5 py-3">
+      <div className="relative glass-subtle rounded-b-xl px-5 py-3">
 
         {/* Faint bottom glow */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-10 bg-cyan-400/10 blur-2xl pointer-events-none" />
