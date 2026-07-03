@@ -20,7 +20,6 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import Footer from "@/components/Footer";
-import BackgroundVideo from "@/components/BackgroundVideo";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 
@@ -105,10 +104,12 @@ export const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className="relative min-h-screen z-10 flex flex-col">
-      <BackgroundVideo />
+      {/* Lightweight CSS-only background */}
+      <div className="fixed inset-0 -z-50 bg-grid-pattern" />
+      <div className="fixed inset-0 -z-49 bg-radial-glow" />
 
       {/* ====== SIDEBAR ===*/}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col border-r border-border/40 bg-card/20 ">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col glass-strong glass-highlight">
 
         <div className="flex grow flex-col gap-y-5 overflow-y-auto px-3 pb-4">
 
@@ -200,7 +201,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
       {/* MOBILE HEADER */}
 
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-card/40 backdrop-blur-xl">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass-strong">
 
         <div className="flex items-center justify-between px-4 py-3">
 
@@ -225,7 +226,7 @@ export const Layout = ({ children }: LayoutProps) => {
         {mobileMenuOpen && (
 
           <div
-            className="absolute top-full left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border/40 z-50"
+            className="absolute top-full left-0 right-0 glass-strong border-t border-white/5 z-50"
             style={{ animation: "fadeSlideIn .35s cubic-bezier(.22,.61,.36,1) both" }}
           >
 
