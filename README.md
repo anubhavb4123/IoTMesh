@@ -116,8 +116,6 @@ Security:
   - Application-level: publish JSON payload to topic `telemetry/<node_id>`
   - Gateway forwards to MQTT topic `iotmesh/telemetry/<node_id>`
 
-- Remote command:
-  - Gateway publishes to `commands/<node_id>`, node executes handlers registered for the command
 
 Example CLI (gateway)
 ```bash
