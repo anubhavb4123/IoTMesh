@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 const alertLogs = [
   { time: "21:04:12", tag: "tag-gas", label: "[GAS]", msg: "MQ Sensor triggered — broadcasting emergency alert to 12 subscribers..." },
   { time: "21:04:13", tag: "tag-sync", label: "[SYNC]", msg: "Firebase /alerts/gas updated → Render webhook fired" },
-  { time: "21:04:14", tag: "tag-device", label: "[TELEGRAM]", msg: "Alert dispatched → \"⚠️ Gas leak detected in Kitchen — take action!\"" },
+  { time: "21:04:14", tag: "tag-device", label: "[TELEGRAM]", msg: "Alert dispatched → \"Gas leak detected in Kitchen — take action!\"" },
   { time: "21:06:30", tag: "tag-battery", label: "[BATTERY]", msg: "Voltage dropped to 3.2V — low battery alert triggered for Node_02" },
   { time: "21:08:45", tag: "tag-motion", label: "[MOTION]", msg: "PIR detected movement — Zone A — logging intrusion event" },
   { time: "21:10:02", tag: "tag-device", label: "[DEVICE]", msg: "Relay_04 switched ON via Telegram /fan_on → Kitchen Fan activated" },
@@ -14,21 +14,21 @@ const alertLogs = [
 ];
 
 const pipelineNodes = [
-  { icon: "🔬", title: "Sensor", desc: "Data capture" },
-  { icon: "📡", title: "ESP Node", desc: "Local processing" },
-  { icon: "🔥", title: "Firebase", desc: "Cloud sync" },
-  { icon: "⚙️", title: "Render", desc: "Event engine" },
-  { icon: "📲", title: "Telegram", desc: "Alert dispatch" },
-  { icon: "👥", title: "Subscribers", desc: "Notification" },
+  { title: "Sensor", desc: "Data capture" },
+  { title: "ESP Node", desc: "Local processing" },
+  { title: "Firebase", desc: "Cloud sync" },
+  { title: "Render", desc: "Event engine" },
+  { title: "Telegram", desc: "Alert dispatch" },
+  { title: "Subscribers", desc: "Notification" },
 ];
 
 const features = [
-  { icon: "🔔", title: "Event-Driven Alerts", desc: "Sensor threshold breaches trigger instant cascading notifications through the entire pipeline." },
-  { icon: "👥", title: "Subscriber System", desc: "Multi-user Telegram subscription — admins and guests receive role-appropriate notifications." },
-  { icon: "🔐", title: "Admin & Guest Roles", desc: "Granular access control — admins manage devices, guests receive read-only monitoring access." },
-  { icon: "🔥", title: "Firebase Listeners", desc: "Real-time database listeners detect state changes and trigger backend event processing." },
-  { icon: "☁️", title: "Cloud-Controlled Switching", desc: "Firebase state changes propagate to ESP nodes — enabling remote relay control from anywhere." },
-  { icon: "📊", title: "Sensor Alert Broadcasting", desc: "Gas, motion, water, power events broadcast to all subscribers with contextual alert data." },
+  { title: "Event-Driven Alerts", desc: "Sensor threshold breaches trigger instant cascading notifications through the entire pipeline." },
+  { title: "Subscriber System", desc: "Multi-user Telegram subscription — admins and guests receive role-appropriate notifications." },
+  { title: "Admin & Guest Roles", desc: "Granular access control — admins manage devices, guests receive read-only monitoring access." },
+  { title: "Firebase Listeners", desc: "Real-time database listeners detect state changes and trigger backend event processing." },
+  { title: "Cloud-Controlled Switching", desc: "Firebase state changes propagate to ESP nodes — enabling remote relay control from anywhere." },
+  { title: "Sensor Alert Broadcasting", desc: "Gas, motion, water, power events broadcast to all subscribers with contextual alert data." },
 ];
 
 export default function AlertsBackendEngine() {
@@ -47,7 +47,7 @@ export default function AlertsBackendEngine() {
           i++;
           setVisibleLines(i);
           if (i >= alertLogs.length) clearInterval(interval);
-        }, 400);
+        }, 350);
       }
     }, { threshold: 0.3 });
     obs.observe(el);
@@ -57,7 +57,7 @@ export default function AlertsBackendEngine() {
   return (
     <div>
       <div className="container">
-        <div className="text-center" style={{ marginBottom: "1rem" }}>
+        <div className="text-center" style={{ marginBottom: "1.5rem" }}>
           <p className="sec-label">Backend Engine</p>
           <h2 className="sec-title">Alerts & <span>Backend</span> Architecture</h2>
           <p className="sec-desc center">Event-driven cloud backend powering real-time sensor alerts, Telegram broadcasting, and multi-user notification management.</p>
@@ -68,11 +68,10 @@ export default function AlertsBackendEngine() {
           {pipelineNodes.map((node, i) => (
             <div key={node.title} style={{ display: "flex", alignItems: "center" }}>
               <div className="alert-flow-node">
-                <div className="alert-flow-node-icon">{node.icon}</div>
                 <h5>{node.title}</h5>
                 <p>{node.desc}</p>
               </div>
-              {i < pipelineNodes.length - 1 && <div className="alert-flow-arrow">→</div>}
+              {i < pipelineNodes.length - 1 && <div className="alert-flow-arrow" style={{ color: "rgba(255, 255, 255, 0.4)" }}>→</div>}
             </div>
           ))}
         </div>
@@ -88,7 +87,7 @@ export default function AlertsBackendEngine() {
             </div>
             <div className="alert-terminal-body">
               {alertLogs.slice(0, visibleLines).map((log, i) => (
-                <div key={i} className="alert-log-line" style={{ animationDelay: `${i * 100}ms` }}>
+                <div key={i} className="alert-log-line" style={{ animationDelay: `${i * 80}ms` }}>
                   <span className="timestamp">{log.time}</span>{" "}
                   <span className={log.tag}>{log.label}</span>{" "}
                   <span className="msg">{log.msg}</span>
@@ -100,8 +99,7 @@ export default function AlertsBackendEngine() {
 
           <div className="alert-features">
             {features.map((f, i) => (
-              <div key={f.title} className="alert-feat-card" style={{ animationDelay: `${i * 80}ms`, animation: "fadeUp 0.5s ease both" }}>
-                <div className="alert-feat-icon">{f.icon}</div>
+              <div key={f.title} className="alert-feat-card" style={{ animationDelay: `${i * 60}ms`, animation: "fadeUp 0.5s ease both" }}>
                 <div>
                   <h4>{f.title}</h4>
                   <p>{f.desc}</p>

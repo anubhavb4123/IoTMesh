@@ -57,8 +57,8 @@ const PASSWORD_CONFIGS: PasswordConfig[] = [
     firebaseKey: "guestPassword",
     icon: KeyRound,
     description: "Used by guests to access the dashboard",
-    color: "from-cyan-400 to-blue-500",
-    glowColor: "rgba(34, 211, 238, 0.2)",
+    color: "from-white/30 to-white/10",
+    glowColor: "rgba(255, 255, 255, 0.05)",
   },
   {
     key: "adminPassword",
@@ -67,8 +67,8 @@ const PASSWORD_CONFIGS: PasswordConfig[] = [
     firebaseKey: "adminPassword",
     icon: Shield,
     description: "Grants full admin privileges",
-    color: "from-violet-400 to-purple-500",
-    glowColor: "rgba(167, 139, 250, 0.2)",
+    color: "from-white/30 to-white/10",
+    glowColor: "rgba(255, 255, 255, 0.05)",
   },
   {
     key: "armPassword",
@@ -77,8 +77,8 @@ const PASSWORD_CONFIGS: PasswordConfig[] = [
     firebaseKey: "armPassword",
     icon: ShieldCheck,
     description: "Required to arm the ignition system",
-    color: "from-orange-400 to-red-500",
-    glowColor: "rgba(251, 146, 60, 0.2)",
+    color: "from-white/30 to-white/10",
+    glowColor: "rgba(255, 255, 255, 0.05)",
   },
   {
     key: "securityPassword",
@@ -87,8 +87,8 @@ const PASSWORD_CONFIGS: PasswordConfig[] = [
     firebaseKey: "securityPassword",
     icon: Lock,
     description: "Master security password",
-    color: "from-emerald-400 to-green-500",
-    glowColor: "rgba(52, 211, 153, 0.2)",
+    color: "from-white/30 to-white/10",
+    glowColor: "rgba(255, 255, 255, 0.05)",
   },
 ];
 
@@ -304,8 +304,8 @@ export default function Security() {
       <div className="space-y-6" style={{ animation: "secFadeIn 0.4s ease both" }}>
         {/* ── Header ── */}
         <div style={{ animation: "secFadeIn 0.4s ease both" }}>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent flex items-center gap-3">
-            <ShieldCheck className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-neutral-400 bg-clip-text text-transparent flex items-center gap-3">
+            <ShieldCheck className="h-8 w-8 text-white" />
             Security
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -318,12 +318,12 @@ export default function Security() {
           className="sec-info-banner"
           style={{ animation: "secFadeIn 0.4s ease both", animationDelay: "0.05s" }}
         >
-          <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <Shield className="h-5 w-5 text-white shrink-0 mt-0.5" />
           <div>
             <p className="text-sm text-white/80">
               <strong>Password changes take effect immediately.</strong> All users
               will need the new credentials on their next login. Use{" "}
-              <span className="text-primary font-medium">Forgot Password</span> to
+              <span className="text-white font-medium">Forgot Password</span> to
               receive a 6-digit verification code on the admin Telegram.
             </p>
           </div>
@@ -348,7 +348,7 @@ export default function Security() {
         <DialogContent className="sec-otp-dialog">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
-              <Send className="h-5 w-5 text-primary" />
+              <Send className="h-5 w-5 text-white" />
               {otpVerified ? "Set New Password" : "Telegram Verification"}
             </DialogTitle>
             <DialogDescription className="text-white/50">
@@ -606,17 +606,14 @@ function PasswordCard({
         "--card-glow": config.glowColor,
       } as React.CSSProperties}
     >
-      {/* Top highlight */}
-      <div className={`sec-card-highlight bg-gradient-to-r ${config.color}`} />
-
       {/* Header */}
       <div className="sec-card-header">
-        <div className="sec-card-icon-wrap" style={{ boxShadow: `0 0 20px ${config.glowColor}` }}>
+        <div className="sec-card-icon-wrap">
           <Icon className="h-5 w-5 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-semibold text-base">{config.label}</h3>
-          <p className="text-white/40 text-xs mt-0.5">{config.description}</p>
+          <h3 className="text-white font-bold text-base">{config.label}</h3>
+          <p className="text-neutral-400 text-xs mt-0.5">{config.description}</p>
         </div>
         <Badge
           variant="outline"
@@ -836,22 +833,16 @@ const securityStyles = `
   .sec-card {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: #000000 !important;
     backdrop-filter: blur(20px);
     border-radius: 16px !important;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
   }
 
   .sec-card:hover {
-    border-color: rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 8px 40px var(--card-glow, rgba(0, 0, 0, 0.2));
-    transform: translateY(-2px);
-  }
-
-  .sec-card-highlight {
-    height: 2px;
-    opacity: 0.6;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
   }
 
   .sec-card-header {
@@ -868,18 +859,21 @@ const securityStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #111111;
+    border: 1px solid rgba(255, 255, 255, 0.12);
     flex-shrink: 0;
   }
 
   .sec-badge {
     font-size: 0.65rem !important;
-    border-color: rgba(52, 211, 153, 0.3) !important;
-    color: rgba(52, 211, 153, 0.9) !important;
-    background: rgba(52, 211, 153, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.06) !important;
     padding: 0.15rem 0.5rem !important;
     border-radius: 20px !important;
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   /* ── Current password display ── */

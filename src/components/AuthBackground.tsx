@@ -112,10 +112,10 @@ export default function AuthBackground() {
           const target = nodes[j];
 
           const pulse = 0.5 + 0.5 * Math.sin(time * 0.015 + node.pulsePhase);
-          const alpha = 0.04 + pulse * 0.03;
+          const alpha = 0.04 + pulse * 0.04;
 
           ctx!.beginPath();
-          ctx!.strokeStyle = `rgba(34,211,238,${alpha})`;
+          ctx!.strokeStyle = `rgba(255,255,255,${alpha})`;
           ctx!.lineWidth = 0.6;
 
           // Draw L-shaped circuit path
@@ -129,7 +129,7 @@ export default function AuthBackground() {
           // Small corner dot at bend
           ctx!.beginPath();
           ctx!.arc(midX, midY, 1, 0, Math.PI * 2);
-          ctx!.fillStyle = `rgba(34,211,238,${alpha * 0.8})`;
+          ctx!.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
           ctx!.fill();
         }
       }
@@ -143,20 +143,20 @@ export default function AuthBackground() {
         // Outer glow
         ctx!.beginPath();
         ctx!.arc(node.x, node.y, node.radius * 5, 0, Math.PI * 2);
-        ctx!.fillStyle = `rgba(34,211,238,${alpha * 0.05})`;
+        ctx!.fillStyle = `rgba(255,255,255,${alpha * 0.04})`;
         ctx!.fill();
 
         // Inner dot
         ctx!.beginPath();
         ctx!.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx!.fillStyle = `rgba(34,211,238,${alpha})`;
+        ctx!.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx!.fill();
 
         // Bright ring on larger nodes
         if (node.radius > 1.8) {
           ctx!.beginPath();
           ctx!.arc(node.x, node.y, node.radius + 2, 0, Math.PI * 2);
-          ctx!.strokeStyle = `rgba(34,211,238,${alpha * 0.15})`;
+          ctx!.strokeStyle = `rgba(255,255,255,${alpha * 0.2})`;
           ctx!.lineWidth = 0.5;
           ctx!.stroke();
         }
@@ -169,9 +169,9 @@ export default function AuthBackground() {
         if (scan.y < 0) scan.y = h;
 
         const gradient = ctx!.createLinearGradient(0, scan.y - 30, 0, scan.y + 30);
-        gradient.addColorStop(0, "rgba(34,211,238,0)");
-        gradient.addColorStop(0.5, `rgba(34,211,238,${scan.opacity})`);
-        gradient.addColorStop(1, "rgba(34,211,238,0)");
+        gradient.addColorStop(0, "rgba(255,255,255,0)");
+        gradient.addColorStop(0.5, `rgba(255,255,255,${scan.opacity})`);
+        gradient.addColorStop(1, "rgba(255,255,255,0)");
 
         ctx!.fillStyle = gradient;
         ctx!.fillRect(0, scan.y - 30, w, 60);
@@ -181,9 +181,9 @@ export default function AuthBackground() {
       const cx = w / 2;
       const cy = h / 2;
       const radGrad = ctx!.createRadialGradient(cx, cy - 40, 0, cx, cy - 40, Math.min(w, h) * 0.5);
-      radGrad.addColorStop(0, "rgba(34,211,238,0.03)");
-      radGrad.addColorStop(0.5, "rgba(34,211,238,0.01)");
-      radGrad.addColorStop(1, "rgba(34,211,238,0)");
+      radGrad.addColorStop(0, "rgba(255,255,255,0.03)");
+      radGrad.addColorStop(0.5, "rgba(255,255,255,0.01)");
+      radGrad.addColorStop(1, "rgba(255,255,255,0)");
       ctx!.fillStyle = radGrad;
       ctx!.fillRect(0, 0, w, h);
 

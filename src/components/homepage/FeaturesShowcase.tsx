@@ -17,105 +17,98 @@ function useInView(threshold = 0.05) {
   return { ref, visible };
 }
 
-// ── Feature categories with icons and colors ──
+// ── Feature categories ──
 interface Feature {
   name: string;
-  icon: string;
   category: string;
 }
 
 const categories = [
-  { key: "all", label: "All Features", icon: "⬡" },
-  { key: "automation", label: "Automation", icon: "⚙" },
-  { key: "sensors", label: "Sensors", icon: "📡" },
-  { key: "cloud", label: "Cloud & Backend", icon: "☁" },
-  { key: "alerts", label: "Alerts & Notifications", icon: "🔔" },
-  { key: "voice", label: "Voice & Integrations", icon: "🎙" },
-  { key: "architecture", label: "Architecture", icon: "🏗" },
+  { key: "all", label: "All Features" },
+  { key: "automation", label: "Automation" },
+  { key: "sensors", label: "Sensors" },
+  { key: "cloud", label: "Cloud & Backend" },
+  { key: "alerts", label: "Alerts & Notifications" },
+  { key: "voice", label: "Voice & Integrations" },
+  { key: "architecture", label: "Architecture" },
 ];
-
-const categoryColors: Record<string, { accent: string; glow: string; bg: string }> = {
-  automation: { accent: "#22d3ee", glow: "rgba(34,211,238,0.25)", bg: "rgba(34,211,238,0.06)" },
-  sensors: { accent: "#a78bfa", glow: "rgba(167,139,250,0.25)", bg: "rgba(167,139,250,0.06)" },
-  cloud: { accent: "#34d399", glow: "rgba(52,211,153,0.25)", bg: "rgba(52,211,153,0.06)" },
-  alerts: { accent: "#f59e0b", glow: "rgba(245,158,11,0.25)", bg: "rgba(245,158,11,0.06)" },
-  voice: { accent: "#f472b6", glow: "rgba(244,114,182,0.25)", bg: "rgba(244,114,182,0.06)" },
-  architecture: { accent: "#60a5fa", glow: "rgba(96,165,250,0.25)", bg: "rgba(96,165,250,0.06)" },
-};
 
 const features: Feature[] = [
   // Automation
-  { name: "ESP32-based smart automation", icon: "🔌", category: "automation" },
-  { name: "Remote light control", icon: "💡", category: "automation" },
-  { name: "Remote fan control", icon: "🌀", category: "automation" },
-  { name: "Relay switching system", icon: "🔀", category: "automation" },
-  { name: "Lobby light voice control", icon: "🏠", category: "automation" },
-  { name: "Home appliance automation", icon: "🏡", category: "automation" },
-  { name: "Home automation workflows", icon: "🔄", category: "automation" },
-  { name: "Voice-triggered appliance control", icon: "🗣", category: "automation" },
-  { name: "Automation-ready architecture", icon: "🧩", category: "automation" },
+  { name: "ESP32-based smart automation", category: "automation" },
+  { name: "Remote light control", category: "automation" },
+  { name: "Remote fan control", category: "automation" },
+  { name: "Relay switching system", category: "automation" },
+  { name: "Lobby light voice control", category: "automation" },
+  { name: "Home appliance automation", category: "automation" },
+  { name: "Home automation workflows", category: "automation" },
+  { name: "Voice-triggered appliance control", category: "automation" },
+  { name: "Automation-ready architecture", category: "automation" },
 
   // Sensors & Monitoring
-  { name: "Real-time sensor monitoring", icon: "📊", category: "sensors" },
-  { name: "Temperature monitoring", icon: "🌡", category: "sensors" },
-  { name: "Humidity monitoring", icon: "💧", category: "sensors" },
-  { name: "Gas leakage detection", icon: "⚠", category: "sensors" },
-  { name: "Air quality monitoring", icon: "🌬", category: "sensors" },
-  { name: "Voltage monitoring", icon: "⚡", category: "sensors" },
-  { name: "Battery percentage monitoring", icon: "🔋", category: "sensors" },
-  { name: "Rain detection system", icon: "🌧", category: "sensors" },
-  { name: "Water tank monitoring", icon: "🪣", category: "sensors" },
-  { name: "Ultrasonic water level sensing", icon: "📏", category: "sensors" },
-  { name: "Pressure-based weather prediction", icon: "🌤", category: "sensors" },
-  { name: "Smart weather analysis", icon: "🌦", category: "sensors" },
-  { name: "Smart energy monitoring", icon: "🔆", category: "sensors" },
-  { name: "Remote monitoring system", icon: "🖥", category: "sensors" },
+  { name: "Real-time sensor monitoring", category: "sensors" },
+  { name: "Temperature monitoring", category: "sensors" },
+  { name: "Humidity monitoring", category: "sensors" },
+  { name: "Gas leakage detection", category: "sensors" },
+  { name: "Air quality monitoring", category: "sensors" },
+  { name: "Voltage monitoring", category: "sensors" },
+  { name: "Battery percentage monitoring", category: "sensors" },
+  { name: "Rain detection system", category: "sensors" },
+  { name: "Water tank monitoring", category: "sensors" },
+  { name: "Ultrasonic water level sensing", category: "sensors" },
+  { name: "Pressure-based weather prediction", category: "sensors" },
+  { name: "Smart weather analysis", category: "sensors" },
+  { name: "Smart energy monitoring", category: "sensors" },
+  { name: "Remote monitoring system", category: "sensors" },
 
   // Cloud & Backend
-  { name: "Real-time cloud synchronization", icon: "🔄", category: "cloud" },
-  { name: "Firebase Realtime Database integration", icon: "🔥", category: "cloud" },
-  { name: "Cloud-based automation server", icon: "🖧", category: "cloud" },
-  { name: "24/7 Render backend hosting", icon: "🟢", category: "cloud" },
-  { name: "Realtime database listeners", icon: "👂", category: "cloud" },
-  { name: "Cloud-connected IoT ecosystem", icon: "🌐", category: "cloud" },
-  { name: "Always-online automation backend", icon: "🔗", category: "cloud" },
-  { name: "Secure token-based integrations", icon: "🔐", category: "cloud" },
-  { name: "Realtime event processing", icon: "⚡", category: "cloud" },
-  { name: "Cloud-hosted smart assistant", icon: "🤖", category: "cloud" },
-  { name: "Live device state updates", icon: "📡", category: "cloud" },
+  { name: "Real-time cloud synchronization", category: "cloud" },
+  { name: "Firebase Realtime Database integration", category: "cloud" },
+  { name: "Cloud-based automation server", category: "cloud" },
+  { name: "24/7 Render backend hosting", category: "cloud" },
+  { name: "Realtime database listeners", category: "cloud" },
+  { name: "Cloud-connected IoT ecosystem", category: "cloud" },
+  { name: "Always-online automation backend", category: "cloud" },
+  { name: "Secure token-based integrations", category: "cloud" },
+  { name: "Realtime event processing", category: "cloud" },
+  { name: "Cloud-hosted smart assistant", category: "cloud" },
+  { name: "Live device state updates", category: "cloud" },
 
   // Alerts & Notifications
-  { name: "Real-time notifications", icon: "🔔", category: "alerts" },
-  { name: "Instant Telegram alerts", icon: "📲", category: "alerts" },
-  { name: "Low battery alerts", icon: "🪫", category: "alerts" },
-  { name: "Power failure detection", icon: "🔌", category: "alerts" },
-  { name: "Sensor threshold alerts", icon: "📈", category: "alerts" },
-  { name: "Automatic alert broadcasting", icon: "📢", category: "alerts" },
-  { name: "Smart alert engine", icon: "🧠", category: "alerts" },
+  { name: "Real-time notifications", category: "alerts" },
+  { name: "Instant Telegram alerts", category: "alerts" },
+  { name: "Low battery alerts", category: "alerts" },
+  { name: "Power failure detection", category: "alerts" },
+  { name: "Sensor threshold alerts", category: "alerts" },
+  { name: "Automatic alert broadcasting", category: "alerts" },
+  { name: "Smart alert engine", category: "alerts" },
 
   // Voice & Integrations
-  { name: "Telegram bot control system", icon: "🤖", category: "voice" },
-  { name: "Google Assistant voice control", icon: "🎤", category: "voice" },
-  { name: "IFTTT automation integration", icon: "🔗", category: "voice" },
-  { name: "Voice command processing", icon: "🎙", category: "voice" },
-  { name: "Webhook support", icon: "🪝", category: "voice" },
-  { name: "Google Assistant scene activation", icon: "🎬", category: "voice" },
-  { name: "Telegram group integrations", icon: "👥", category: "voice" },
+  { name: "Telegram bot control system", category: "voice" },
+  { name: "Google Assistant voice control", category: "voice" },
+  { name: "IFTTT automation integration", category: "voice" },
+  { name: "Voice command processing", category: "voice" },
+  { name: "Multi-platform smart control", category: "voice" },
+  { name: "Voice-driven sensor inquiries", category: "voice" },
+  { name: "Smart home ecosystem bridge", category: "voice" },
+  { name: "Webhook-based trigger system", category: "voice" },
 
-  // Architecture
-  { name: "ESP32 remote command execution", icon: "📤", category: "architecture" },
-  { name: "Bi-directional device communication", icon: "↔", category: "architecture" },
-  { name: "Multi-device architecture", icon: "🔀", category: "architecture" },
-  { name: "Custom command parser", icon: "⌨", category: "architecture" },
-  { name: "Admin-controlled automation", icon: "🛡", category: "architecture" },
-  { name: "Scalable IoT infrastructure", icon: "📐", category: "architecture" },
-  { name: "Online smart-home dashboard", icon: "📱", category: "architecture" },
+  // System Architecture & Hardware
+  { name: "Microcontroller mesh network", category: "architecture" },
+  { name: "Multi-MCU communication bus", category: "architecture" },
+  { name: "UART inter-chip data channel", category: "architecture" },
+  { name: "I2C multi-sensor bus topology", category: "architecture" },
+  { name: "Fail-safe relay driver circuitry", category: "architecture" },
+  { name: "Dual-MCU telemetry pipeline", category: "architecture" },
+  { name: "Hardware heartbeat watchdog", category: "architecture" },
+  { name: "Dual-temperature calibration engine", category: "architecture" },
+  { name: "Modular room node architecture", category: "architecture" },
+  { name: "Single Source of Truth paradigm", category: "architecture" },
 ];
 
-const FeaturesShowcase = () => {
+export const FeaturesShowcase = () => {
   const [activeCategory, setActiveCategory] = useState("all");
-  const { ref, visible } = useInView(0.02);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const { ref, visible } = useInView(0.05);
 
   const filtered = activeCategory === "all"
     ? features
@@ -124,79 +117,66 @@ const FeaturesShowcase = () => {
   const count = filtered.length;
 
   return (
-    <div ref={ref} className={`feat-section ${visible ? "feat-visible" : ""}`}>
+    <div
+      ref={ref}
+      className={`feat-section ${visible ? "feat-visible" : ""}`}
+      style={{
+        position: "relative",
+        padding: "100px 0 80px",
+        overflow: "hidden",
+      }}
+    >
       <style>{`
-        .feat-section {
-          opacity: 0;
-          transform: translateY(32px);
-          transition: opacity 0.7s ease, transform 0.7s ease;
-        }
-        .feat-section.feat-visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
         .feat-header {
           text-align: center;
-          margin-bottom: 3rem;
+          margin-bottom: 2.5rem;
         }
         .feat-label {
-          font-family: var(--font-head);
-          font-size: 0.7rem;
-          letter-spacing: 0.2em;
-          color: var(--cyan);
-          text-transform: uppercase;
-          margin-bottom: 0.75rem;
-          display: flex;
+          display: inline-flex;
           align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-        .feat-label::before,
-        .feat-label::after {
-          content: '';
-          width: 40px;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+          gap: 6px;
+          font-family: var(--font-head);
+          font-size: 0.65rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 0.75rem;
         }
         .feat-title {
           font-family: var(--font-head);
-          font-size: clamp(1.6rem, 3.5vw, 2.6rem);
-          font-weight: 700;
+          font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+          font-weight: 800;
+          color: #ffffff;
+          letter-spacing: 0.02em;
           line-height: 1.15;
-          margin-bottom: 1rem;
-          letter-spacing: -0.01em;
-          color: var(--white);
+          margin-bottom: 0.85rem;
         }
-        .feat-title span { color: var(--cyan); }
         .feat-desc {
-          color: var(--muted);
-          max-width: 650px;
-          margin: 0 auto 0.5rem;
-          font-size: 1rem;
-          line-height: 1.8;
+          max-width: 580px;
+          margin: 0 auto 1.5rem;
+          font-size: 0.85rem;
+          color: rgba(255, 255, 255, 0.6);
+          line-height: 1.6;
         }
         .feat-count-badge {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          margin-top: 1rem;
-          padding: 0.4rem 1.2rem;
-          border: 1px solid var(--border);
+          padding: 0.3rem 0.9rem;
+          border: 1px solid rgba(255, 255, 255, 0.15);
           border-radius: 999px;
-          background: var(--cyan-dim);
+          background: rgba(255, 255, 255, 0.05);
           font-family: var(--font-head);
-          font-size: 0.72rem;
+          font-size: 0.68rem;
           letter-spacing: 0.08em;
-          color: var(--cyan);
-          transition: all 0.3s ease;
+          color: #ffffff;
         }
-        .feat-count-badge .feat-count-num {
+        .feat-count-num {
           font-weight: 700;
-          font-size: 0.85rem;
+          color: #ffffff;
         }
 
-        /* Category Tabs */
+        /* Tabs */
         .feat-tabs {
           display: flex;
           gap: 0.5rem;
@@ -206,32 +186,26 @@ const FeaturesShowcase = () => {
         }
         .feat-tab {
           padding: 0.5rem 1.2rem;
-          border: 1px solid var(--border);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 999px;
           background: transparent;
-          color: var(--muted);
+          color: rgba(255, 255, 255, 0.6);
           font-family: var(--font-head);
           font-size: 0.68rem;
           letter-spacing: 0.08em;
           cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          transition: all 0.2s ease;
         }
         .feat-tab:hover {
-          border-color: rgba(34,211,238,0.4);
-          color: var(--white);
-          background: rgba(34,211,238,0.05);
+          border-color: rgba(255, 255, 255, 0.3);
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.05);
         }
         .feat-tab.active {
-          border-color: var(--cyan);
-          color: var(--cyan);
-          background: var(--cyan-dim);
-          box-shadow: 0 0 20px rgba(34,211,238,0.15);
-        }
-        .feat-tab-icon {
-          font-size: 0.8rem;
+          border-color: #ffffff;
+          color: #000000;
+          background: #ffffff;
+          font-weight: 700;
         }
 
         /* Feature Grid */
@@ -243,150 +217,55 @@ const FeaturesShowcase = () => {
 
         /* Feature Card */
         .feat-card {
-          background: var(--card-bg);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 1.1rem 1.2rem;
+          background: #000000;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 14px;
+          padding: 1.2rem 1.3rem;
           display: flex;
-          align-items: center;
-          gap: 0.9rem;
+          flex-direction: column;
+          justify-content: space-between;
           cursor: default;
           position: relative;
           overflow: hidden;
-          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.2s ease;
           opacity: 0;
           transform: translateY(16px);
+          min-height: 90px;
         }
         .feat-section.feat-visible .feat-card {
           opacity: 1;
           transform: translateY(0);
         }
 
-        .feat-card::before {
-          content: '';
-          position: absolute;
-          inset: -1px;
-          border-radius: 12px;
-          background: linear-gradient(135deg, var(--feat-glow, rgba(34,211,238,0.12)), transparent 60%);
-          opacity: 0;
-          transition: opacity 0.35s;
-          pointer-events: none;
-        }
         .feat-card:hover {
-          border-color: var(--feat-accent, var(--cyan));
-          transform: translateY(-4px) !important;
-          box-shadow: 0 12px 40px var(--feat-glow, rgba(34,211,238,0.12)),
-                      0 0 24px var(--feat-glow, rgba(34,211,238,0.08));
-        }
-        .feat-card:hover::before { opacity: 1; }
-
-        .feat-card-icon {
-          width: 42px;
-          height: 42px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.3rem;
-          flex-shrink: 0;
-          background: var(--feat-bg, rgba(34,211,238,0.06));
-          border: 1px solid var(--feat-glow, rgba(34,211,238,0.15));
-          transition: all 0.35s ease;
-          position: relative;
-          z-index: 1;
-        }
-        .feat-card:hover .feat-card-icon {
-          box-shadow: 0 0 16px var(--feat-glow, rgba(34,211,238,0.25));
-          transform: scale(1.08);
+          border-color: rgba(255, 255, 255, 0.35);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+          transform: translateY(-2px) !important;
         }
 
         .feat-card-content {
           flex: 1;
-          position: relative;
-          z-index: 1;
         }
         .feat-card-name {
           font-family: var(--font-head);
-          font-size: 0.76rem;
-          font-weight: 600;
-          color: var(--white);
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #ffffff;
           letter-spacing: 0.02em;
-          line-height: 1.3;
-          transition: color 0.3s;
-        }
-        .feat-card:hover .feat-card-name {
-          color: var(--feat-accent, var(--cyan));
+          line-height: 1.35;
         }
         .feat-card-cat {
           font-size: 0.6rem;
-          color: var(--muted);
+          color: rgba(255, 255, 255, 0.5);
           letter-spacing: 0.1em;
           text-transform: uppercase;
-          font-family: var(--font-head);
-          margin-top: 0.15rem;
-          opacity: 0.7;
-        }
-
-        /* Pulse dot on active cards */
-        .feat-card-pulse {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--feat-accent, var(--cyan));
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-        .feat-card:hover .feat-card-pulse {
-          opacity: 1;
-          animation: featPulse 1.5s ease-in-out infinite;
-        }
-        @keyframes featPulse {
-          0%, 100% { box-shadow: 0 0 0 0 var(--feat-glow, rgba(34,211,238,0.4)); }
-          50% { box-shadow: 0 0 0 6px transparent; }
-        }
-
-        /* Bottom summary bar */
-        .feat-summary {
-          margin-top: 3rem;
-          padding: 1.5rem 2rem;
-          border: 1px solid var(--border);
-          border-radius: var(--radius);
-          background: rgba(34,211,238,0.02);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 3rem;
-          flex-wrap: wrap;
-        }
-        .feat-summary-item {
-          text-align: center;
-        }
-        .feat-summary-num {
-          font-family: var(--font-head);
-          font-size: 1.6rem;
-          font-weight: 700;
-          color: var(--cyan);
-          text-shadow: 0 0 16px rgba(34,211,238,0.3);
-          line-height: 1.1;
-        }
-        .feat-summary-label {
-          font-size: 0.65rem;
-          color: var(--muted);
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          margin-top: 0.2rem;
-          font-family: var(--font-head);
+          font-family: monospace;
+          margin-top: 0.5rem;
         }
 
         @media (max-width: 768px) {
           .feat-grid {
             grid-template-columns: 1fr;
-          }
-          .feat-summary {
-            gap: 1.5rem;
           }
           .feat-tabs {
             gap: 0.35rem;
@@ -429,7 +308,6 @@ const FeaturesShowcase = () => {
               className={`feat-tab ${activeCategory === cat.key ? "active" : ""}`}
               onClick={() => setActiveCategory(cat.key)}
             >
-              <span className="feat-tab-icon">{cat.icon}</span>
               {cat.label}
             </button>
           ))}
@@ -437,30 +315,20 @@ const FeaturesShowcase = () => {
 
         {/* Feature Grid */}
         <div className="feat-grid">
-          {filtered.map((feat, idx) => {
-            const colors = categoryColors[feat.category] || categoryColors.automation;
-            return (
-              <div
-                key={feat.name}
-                className="feat-card"
-                style={{
-                  "--feat-accent": colors.accent,
-                  "--feat-glow": colors.glow,
-                  "--feat-bg": colors.bg,
-                  transitionDelay: visible ? `${Math.min(idx * 30, 600)}ms` : "0ms",
-                } as React.CSSProperties}
-                onMouseEnter={() => setHoveredIdx(idx)}
-                onMouseLeave={() => setHoveredIdx(null)}
-              >
-                <div className="feat-card-icon">{feat.icon}</div>
-                <div className="feat-card-content">
-                  <div className="feat-card-name">{feat.name}</div>
-                  <div className="feat-card-cat">{feat.category}</div>
-                </div>
-                <div className="feat-card-pulse" />
+          {filtered.map((feat, idx) => (
+            <div
+              key={feat.name}
+              className="feat-card"
+              style={{
+                transitionDelay: visible ? `${Math.min(idx * 20, 400)}ms` : "0ms",
+              } as React.CSSProperties}
+            >
+              <div className="feat-card-content">
+                <div className="feat-card-name">{feat.name}</div>
+                <div className="feat-card-cat">{feat.category}</div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </div>

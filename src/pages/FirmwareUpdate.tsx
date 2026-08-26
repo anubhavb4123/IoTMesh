@@ -410,8 +410,8 @@ export default function FirmwareUpdate() {
       >
         {/* ── Header ── */}
         <div style={{ animation: "otaFadeIn 0.4s ease both" }}>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent flex items-center gap-3">
-            <Cpu className="h-8 w-8 text-primary" />
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white via-white to-neutral-400 bg-clip-text text-transparent flex items-center gap-3">
+            <Cpu className="h-8 w-8 text-white" />
             Firmware Update
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -442,7 +442,7 @@ export default function FirmwareUpdate() {
           >
             <div className="flex items-center justify-between flex-wrap gap-4 p-5">
               <div className="flex items-center gap-3">
-                <Github className="h-5 w-5 text-primary" />
+                <Github className="h-5 w-5 text-white" />
                 <div>
                   <div className="text-white font-semibold flex items-center gap-2">
                     Latest Deployed Firmware
@@ -1054,26 +1054,27 @@ const otaStyles = `
     overflow: hidden;
   }
   .ota-progress > div {
-    background: linear-gradient(90deg, #00d4ff, #06b6d4) !important;
+    background: linear-gradient(90deg, #ffffff, #a3a3a3) !important;
     border-radius: 999px;
     transition: width 0.3s ease;
   }
 
   /* ── Upload Button ── */
   .ota-btn-upload {
-    background: linear-gradient(135deg, #00d4ff, #0891b2) !important;
-    color: white !important;
+    background: #ffffff !important;
+    color: #000000 !important;
     font-weight: 600;
     font-size: 0.95rem;
     padding: 12px 24px;
     border-radius: 12px;
     border: none !important;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.15);
+    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
   }
   .ota-btn-upload:hover:not(:disabled) {
+    background: #e5e5e5 !important;
     transform: translateY(-1px);
-    box-shadow: 0 6px 28px rgba(0, 212, 255, 0.25);
+    box-shadow: 0 6px 28px rgba(255, 255, 255, 0.25);
   }
   .ota-btn-upload:disabled {
     opacity: 0.4;
@@ -1084,8 +1085,8 @@ const otaStyles = `
   .ota-btn-spinner {
     width: 16px;
     height: 16px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-top-color: #000000;
     border-radius: 50%;
     animation: otaSpin 0.6s linear infinite;
   }
@@ -1093,8 +1094,8 @@ const otaStyles = `
   .ota-loading-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid rgba(0, 212, 255, 0.15);
-    border-top-color: #00d4ff;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #ffffff;
     border-radius: 50%;
     animation: otaSpin 0.8s linear infinite;
   }
@@ -1138,12 +1139,12 @@ const otaStyles = `
 
   /* ── Redeploy Button ── */
   .ota-btn-redeploy {
-    color: rgba(0, 212, 255, 0.6) !important;
+    color: rgba(255, 255, 255, 0.7) !important;
     transition: all 0.2s;
   }
   .ota-btn-redeploy:hover {
-    color: #00d4ff !important;
-    background: rgba(0, 212, 255, 0.08) !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
   }
 
   /* ── Confirm Dialog ── */

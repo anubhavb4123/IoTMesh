@@ -98,7 +98,7 @@ function ParticleCanvas() {
             ctx!.beginPath();
             ctx!.moveTo(particles[i].x, particles[i].y);
             ctx!.lineTo(particles[j].x, particles[j].y);
-            ctx!.strokeStyle = `rgba(34,211,238,${alpha})`;
+            ctx!.strokeStyle = `rgba(255,255,255,${alpha})`;
             ctx!.lineWidth = 0.6;
             ctx!.stroke();
           }
@@ -109,14 +109,14 @@ function ParticleCanvas() {
       for (const p of particles) {
         ctx!.beginPath();
         ctx!.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx!.fillStyle = `rgba(34,211,238,${p.o})`;
+        ctx!.fillStyle = `rgba(255,255,255,${p.o})`;
         ctx!.fill();
 
         // Subtle glow on larger particles
         if (p.r > 1.2) {
           ctx!.beginPath();
           ctx!.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
-          ctx!.fillStyle = `rgba(34,211,238,${p.o * 0.08})`;
+          ctx!.fillStyle = `rgba(255,255,255,${p.o * 0.08})`;
           ctx!.fill();
         }
 
@@ -198,14 +198,14 @@ const IotMesh = () => {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-          --bg:        #050810;
-          --bg2:       #090d1a;
-          --cyan:      #22d3ee;
-          --cyan-dim:  rgba(34,211,238,0.15);
-          --cyan-glow: rgba(34,211,238,0.35);
-          --white:     #f0f4ff;
-          --muted:     rgba(240,244,255,0.5);
-          --border:    rgba(34,211,238,0.18);
+          --bg:        #000000;
+          --bg2:       #080808;
+          --cyan:      #ffffff;
+          --cyan-dim:  rgba(255,255,255,0.1);
+          --cyan-glow: rgba(255,255,255,0.25);
+          --white:     #ffffff;
+          --muted:     rgba(255,255,255,0.55);
+          --border:    rgba(255,255,255,0.12);
           --card-bg:   rgba(255,255,255,0.03);
           --radius:    14px;
           --font-head: 'Orbitron', 'Exo 2', sans-serif;
@@ -228,8 +228,8 @@ const IotMesh = () => {
           position: fixed;
           inset: 0;
           background-image:
-            linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px);
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
           background-size: 60px 60px;
           pointer-events: none;
           z-index: 0;

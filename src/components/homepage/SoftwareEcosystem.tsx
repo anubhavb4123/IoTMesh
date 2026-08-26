@@ -1,16 +1,16 @@
 const stack = [
-  { icon: "🔥", name: "Firebase RTDB", role: "Realtime cloud database — syncs device state, sensor data, and user commands across all nodes.", tag: "DATABASE" },
-  { icon: "⚙️", name: "Render Backend", role: "Node.js event-driven server — processes alerts, manages Telegram bot, handles cloud logic.", tag: "BACKEND" },
-  { icon: "🤖", name: "Telegram Bot API", role: "Command interface and alert engine — subscribers receive real-time notifications and control devices.", tag: "MESSAGING" },
-  { icon: "⚛️", name: "React + TypeScript", role: "Modern responsive dashboard — real-time monitoring, device control, and user management.", tag: "FRONTEND" },
-  { icon: "⚡", name: "Vite + Tailwind", role: "Lightning-fast build tooling with utility-first CSS for rapid development and optimal performance.", tag: "TOOLING" },
-  { icon: "📡", name: "ESP Firmware (C++)", role: "Custom Arduino/PlatformIO firmware — sensor polling, relay control, Firebase sync, OTA updates.", tag: "EMBEDDED" },
-  { icon: "🌡️", name: "Sensor Data Upload", role: "DHT, BMP, MQ sensors push data through ESP nodes to Firebase in real time.", tag: "DATA FLOW" },
-  { icon: "☁️", name: "Cloud Synchronization", role: "Bidirectional real-time state sync between ESP nodes, dashboard, and Telegram.", tag: "SYNC" },
-  { icon: "🔋", name: "Power Monitoring", role: "Voltage and current tracking with automated alerts on threshold breaches.", tag: "MONITORING" },
-  { icon: "👁️", name: "Motion Detection", role: "PIR sensor triggers flow through ESP → Firebase → Telegram alert pipeline.", tag: "SECURITY" },
-  { icon: "🔴", name: "Gas Alert System", role: "MQ sensor emergency broadcast pipeline — instant multi-subscriber notification.", tag: "SAFETY" },
-  { icon: "💧", name: "Water Level Monitoring", role: "HC-SR04 ultrasonic sensor drives tank level tracking and pump control logic.", tag: "AUTOMATION" },
+  { name: "Firebase RTDB", role: "Realtime cloud database — syncs device state, sensor data, and user commands across all nodes.", tag: "DATABASE" },
+  { name: "Render Backend", role: "Node.js event-driven server — processes alerts, manages Telegram bot, handles cloud logic.", tag: "BACKEND" },
+  { name: "Telegram Bot API", role: "Command interface and alert engine — subscribers receive real-time notifications and control devices.", tag: "MESSAGING" },
+  { name: "React + TypeScript", role: "Modern responsive dashboard — real-time monitoring, device control, and user management.", tag: "FRONTEND" },
+  { name: "Vite + Tailwind", role: "Lightning-fast build tooling with utility-first CSS for rapid development and optimal performance.", tag: "TOOLING" },
+  { name: "ESP Firmware (C++)", role: "Custom Arduino/PlatformIO firmware — sensor polling, relay control, Firebase sync, OTA updates.", tag: "EMBEDDED" },
+  { name: "Sensor Data Upload", role: "DHT, BMP, MQ sensors push data through ESP nodes to Firebase in real time.", tag: "DATA FLOW" },
+  { name: "Cloud Synchronization", role: "Bidirectional real-time state sync between ESP nodes, dashboard, and Telegram.", tag: "SYNC" },
+  { name: "Power Monitoring", role: "Voltage and current tracking with automated alerts on threshold breaches.", tag: "MONITORING" },
+  { name: "Motion Detection", role: "PIR sensor triggers flow through ESP → Firebase → Telegram alert pipeline.", tag: "SECURITY" },
+  { name: "Gas Alert System", role: "MQ sensor emergency broadcast pipeline — instant multi-subscriber notification.", tag: "SAFETY" },
+  { name: "Water Level Monitoring", role: "HC-SR04 ultrasonic sensor drives tank level tracking and pump control logic.", tag: "AUTOMATION" },
 ];
 
 const screenshots = [
@@ -34,11 +34,10 @@ export default function SoftwareEcosystem() {
 
         <div className="sw-stack-grid">
           {stack.map((s, i) => (
-            <div key={s.name} className="sw-stack-card" style={{ animationDelay: `${i * 80}ms`, animation: "fadeUp 0.5s ease both" }}>
-              <div className="sw-stack-icon">{s.icon}</div>
+            <div key={s.name} className="sw-stack-card" style={{ animationDelay: `${i * 60}ms`, animation: "fadeUp 0.5s ease both" }}>
               <h4>{s.name}</h4>
               <p>{s.role}</p>
-              <div style={{ marginTop: "0.5rem", display: "inline-block", padding: "0.1rem 0.5rem", border: "1px solid rgba(34,211,238,0.2)", borderRadius: "999px", fontSize: "0.55rem", fontFamily: "var(--font-head)", color: "rgba(34,211,238,0.6)", letterSpacing: "0.1em" }}>{s.tag}</div>
+              <div style={{ marginTop: "0.75rem", display: "inline-block", padding: "0.15rem 0.6rem", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: "999px", fontSize: "0.55rem", fontFamily: "var(--font-head)", color: "rgba(255, 255, 255, 0.6)", letterSpacing: "0.1em", background: "rgba(255, 255, 255, 0.03)" }}>{s.tag}</div>
             </div>
           ))}
         </div>

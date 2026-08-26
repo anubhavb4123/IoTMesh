@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Users as UsersIcon, Shield, User, Trash2 } from "lucide-react";
+import { Users as UsersIcon, Shield, User, Trash2, Send } from "lucide-react";
 import { database } from "@/lib/firebase";
 import { ref, onValue, remove } from "firebase/database";
 import { toast } from "sonner";
@@ -47,17 +46,17 @@ export default function Users() {
   }, []);
 
   const deleteUser = async (id: string) => {
-    if (currentUserRole !== "admin") { toast.error("Only admin can delete users!"); haptic.error(); sounds.error(); return; }
-    if (!window.confirm("Delete this user? This cannot be undone.")) return;
+    if (currentUserRole !== "admin") { toast.error("Only administrators can delete user sessions"); haptic.error(); sounds.error(); return; }
+    if (!window.confirm("Remove this user session record?")) return;
     await remove(ref(database, `home/users/${id}`));
-    toast.success("User deleted");
+    toast.success("User record removed");
     sounds.delete();
     haptic.medium();
   };
 
   const deleteSubscriber = async (id: string) => {
-    if (currentUserRole !== "admin") { toast.error("Only admin can remove subscribers!"); sounds.wrongPass(); return; }
-    if (!window.confirm("Remove this Telegram subscriber?")) return;
+    if (currentUserRole !== "admin") { toast.error("Only administrators can remove subscribers"); sounds.wrongPass(); return; }
+    if (!window.confirm("Unsubscribe this Telegram recipient?")) return;
     await remove(ref(database, `telegram/subscribers/list/${id}`));
     toast.success("Subscriber removed");
     sounds.delete();
@@ -67,9 +66,14 @@ export default function Users() {
   const getRoleBadge = (role: string) => {
     const Icon = role === "admin" ? Shield : User;
     return (
-      <Badge variant={role === "admin" ? "destructive" : "secondary"} className="gap-1 capitalize">
-        <Icon className="h-3 w-3" />{role}
-      </Badge>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border ${
+        role === "admin"
+          ? "bg-red-500/10 border-red-500/20 text-red-400"
+          : "bg-zinc-800 border-zinc-700 text-zinc-300"
+      }`}>
+        <Icon className="w-3 h-3" />
+        {role === "admin" ? "Admin" : "Guest"}
+      </span>
     );
   };
 
@@ -77,53 +81,49 @@ export default function Users() {
 
   return (
     <Layout>
-      <div className="space-y-6" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
+      <div className="space-y-6 pb-12 max-w-6xl">
 
-        {/* Header */}
-        <div style={{ animation: "fadeSlideIn 0.4s ease both" }}>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-glow-cyan bg-clip-text text-transparent">
-            Users
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage login users and Telegram subscribers</p>
+        {/* ── Header ── */}
+        <div>
+          <h1 className="text-xl font-semibold text-white tracking-tight">Access Directory & Telegram Subscribers</h1>
+          <p className="text-xs text-zinc-400 mt-0.5">Audit authenticated sessions and emergency alert channels</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* ===== Users table ==== */}
-          <Card
-            className="border-border/40 bg-card/40"
-            style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.1s" }}
-          >
-            <h2 className="text-xl font-semibold px-6 pt-6 flex items-center gap-2">
-              <UsersIcon className="h-5 w-5" /> Users
-            </h2>
+          {/* Users Table */}
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+              <div className="flex items-center gap-2">
+                <UsersIcon className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-sm font-semibold text-white">Active Login Sessions</h2>
+              </div>
+              <span className="text-xs font-mono text-zinc-500">{users.length} logged</span>
+            </div>
+
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Login Time</TableHead>
-                  {currentUserRole === "admin" && <TableHead className="text-right">Actions</TableHead>}
+                <TableRow className="border-zinc-800/60 hover:bg-transparent">
+                  <TableHead className="text-zinc-500 text-xs">Name</TableHead>
+                  <TableHead className="text-zinc-500 text-xs">Role</TableHead>
+                  <TableHead className="text-zinc-500 text-xs">Last Login</TableHead>
+                  {currentUserRole === "admin" && <TableHead className="text-right text-zinc-500 text-xs">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center animate-pulse">Loading...</TableCell></TableRow>
-                ) : users.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center">No users found</TableCell></TableRow>
+                {users.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center text-xs text-zinc-500 py-6">No users found</TableCell></TableRow>
                 ) : (
-                  users.map((u, i) => (
-                    <TableRow
-                      key={u.id}
-                      className="transition-colors hover:bg-white/5"
-                      style={{ animation: "fadeSlideIn 0.3s ease both", animationDelay: `${i * 0.03}s` }}
-                    >
-                      <TableCell>{u.name}</TableCell>
+                  users.map((u) => (
+                    <TableRow key={u.id} className="border-zinc-800/40 hover:bg-zinc-850/40">
+                      <TableCell className="font-medium text-xs text-zinc-200">{u.name}</TableCell>
                       <TableCell>{getRoleBadge(u.role)}</TableCell>
-                      <TableCell>{new Date(u.timestamp).toLocaleString()}</TableCell>
+                      <TableCell className="text-xs text-zinc-400 font-mono">{new Date(u.timestamp).toLocaleDateString()}</TableCell>
                       {currentUserRole === "admin" && (
                         <TableCell className="text-right">
-                          <Trash2 onClick={() => deleteUser(u.id)} className="h-5 w-5 text-red-500 cursor-pointer hover:text-red-700 transition-colors" />
+                          <button onClick={() => deleteUser(u.id)} className="text-zinc-500 hover:text-red-400 p-1">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </TableCell>
                       )}
                     </TableRow>
@@ -131,43 +131,41 @@ export default function Users() {
                 )}
               </TableBody>
             </Table>
-          </Card>
+          </div>
 
-          {/* Telegram subscribers table */}
-          <Card
-            className="border-border/40 bg-card/40"
-            style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.17s" }}
-          >
-            <h2 className="text-xl font-semibold px-6 pt-6 flex items-center gap-2">
-              <UsersIcon className="h-5 w-5" /> Telegram Subscribers
-            </h2>
+          {/* Telegram Subscribers Table */}
+          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+              <div className="flex items-center gap-2">
+                <Send className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-sm font-semibold text-white">Telegram Dispatch List</h2>
+              </div>
+              <span className="text-xs font-mono text-zinc-500">{subscribers.length} recipients</span>
+            </div>
+
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Chat ID</TableHead>
-                  <TableHead>Subscribed At</TableHead>
-                  {currentUserRole === "admin" && <TableHead className="text-right">Actions</TableHead>}
+                <TableRow className="border-zinc-800/60 hover:bg-transparent">
+                  <TableHead className="text-zinc-500 text-xs">Recipient</TableHead>
+                  <TableHead className="text-zinc-500 text-xs">Chat ID</TableHead>
+                  <TableHead className="text-zinc-500 text-xs">Registered</TableHead>
+                  {currentUserRole === "admin" && <TableHead className="text-right text-zinc-500 text-xs">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loadingSubs ? (
-                  <TableRow><TableCell colSpan={4} className="text-center animate-pulse">Loading...</TableCell></TableRow>
-                ) : subscribers.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center">No Telegram subscribers</TableCell></TableRow>
+                {subscribers.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center text-xs text-zinc-500 py-6">No subscribers registered</TableCell></TableRow>
                 ) : (
-                  subscribers.map((s, i) => (
-                    <TableRow
-                      key={s.id}
-                      className="transition-colors hover:bg-white/5"
-                      style={{ animation: "fadeSlideIn 0.3s ease both", animationDelay: `${i * 0.03}s` }}
-                    >
-                      <TableCell>{s.name}</TableCell>
-                      <TableCell className="font-mono text-sm">{s.chatId}</TableCell>
-                      <TableCell>{new Date(s.createdAt).toLocaleString()}</TableCell>
+                  subscribers.map((s) => (
+                    <TableRow key={s.id} className="border-zinc-800/40 hover:bg-zinc-850/40">
+                      <TableCell className="font-medium text-xs text-zinc-200">{s.name}</TableCell>
+                      <TableCell className="text-xs font-mono text-zinc-400">{s.chatId}</TableCell>
+                      <TableCell className="text-xs text-zinc-500 font-mono">{new Date(s.createdAt).toLocaleDateString()}</TableCell>
                       {currentUserRole === "admin" && (
                         <TableCell className="text-right">
-                          <Trash2 onClick={() => deleteSubscriber(s.id)} className="h-5 w-5 text-red-500 cursor-pointer hover:text-red-700 transition-colors" />
+                          <button onClick={() => deleteSubscriber(s.id)} className="text-zinc-500 hover:text-red-400 p-1">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </TableCell>
                       )}
                     </TableRow>
@@ -175,16 +173,11 @@ export default function Users() {
                 )}
               </TableBody>
             </Table>
-          </Card>
-        </div>
-      </div>
+          </div>
 
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+        </div>
+
+      </div>
     </Layout>
   );
 }

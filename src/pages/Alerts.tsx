@@ -3,12 +3,13 @@ import { Layout } from "@/components/Layout";
 import { onValue, ref } from "firebase/database";
 import { database } from "@/lib/firebase";
 import {
-  Info, Zap,
-  DoorOpen, Wind, BatteryLow, Activity, Flame, CloudSun, Droplets,
+  Info, Zap, DoorOpen, Wind, BatteryLow, Flame,
+  CloudSun, Droplets, Bell, ShieldAlert, CheckCircle2
 } from "lucide-react";
 import { AlertsSkeleton } from "@/components/skeletons/AlertsSkeleton";
+import { cn } from "@/lib/utils";
 
-// ── Types 
+// ── Types ─────────────────────────────────────────────────────
 interface Alert {
   id: string;
   alert_type: string;
@@ -18,40 +19,32 @@ interface Alert {
   timestamp: number;
 }
 
-// ── Type config 
-const TYPE_CFG: Record<string, {
-  icon: React.ElementType; color: string;
-  bg: string; border: string; label: string;
-}> = {
-  GAS: { icon: Wind, color: "#10b981", bg: "#10b98112", border: "#10b98133", label: "Gas" },
-  DOOR: { icon: DoorOpen, color: "#38bdf8", bg: "#38bdf812", border: "#38bdf833", label: "Door" },
-  POWER: { icon: Zap, color: "#f59e0b", bg: "#f59e0b12", border: "#f59e0b33", label: "Power" },
-  BATT: { icon: BatteryLow, color: "#f97316", bg: "#f9731612", border: "#f9731633", label: "Battery" },
-  IGNITION: { icon: Flame, color: "#ef4444", bg: "#ef444412", border: "#ef444433", label: "Ignition" },
-  HUMIDITY: { icon: Droplets, color: "#06b6d4", bg: "#06b6d412", border: "#06b6d433", label: "Humidity" },
-  WEATHER: { icon: CloudSun, color: "#818cf8", bg: "#818cf812", border: "#818cf833", label: "Weather" },
-  INFO: { icon: Info, color: "#6b7280", bg: "#6b728012", border: "#6b728033", label: "Info" },
+const TYPE_CFG: Record<string, { icon: React.ElementType; label: string; dot: string }> = {
+  GAS: { icon: Wind, label: "Gas Leakage", dot: "bg-emerald-400" },
+  DOOR: { icon: DoorOpen, label: "Door Perimeter", dot: "bg-sky-400" },
+  POWER: { icon: Zap, label: "Power Grid", dot: "bg-amber-400" },
+  BATT: { icon: BatteryLow, label: "Battery Level", dot: "bg-orange-400" },
+  IGNITION: { icon: Flame, label: "Ignition Event", dot: "bg-red-400" },
+  HUMIDITY: { icon: Droplets, label: "Humidity", dot: "bg-cyan-400" },
+  WEATHER: { icon: CloudSun, label: "Weather Trend", dot: "bg-indigo-400" },
+  INFO: { icon: Info, label: "System Info", dot: "bg-zinc-400" },
 };
 
-const SEVERITY_COLOR: Record<string, string> = {
-  info: "#6b7280", warning: "#f59e0b", error: "#ef4444", critical: "#ef4444",
+const SEVERITY_BADGE: Record<string, { bg: string; text: string; label: string }> = {
+  critical: { bg: "bg-red-500/10 border-red-500/20", text: "text-red-400", label: "Critical" },
+  error: { bg: "bg-red-500/10 border-red-500/20", text: "text-red-400", label: "Error" },
+  warning: { bg: "bg-amber-500/10 border-amber-500/20", text: "text-amber-400", label: "Warning" },
+  info: { bg: "bg-zinc-800/80 border-zinc-700/60", text: "text-zinc-400", label: "Info" },
 };
 
-function getCfg(type: string) {
-  return TYPE_CFG[type?.toUpperCase()] ?? TYPE_CFG.INFO;
-}
-
-function formatTime(ts: number) {
+function formatTimestamp(ts: number) {
   const d = new Date(ts);
   const now = new Date();
-  const yest = new Date(now); yest.setDate(now.getDate() - 1);
+  const isToday = d.toDateString() === now.toDateString();
   const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  if (d.toDateString() === now.toDateString()) return { primary: time, secondary: "Today" };
-  if (d.toDateString() === yest.toDateString()) return { primary: time, secondary: "Yesterday" };
-  return { primary: time, secondary: d.toLocaleDateString() };
+  return { time, date: isToday ? "Today" : d.toLocaleDateString() };
 }
 
-// ── Page 
 export default function Alerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,157 +76,111 @@ export default function Alerts() {
     : alerts.filter((a) => (a.alert_type?.toUpperCase() ?? "INFO") === filter);
 
   const filterTypes = ["ALL", "GAS", "DOOR", "POWER", "BATT", "IGNITION", "HUMIDITY", "WEATHER"];
-  const ignitionCount = counts["IGNITION"] ?? 0;
 
   if (loading) return <AlertsSkeleton />;
 
   return (
     <Layout>
-      <div className="space-y-5" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
+      <div className="space-y-6 pb-12 max-w-7xl">
 
-        {/* Header */}
-        <div className="flex items-center justify-between" style={{ animation: "fadeSlideIn 0.3s ease both" }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20">
-              <Activity className="h-5 w-5 text-red-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Alert Log</h1>
-              <p className="text-xs text-muted-foreground/60 mt-0.5 tracking-wide">
-                {alerts.length} total · live from ESP8266
-              </p>
-            </div>
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-white tracking-tight">System Alerts & Event Logs</h1>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Diagnostic audit trail from hardware sensors and cloud triggers
+            </p>
           </div>
-          {ignitionCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-red-500/25 bg-red-500/10">
-              <Flame className="h-3.5 w-3.5 text-red-400" />
-              <span className="text-[11px] text-red-400 font-medium tracking-wider">
-                {ignitionCount} ignition event{ignitionCount > 1 ? "s" : ""}
-              </span>
-            </div>
-          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-zinc-500 bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
+              {alerts.length} total events logged
+            </span>
+          </div>
         </div>
 
-        {/* Summary pills */}
-        {Object.entries(TYPE_CFG).some(([k]) => k !== "INFO" && counts[k]) && (
-          <div className="flex gap-2 flex-wrap" style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.05s" }}>
-            {Object.entries(TYPE_CFG).filter(([k]) => k !== "INFO" && counts[k]).map(([key, cfg]) => (
-              <div
-                key={key}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all duration-200 hover:opacity-80"
-                style={{ background: cfg.bg, borderColor: cfg.border, color: cfg.color }}
-                onClick={() => setFilter(filter === key ? "ALL" : key)}
-              >
-                <cfg.icon style={{ width: 11, height: 11 }} />
-                {cfg.label} · {counts[key]}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* ── Category Filter Pills ── */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {filterTypes.map((t) => {
+            const count = t === "ALL" ? alerts.length : counts[t] ?? 0;
+            const isSelected = filter === t;
 
-        {/* Filter bar */}
-        <div className="flex gap-1.5 flex-wrap" style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.1s" }}>
-          {filterTypes.map((type) => {
-            const cfg = type === "ALL" ? null : TYPE_CFG[type];
-            const active = filter === type;
             return (
               <button
-                key={type}
-                onClick={() => setFilter(type)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium transition-all duration-200"
-                style={
-                  active
-                    ? { background: cfg ? `${cfg.color}22` : "rgba(255,255,255,0.1)", color: cfg?.color ?? "var(--color-text-primary)", border: `1px solid ${cfg ? cfg.color + "55" : "rgba(255,255,255,0.3)"}` }
-                    : { background: "rgba(255,255,255,0.03)", color: "#555", border: "1px solid rgba(255,255,255,0.08)" }
-                }
+                key={t}
+                onClick={() => setFilter(t)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 select-none",
+                  isSelected
+                    ? "bg-white text-black shadow-sm"
+                    : "bg-black border border-white/12 text-neutral-400 hover:text-white hover:border-white/30"
+                )}
               >
-                {cfg && <cfg.icon style={{ width: 10, height: 10 }} />}
-                {type === "ALL" ? "All" : cfg!.label}
-                {type !== "ALL" && counts[type] ? <span className="opacity-60 ml-0.5">{counts[type]}</span> : null}
+                <span>{t}</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full font-mono",
+                  isSelected ? "bg-black text-white font-bold" : "bg-neutral-900 text-neutral-400"
+                )}>
+                  {count}
+                </span>
               </button>
             );
           })}
         </div>
 
-        {/* Alert list */}
-        <div
-          className="rounded-2xl border border-border/40 bg-card/40 overflow-hidden"
-          style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.15s" }}
-        >
+        {/* ── Event Timeline List ── */}
+        <div className="space-y-2.5">
           {filtered.length === 0 ? (
-            <div className="px-6 py-12 text-center text-muted-foreground/30 text-sm">
-              {filter === "ALL" ? "No alerts recorded yet" : `No ${getCfg(filter).label} alerts`}
+            <div className="rounded-2xl border border-white/12 bg-black p-12 text-center space-y-2">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+              <p className="text-sm font-bold text-white">No alerts found</p>
+              <p className="text-xs text-neutral-400">No telemetry events match the selected category filter.</p>
             </div>
           ) : (
-            <div className="divide-y divide-border/20">
-              {filtered.map((alert, i) => {
-                const cfg = getCfg(alert.alert_type);
-                const Icon = cfg.icon;
-                const t = formatTime(alert.timestamp);
-                const sevColor = SEVERITY_COLOR[alert.severity] ?? "#6b7280";
-                const isIgn = alert.alert_type?.toUpperCase() === "IGNITION";
+            filtered.map((alert) => {
+              const typeCfg = TYPE_CFG[alert.alert_type?.toUpperCase()] ?? TYPE_CFG.INFO;
+              const sev = SEVERITY_BADGE[alert.severity?.toLowerCase()] ?? SEVERITY_BADGE.info;
+              const { time, date } = formatTimestamp(alert.timestamp);
 
-                return (
-                  <div
-                    key={alert.id}
-                    className="flex items-start gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors duration-150"
-                    style={{
-                      animation: "fadeSlideIn 0.3s ease both",
-                      animationDelay: `${Math.min(i * 0.025, 0.3)}s`,
-                      borderLeft: isIgn ? `3px solid ${cfg.color}` : "3px solid transparent",
-                    }}
-                  >
-                    {/* Icon */}
-                    <div
-                      className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 mt-0.5"
-                      style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
-                    >
-                      <Icon style={{ width: 15, height: 15, color: cfg.color }} />
+              return (
+                <div
+                  key={alert.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-white/12 bg-black hover:border-white/25 transition-all gap-3 shadow-sm"
+                >
+                  {/* Left: Icon + Type + Message */}
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-white/10 flex items-center justify-center shrink-0 text-white">
+                      <typeCfg.icon className="w-4 h-4" />
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <span className="text-[11px] font-bold tracking-wider uppercase" style={{ color: cfg.color }}>
-                          {cfg.label}
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-white">{typeCfg.label}</span>
+                        <span className={cn("text-[10px] px-2 py-0.2 rounded-full border font-semibold", sev.bg, sev.text)}>
+                          {sev.label}
                         </span>
-                        <span
-                          className="text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wider uppercase"
-                          style={{ background: `${sevColor}18`, color: sevColor, border: `1px solid ${sevColor}33` }}
-                        >
-                          {alert.severity}
-                        </span>
-                        {alert.sensor_value !== null && alert.sensor_value >= 0 && (
-                          <span className="text-[10px] text-muted-foreground/50 tabular-nums">
-                            {alert.sensor_value}
-                            {alert.alert_type?.toUpperCase() === "GAS" ? " PPM" :
-                              alert.alert_type?.toUpperCase() === "BATT" ? "%" :
-                                alert.alert_type?.toUpperCase() === "POWER" ? (alert.sensor_value === 0 ? " · Inverter" : " · Grid") : ""}
+                        {alert.sensor_value !== null && alert.sensor_value !== undefined && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-900 border border-white/10 font-mono text-white">
+                            val: {alert.sensor_value}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground/75 leading-snug">{alert.message}</p>
-                    </div>
-
-                    {/* Time */}
-                    <div className="text-right shrink-0 ml-2">
-                      <p className="text-xs font-medium tabular-nums" style={{ color: "var(--color-text-secondary)" }}>{t.primary}</p>
-                      <p className="text-[10px] text-muted-foreground/40 mt-0.5">{t.secondary}</p>
+                      <p className="text-xs text-neutral-300 leading-relaxed truncate">{alert.message}</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Right: Timestamp */}
+                  <div className="sm:text-right shrink-0 text-xs font-mono text-neutral-400 pl-12 sm:pl-0">
+                    <div className="text-white font-semibold">{time}</div>
+                    <div className="text-[10px] text-neutral-500">{date}</div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
-      </div>
 
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      </div>
     </Layout>
   );
 }

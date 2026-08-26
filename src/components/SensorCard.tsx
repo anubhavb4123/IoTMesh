@@ -11,81 +11,49 @@ interface SensorCardProps {
   description?: string;
 }
 
-// Status → hex color map (matches Dashboard StatusItem)
-const STATUS_COLOR: Record<string, string> = {
-  ok: "#22c55e",
-  warning: "#f59e0b",
-  alert: "#ef4444",
-  cold: "#0263ff",
-};
-
-// Status → icon CSS class (animated glow, same as StatusItem)
-const ICON_CLASS: Record<string, string> = {
-  ok: "icon-ok",
-  warning: "icon-warning",
-  alert: "icon-critical",
-  cold: "icon-cold",
-};
-
 export const SensorCard = ({
   title,
   value,
   unit,
   icon: Icon,
-  status = 'ok',
   description,
 }: SensorCardProps) => {
-  const color = STATUS_COLOR[status] ?? STATUS_COLOR.ok;
-  const iconCls = ICON_CLASS[status] ?? ICON_CLASS.ok;
+  const formattedValue =
+    typeof value === "number"
+      ? Number(value).toFixed(1)
+      : value ?? "—";
 
   return (
-    <Card
-      className="relative overflow-hidden border-border/40 bg-card/40"
-    >
-      {/* ── Icon (top-right) with color-reactive bg + glow ── */}
-      <div className="absolute top-4 right-4 z-10">
-        <div
-          className="p-2 rounded-xl backdrop-blur-sm"
-          style={{
-            background: `${color}18`,
-            border: `1px solid ${color}35`,
-          }}
-        >
-          <Icon
-            className={cn("h-6 w-6 fill-none stroke-[1.8]", iconCls)}
-          />
+    <Card className="bg-black rounded-2xl p-4 transition-all duration-200 group shadow-sm border border-white/12 hover:border-white/25">
+      
+      {/* Top row: Icon + Title */}
+      <div className="flex items-center gap-2.5 mb-3">
+        {/* Minimal Monochrome Icon Box */}
+        <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-white/10 flex items-center justify-center shrink-0 text-white transition-colors group-hover:border-white/20">
+          <Icon className="w-4 h-4 fill-none stroke-[2]" />
         </div>
+
+        <span className="text-xs font-semibold text-white tracking-wide truncate">{title}</span>
       </div>
 
-      <div className="p-5 pt-5 pr-14">
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            {title}
-          </h3>
-
-          <div className="flex items-baseline gap-2">
-            <span className={typeof value === "number" ? "text-3xl font-bold text-foreground" : "text-xl font-bold text-foreground"}>
-              {typeof value === "number"
-                ? Number(value).toFixed(1)
-                : value ?? "0"}
-            </span>
-            {unit && (
-              <span className="text-lg text-muted-foreground">
-                {unit}
-              </span>
-            )}
-          </div>
-
-          {description && (
-            <p className="text-xs text-muted-foreground/70">
-              {description}
-            </p>
-          )}
-        </div>
+      {/* Main Metric Value */}
+      <div className="flex items-baseline gap-1.5 mt-2.5">
+        <span className="text-2xl font-bold tracking-tight text-white font-mono">
+          {formattedValue}
+        </span>
+        {unit && (
+          <span className="text-xs font-bold text-neutral-400 font-sans">
+            {unit}
+          </span>
+        )}
       </div>
 
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+      {/* Description */}
+      {description && (
+        <p className="text-[11px] text-neutral-400 mt-1 truncate font-medium">
+          {description}
+        </p>
+      )}
     </Card>
   );
 };

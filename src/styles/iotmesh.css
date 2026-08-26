@@ -1,12 +1,12 @@
 :root {
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #1a1a2e;
-  --accent-primary: #00d4ff;
-  --accent-secondary: #00a8cc;
+  --bg-primary: #000000;
+  --bg-secondary: #080808;
+  --accent-primary: #ffffff;
+  --accent-secondary: #a3a3a3;
   --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --card-bg: rgba(255, 255, 255, 0.05);
-  --glow: 0 0 20px rgba(0, 212, 255, 0.3);
+  --text-secondary: #a3a3a3;
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --glow: 0 0 20px rgba(255, 255, 255, 0.12);
   --transition: all 0.3s ease;
 }
 
@@ -47,25 +47,27 @@ h1, h2, h3 {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: var(--bg-primary);
+  background: #ffffff;
+  color: #000000;
   box-shadow: var(--glow);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+  background: #e5e5e5;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.25);
 }
 
 .btn-secondary {
   background: transparent;
-  color: var(--accent-primary);
-  border: 2px solid var(--accent-primary);
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .btn-secondary:hover {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
 }
 
 .card {

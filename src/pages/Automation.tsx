@@ -3,20 +3,20 @@ import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Workflow, Plus, Trash2, ChevronDown, Zap, Power,
+  Workflow, Plus, Trash2, ChevronDown, Zap,
   Thermometer, Droplets, Wind, Gauge, Waves, CloudRain,
-  PersonStanding, DoorOpen, BatteryCharging,
-  Lightbulb, Fan, Lock, Tv, Refrigerator, ToggleLeft,
+  PersonStanding, DoorOpen, Lightbulb, Fan, Lock, Tv,
+  Refrigerator, ToggleLeft, ArrowRight, Check, Edit2
 } from "lucide-react";
 import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 import { useSensorData } from "@/hooks/useSensorData";
-import { firebaseService, ControlData } from "@/lib/firebase";
-import { database, PATHS } from "@/lib/firebase";
+import { firebaseService, ControlData, database } from "@/lib/firebase";
 import { ref, onValue, set } from "firebase/database";
+import { cn } from "@/lib/utils";
 
-// ── Types ──
+// ── Types ─────────────────────────────────────────────────────
 interface Condition {
   sensor: string;
   operator: string;
@@ -36,31 +36,30 @@ interface AutomationRule {
   actions: Action[];
 }
 
-// ── Options ──
 const SENSOR_OPTIONS = [
   { value: "temperature", label: "Temperature (°C)", icon: Thermometer },
   { value: "humidity", label: "Humidity (%)", icon: Droplets },
   { value: "gas", label: "Air Quality (PPM)", icon: Wind },
   { value: "pressure", label: "Pressure (hPa)", icon: Gauge },
   { value: "WaterLevel", label: "Water Level (cm)", icon: Waves },
-  { value: "rain", label: "Rain", icon: CloudRain },
-  { value: "motion", label: "Motion", icon: PersonStanding },
-  { value: "door", label: "Door", icon: DoorOpen },
-  { value: "power", label: "Power Source", icon: Zap },
+  { value: "rain", label: "Rain Detection", icon: CloudRain },
+  { value: "motion", label: "PIR Motion", icon: PersonStanding },
+  { value: "door", label: "Door Reed Switch", icon: DoorOpen },
+  { value: "power", label: "Power Grid Status", icon: Zap },
 ];
 
 const OPERATORS = [
-  { value: ">", label: ">" },
-  { value: "<", label: "<" },
-  { value: ">=", label: ">=" },
-  { value: "<=", label: "<=" },
-  { value: "==", label: "==" },
-  { value: "!=", label: "!=" },
+  { value: ">", label: "Greater than (>)" },
+  { value: "<", label: "Less than (<)" },
+  { value: ">=", label: "At least (>=)" },
+  { value: "<=", label: "At most (<=)" },
+  { value: "==", label: "Equals (==)" },
+  { value: "!=", label: "Not equal (!=)" },
 ];
 
 const BOOL_OPERATORS = [
-  { value: "==", label: "is" },
-  { value: "!=", label: "is not" },
+  { value: "==", label: "is active / open" },
+  { value: "!=", label: "is clear / closed" },
 ];
 
 const DEVICE_OPTIONS = [
@@ -85,15 +84,14 @@ const DEVICE_OPTIONS = [
 ];
 
 const ACTION_OPTIONS = [
-  { value: "on", label: "Turn ON" },
-  { value: "off", label: "Turn OFF" },
+  { value: "on", label: "Turn ON / Energize" },
+  { value: "off", label: "Turn OFF / De-energize" },
 ];
 
 const BOOL_SENSORS = ["rain", "motion", "door"];
 const POWER_SENSOR = "power";
 const AUTOMATION_PATH = "home/room1/automations";
 
-// ── Helpers ──
 function isBoolSensor(sensor: string) {
   return BOOL_SENSORS.includes(sensor);
 }
@@ -106,7 +104,6 @@ function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-// ── Custom Select ──
 function Select({ value, onChange, options, placeholder }: {
   value: string;
   onChange: (v: string) => void;
@@ -118,141 +115,20 @@ function Select({ value, onChange, options, placeholder }: {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90 outline-none transition-all focus:border-cyan-400/50 focus:bg-white/8 cursor-pointer"
+        className="w-full appearance-none rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-200 outline-none transition-all focus:border-zinc-600 focus:bg-zinc-850 cursor-pointer"
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-[#0a0e1a] text-white">
+          <option key={o.value} value={o.value} className="bg-zinc-950 text-zinc-200">
             {o.label}
           </option>
         ))}
       </select>
-      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
+      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
     </div>
   );
 }
 
-// ── Condition Row ──
-function ConditionRow({ condition, onChange, onRemove, index }: {
-  condition: Condition;
-  onChange: (c: Condition) => void;
-  onRemove: () => void;
-  index: number;
-}) {
-  const isBool = isBoolSensor(condition.sensor);
-  const isPower = isPowerSensor(condition.sensor);
-  const operators = (isBool || isPower) ? BOOL_OPERATORS : OPERATORS;
-  const sensorIcon = SENSOR_OPTIONS.find(s => s.value === condition.sensor);
-  const Icon = sensorIcon?.icon || Zap;
-
-  return (
-    <div
-      className="flex items-center gap-2 flex-wrap animate-in"
-      style={{ animation: `fadeSlideIn 0.3s ease both ${index * 0.05}s` }}
-    >
-      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-400/10 border border-amber-400/20 shrink-0">
-        <Icon className="h-4 w-4 text-amber-400" />
-      </div>
-      <div className="flex-1 min-w-[120px]">
-        <Select
-          value={condition.sensor}
-          onChange={(v) => onChange({ ...condition, sensor: v, operator: "==", value: isBoolSensor(v) ? "true" : isPowerSensor(v) ? "1" : condition.value })}
-          options={SENSOR_OPTIONS.map(s => ({ value: s.value, label: s.label }))}
-          placeholder="Select sensor"
-        />
-      </div>
-      <div className="w-[80px]">
-        <Select
-          value={condition.operator}
-          onChange={(v) => onChange({ ...condition, operator: v })}
-          options={operators}
-        />
-      </div>
-      <div className="flex-1 min-w-[80px]">
-        {isPower ? (
-          <Select
-            value={condition.value}
-            onChange={(v) => onChange({ ...condition, value: v })}
-            options={[
-              { value: "0", label: "Inverter 🔋" },
-              { value: "1", label: "Grid ⚡" },
-            ]}
-          />
-        ) : isBool ? (
-          <Select
-            value={condition.value}
-            onChange={(v) => onChange({ ...condition, value: v })}
-            options={[
-              { value: "true", label: "Detected / Open" },
-              { value: "false", label: "Clear / Closed" },
-            ]}
-          />
-        ) : (
-          <input
-            type="number"
-            value={condition.value}
-            onChange={(e) => onChange({ ...condition, value: e.target.value })}
-            placeholder="Value"
-            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90 outline-none transition-all focus:border-cyan-400/50"
-          />
-        )}
-      </div>
-      <button
-        onClick={() => { onRemove(); haptic.tick(); sounds.click(); }}
-        className="p-1.5 rounded-lg hover:bg-red-500/15 text-red-400/60 hover:text-red-400 transition-all"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-// ── Action Row ──
-function ActionRow({ action, onChange, onRemove, index }: {
-  action: Action;
-  onChange: (a: Action) => void;
-  onRemove: () => void;
-  index: number;
-}) {
-  const deviceIcon = DEVICE_OPTIONS.find(d => d.value === action.device);
-  const Icon = deviceIcon?.icon || Zap;
-
-  return (
-    <div
-      className="flex items-center gap-2 flex-wrap animate-in"
-      style={{ animation: `fadeSlideIn 0.3s ease both ${index * 0.05}s` }}
-    >
-      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-400/10 border border-emerald-400/20 shrink-0">
-        <Icon className="h-4 w-4 text-emerald-400" />
-      </div>
-      <div className="flex-1 min-w-[140px]">
-        <Select
-          value={action.device}
-          onChange={(v) => onChange({ ...action, device: v })}
-          options={DEVICE_OPTIONS.map(d => ({ value: d.value, label: d.label }))}
-          placeholder="Select device"
-        />
-      </div>
-      <div className="w-[120px]">
-        <Select
-          value={action.action}
-          onChange={(v) => onChange({ ...action, action: v })}
-          options={ACTION_OPTIONS}
-        />
-      </div>
-      <button
-        onClick={() => { onRemove(); haptic.tick(); sounds.click(); }}
-        className="p-1.5 rounded-lg hover:bg-red-500/15 text-red-400/60 hover:text-red-400 transition-all"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════
-// MAIN COMPONENT
-// ══════════════════════════════════════
 export default function Automation() {
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
@@ -277,7 +153,6 @@ export default function Automation() {
     return () => unsub();
   }, []);
 
-  // Save to Firebase
   const saveRules = async (updated: AutomationRule[]) => {
     const obj: Record<string, AutomationRule> = {};
     updated.forEach((r) => { obj[r.id] = r; });
@@ -318,7 +193,6 @@ export default function Automation() {
     });
   }, [sensorData, rules]);
 
-  // Create new rule
   const startCreating = () => {
     setEditingRule({
       id: newId(),
@@ -340,12 +214,12 @@ export default function Automation() {
       return;
     }
     if (editingRule.conditions.length === 0) {
-      toast.error("Add at least one condition");
+      toast.error("Add at least one trigger condition");
       sounds.error();
       return;
     }
     if (editingRule.actions.length === 0) {
-      toast.error("Add at least one action");
+      toast.error("Add at least one device action");
       sounds.error();
       return;
     }
@@ -363,7 +237,7 @@ export default function Automation() {
     setIsCreating(false);
     haptic.heavy();
     sounds.success();
-    toast.success(existing >= 0 ? "Rule updated!" : "Automation created!");
+    toast.success(existing >= 0 ? "Rule updated successfully" : "Automation rule saved");
   };
 
   const deleteRule = async (id: string) => {
@@ -383,273 +257,328 @@ export default function Automation() {
     sounds.click();
   };
 
-  const cancelEdit = () => {
-    setEditingRule(null);
-    setIsCreating(false);
-    haptic.tick();
-  };
-
   return (
     <Layout>
-      <div className="flex flex-col gap-5" style={{ animation: "fadeSlideIn 0.4s ease both" }}>
+      <div className="space-y-6 pb-12 max-w-5xl">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between" style={{ animation: "fadeSlideIn 0.3s ease both" }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-violet-400/10 border border-violet-400/20">
-              <Workflow className="h-5 w-5 text-violet-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Create Automation</h1>
-              <p className="text-xs text-muted-foreground/50 mt-0.5 tracking-wide">
-                {rules.length} rule{rules.length !== 1 ? "s" : ""} configured
-              </p>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-white tracking-tight">Smart Automations</h1>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Event-driven rules linking sensor triggers to appliance actuation
+            </p>
           </div>
 
           {!isCreating && (
             <Button
               onClick={startCreating}
-              className="gap-2 bg-violet-500 hover:bg-violet-600 text-white border-0 shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all"
+              className="bg-white text-zinc-950 hover:bg-zinc-200 font-medium text-xs rounded-xl shadow-sm self-start sm:self-auto"
             >
-              <Plus className="h-4 w-4" />
-              New Rule
+              <Plus className="w-4 h-4 mr-1.5" />
+              New Automation
             </Button>
           )}
         </div>
 
-        {/* ── Editor ── */}
+        {/* ── Editor Card ── */}
         {editingRule && (
-          <Card
-            className="border-violet-400/20 bg-card/60 backdrop-blur-sm overflow-hidden"
-            style={{ animation: "fadeSlideIn 0.4s ease both" }}
-          >
-            {/* Editor header */}
-            <div className="flex items-center gap-2 px-5 py-3 border-b border-violet-400/10 bg-violet-400/5">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-400" style={{ boxShadow: "0 0 6px #8b5cf6" }} />
-              <span className="text-[10px] font-semibold tracking-widest text-violet-300/70 uppercase">
-                {isCreating ? "New Automation Rule" : "Edit Rule"}
-              </span>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+              <h2 className="text-sm font-semibold text-white">
+                {isCreating ? "Create New Automation" : "Edit Automation Rule"}
+              </h2>
+              <button
+                onClick={() => { setEditingRule(null); setIsCreating(false); }}
+                className="text-xs text-zinc-400 hover:text-white"
+              >
+                Cancel
+              </button>
             </div>
 
-            <div className="p-5 space-y-5">
-              {/* Rule name */}
+            {/* Rule Name Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-400">Rule Name</label>
               <input
                 type="text"
                 value={editingRule.name}
                 onChange={(e) => setEditingRule({ ...editingRule, name: e.target.value })}
-                placeholder="Rule name (e.g. Cool room when hot)"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/90 outline-none transition-all focus:border-violet-400/50 focus:bg-white/8 placeholder:text-white/20"
+                placeholder="e.g. Turn on Room 1 fan when hot"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs text-white outline-none focus:border-zinc-600 placeholder:text-zinc-600"
               />
+            </div>
 
-              {/* IF section */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold tracking-widest text-amber-400 uppercase px-2 py-1 rounded-md bg-amber-400/10 border border-amber-400/20">
-                    IF
-                  </span>
-                  <span className="text-[11px] text-muted-foreground/40">All conditions must be true</span>
-                </div>
-
-                <div className="space-y-2 pl-2 border-l-2 border-amber-400/20 ml-3">
-                  {editingRule.conditions.map((c, i) => (
-                    <ConditionRow
-                      key={i}
-                      index={i}
-                      condition={c}
-                      onChange={(updated) => {
-                        const conds = [...editingRule.conditions];
-                        conds[i] = updated;
-                        setEditingRule({ ...editingRule, conditions: conds });
-                      }}
-                      onRemove={() => {
-                        const conds = editingRule.conditions.filter((_, j) => j !== i);
-                        setEditingRule({ ...editingRule, conditions: conds });
-                      }}
-                    />
-                  ))}
-                  <button
-                    onClick={() => {
-                      setEditingRule({
-                        ...editingRule,
-                        conditions: [...editingRule.conditions, { sensor: "temperature", operator: ">", value: "30" }],
-                      });
-                      haptic.tick();
-                    }}
-                    className="flex items-center gap-1.5 text-xs text-amber-400/60 hover:text-amber-400 transition-colors mt-1 px-2 py-1 rounded-md hover:bg-amber-400/5"
-                  >
-                    <Plus className="h-3 w-3" /> Add condition
-                  </button>
-                </div>
+            {/* IF Triggers */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-200 uppercase font-mono">
+                  IF (Triggers)
+                </span>
+                <span className="text-xs text-zinc-500">When all conditions match</span>
               </div>
 
-              {/* Connector */}
-              <div className="flex items-center gap-3 px-4">
-                <div className="flex-1 h-px bg-gradient-to-r from-amber-400/20 to-transparent" />
-                <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                  <ChevronDown className="h-3 w-3 text-white/30" />
-                  <span className="text-[10px] text-white/30 font-medium tracking-wider">THEN</span>
-                  <ChevronDown className="h-3 w-3 text-white/30" />
-                </div>
-                <div className="flex-1 h-px bg-gradient-to-l from-emerald-400/20 to-transparent" />
+              <div className="space-y-2 pl-3 border-l-2 border-zinc-800">
+                {editingRule.conditions.map((c, i) => {
+                  const isBool = isBoolSensor(c.sensor);
+                  const isPower = isPowerSensor(c.sensor);
+                  const operators = (isBool || isPower) ? BOOL_OPERATORS : OPERATORS;
+
+                  return (
+                    <div key={i} className="flex items-center gap-2 flex-wrap">
+                      <div className="w-48">
+                        <Select
+                          value={c.sensor}
+                          onChange={(v) => {
+                            const conds = [...editingRule.conditions];
+                            conds[i] = { ...c, sensor: v, operator: "==", value: isBoolSensor(v) ? "true" : isPowerSensor(v) ? "1" : "30" };
+                            setEditingRule({ ...editingRule, conditions: conds });
+                          }}
+                          options={SENSOR_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+                        />
+                      </div>
+
+                      <div className="w-36">
+                        <Select
+                          value={c.operator}
+                          onChange={(v) => {
+                            const conds = [...editingRule.conditions];
+                            conds[i] = { ...c, operator: v };
+                            setEditingRule({ ...editingRule, conditions: conds });
+                          }}
+                          options={operators}
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-[120px]">
+                        {isPower ? (
+                          <Select
+                            value={c.value}
+                            onChange={(v) => {
+                              const conds = [...editingRule.conditions];
+                              conds[i] = { ...c, value: v };
+                              setEditingRule({ ...editingRule, conditions: conds });
+                            }}
+                            options={[
+                              { value: "0", label: "Inverter 🔋" },
+                              { value: "1", label: "Grid Power ⚡" },
+                            ]}
+                          />
+                        ) : isBool ? (
+                          <Select
+                            value={c.value}
+                            onChange={(v) => {
+                              const conds = [...editingRule.conditions];
+                              conds[i] = { ...c, value: v };
+                              setEditingRule({ ...editingRule, conditions: conds });
+                            }}
+                            options={[
+                              { value: "true", label: "Detected / Open" },
+                              { value: "false", label: "Clear / Closed" },
+                            ]}
+                          />
+                        ) : (
+                          <input
+                            type="number"
+                            value={c.value}
+                            onChange={(e) => {
+                              const conds = [...editingRule.conditions];
+                              conds[i] = { ...c, value: e.target.value };
+                              setEditingRule({ ...editingRule, conditions: conds });
+                            }}
+                            placeholder="Threshold"
+                            className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-mono text-zinc-200 outline-none focus:border-zinc-600"
+                          />
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          const conds = editingRule.conditions.filter((_, j) => j !== i);
+                          setEditingRule({ ...editingRule, conditions: conds });
+                        }}
+                        className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/20 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <button
+                  onClick={() => {
+                    setEditingRule({
+                      ...editingRule,
+                      conditions: [...editingRule.conditions, { sensor: "temperature", operator: ">", value: "30" }],
+                    });
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white pt-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add condition
+                </button>
+              </div>
+            </div>
+
+            {/* THEN Actions */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-200 uppercase font-mono">
+                  THEN (Actions)
+                </span>
+                <span className="text-xs text-zinc-500">Execute these commands</span>
               </div>
 
-              {/* THEN section */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold tracking-widest text-emerald-400 uppercase px-2 py-1 rounded-md bg-emerald-400/10 border border-emerald-400/20">
-                    THEN
-                  </span>
-                  <span className="text-[11px] text-muted-foreground/40">Execute these actions</span>
-                </div>
+              <div className="space-y-2 pl-3 border-l-2 border-zinc-800">
+                {editingRule.actions.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 flex-wrap">
+                    <div className="w-56">
+                      <Select
+                        value={a.device}
+                        onChange={(v) => {
+                          const acts = [...editingRule.actions];
+                          acts[i] = { ...a, device: v };
+                          setEditingRule({ ...editingRule, actions: acts });
+                        }}
+                        options={DEVICE_OPTIONS.map((d) => ({ value: d.value, label: d.label }))}
+                      />
+                    </div>
 
-                <div className="space-y-2 pl-2 border-l-2 border-emerald-400/20 ml-3">
-                  {editingRule.actions.map((a, i) => (
-                    <ActionRow
-                      key={i}
-                      index={i}
-                      action={a}
-                      onChange={(updated) => {
-                        const acts = [...editingRule.actions];
-                        acts[i] = updated;
-                        setEditingRule({ ...editingRule, actions: acts });
-                      }}
-                      onRemove={() => {
+                    <div className="w-44">
+                      <Select
+                        value={a.action}
+                        onChange={(v) => {
+                          const acts = [...editingRule.actions];
+                          acts[i] = { ...a, action: v };
+                          setEditingRule({ ...editingRule, actions: acts });
+                        }}
+                        options={ACTION_OPTIONS}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => {
                         const acts = editingRule.actions.filter((_, j) => j !== i);
                         setEditingRule({ ...editingRule, actions: acts });
                       }}
-                    />
-                  ))}
-                  <button
-                    onClick={() => {
-                      setEditingRule({
-                        ...editingRule,
-                        actions: [...editingRule.actions, { device: "room1Light", action: "on" }],
-                      });
-                      haptic.tick();
-                    }}
-                    className="flex items-center gap-1.5 text-xs text-emerald-400/60 hover:text-emerald-400 transition-colors mt-1 px-2 py-1 rounded-md hover:bg-emerald-400/5"
-                  >
-                    <Plus className="h-3 w-3" /> Add action
-                  </button>
-                </div>
-              </div>
+                      className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/20 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
 
-              {/* Buttons */}
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={cancelEdit} className="text-muted-foreground hover:text-white">
-                  Cancel
-                </Button>
-                <Button
-                  onClick={saveRule}
-                  className="gap-2 bg-violet-500 hover:bg-violet-600 text-white border-0"
+                <button
+                  onClick={() => {
+                    setEditingRule({
+                      ...editingRule,
+                      actions: [...editingRule.actions, { device: "room1Light", action: "on" }],
+                    });
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white pt-1"
                 >
-                  <Zap className="h-4 w-4" /> Save Rule
-                </Button>
+                  <Plus className="w-3.5 h-3.5" /> Add action
+                </button>
               </div>
             </div>
-          </Card>
-        )}
 
-        {/* ── Rules List ── */}
-        {rules.length === 0 && !isCreating ? (
-          <Card
-            className="border-border/40 bg-card/40 p-12 text-center"
-            style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: "0.1s" }}
-          >
-            <div className="flex flex-col items-center gap-4">
-              <div className="p-4 rounded-2xl bg-violet-400/10 border border-violet-400/20">
-                <Workflow className="h-8 w-8 text-violet-400/60" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white/70">No automations yet</p>
-                <p className="text-xs text-muted-foreground/40 mt-1">
-                  Create your first IF/THEN rule to automate your devices
-                </p>
-              </div>
-              <Button onClick={startCreating} className="gap-2 bg-violet-500 hover:bg-violet-600 text-white border-0 mt-2">
-                <Plus className="h-4 w-4" /> Create First Rule
+            {/* Action Bar */}
+            <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800/80">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setEditingRule(null); setIsCreating(false); }}
+                className="text-zinc-400 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={saveRule}
+                className="bg-white text-zinc-950 hover:bg-zinc-200 font-medium text-xs"
+              >
+                Save Automation
               </Button>
             </div>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {rules.map((rule, i) => (
-              <Card
-                key={rule.id}
-                className={`border-border/40 bg-card/40 overflow-hidden transition-all duration-300 hover:border-border/60 ${
-                  !rule.enabled ? "opacity-50" : ""
-                }`}
-                style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${0.05 + i * 0.05}s` }}
-              >
-                <div className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {/* Toggle */}
-                    <button
-                      onClick={() => toggleRule(rule.id)}
-                      className={`relative w-10 h-5 rounded-full transition-all duration-300 shrink-0 ${
-                        rule.enabled
-                          ? "bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.4)]"
-                          : "bg-white/10"
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
-                          rule.enabled ? "left-[22px]" : "left-0.5"
-                        }`}
-                      />
-                    </button>
-
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">{rule.name || "Unnamed Rule"}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400/80 font-medium">
-                          {rule.conditions.length} condition{rule.conditions.length !== 1 ? "s" : ""}
-                        </span>
-                        <span className="text-[10px] text-white/20">→</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-400/80 font-medium">
-                          {rule.actions.length} action{rule.actions.length !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-violet-400"
-                      onClick={() => {
-                        setEditingRule({ ...rule });
-                        setIsCreating(false);
-                        haptic.tick();
-                        sounds.click();
-                      }}
-                    >
-                      <Workflow className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-red-400"
-                      onClick={() => deleteRule(rule.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
           </div>
         )}
-      </div>
 
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+        {/* ── Active Automations List ── */}
+        <div className="space-y-3">
+          {rules.length === 0 && !isCreating ? (
+            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-12 text-center space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-400 mx-auto">
+                <Workflow className="w-5 h-5" />
+              </div>
+              <p className="text-sm font-medium text-zinc-300">No automations configured</p>
+              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                Create event-driven rules to trigger fans, lights, or relays automatically based on temperature, motion, or sensor levels.
+              </p>
+              <Button onClick={startCreating} className="bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-medium mt-2">
+                <Plus className="w-4 h-4 mr-1.5" /> Create First Rule
+              </Button>
+            </div>
+          ) : (
+            rules.map((rule) => (
+              <div
+                key={rule.id}
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                  rule.enabled
+                    ? "bg-zinc-900/40 border-zinc-800/80 hover:border-zinc-700/80"
+                    : "bg-zinc-950/40 border-zinc-800/40 opacity-60"
+                )}
+              >
+                {/* Left: Switch + Name + Summary */}
+                <div className="flex items-center gap-3.5 min-w-0 pr-4">
+                  <button
+                    onClick={() => toggleRule(rule.id)}
+                    className={cn(
+                      "w-10 h-6 rounded-full transition-colors relative shrink-0",
+                      rule.enabled ? "bg-white" : "bg-zinc-800 border border-zinc-700"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-4 h-4 rounded-full transition-transform absolute top-1",
+                        rule.enabled ? "left-5 bg-zinc-950" : "left-1 bg-zinc-400"
+                      )}
+                    />
+                  </button>
+
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-sm font-semibold text-zinc-200 truncate">{rule.name || "Untitled Rule"}</p>
+                    <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono flex-wrap">
+                      <span>{rule.conditions.length} trigger{rule.conditions.length !== 1 ? "s" : ""}</span>
+                      <span>→</span>
+                      <span>{rule.actions.length} action{rule.actions.length !== 1 ? "s" : ""}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => { setEditingRule({ ...rule }); setIsCreating(false); }}
+                    className="h-8 w-8 text-zinc-400 hover:text-white"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteRule(rule.id)}
+                    className="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-950/20"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+      </div>
     </Layout>
   );
 }
