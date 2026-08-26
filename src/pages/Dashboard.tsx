@@ -45,13 +45,29 @@ function formatLastUpdated(t?: string) {
 }
 
 // ── Minimal Status Tile ───────────────────────────────────────
-function StatusTile({ label, value, icon: Icon, subvalue }: {
+function StatusTile({ label, value, ok, icon: Icon, subvalue, statusOverride }: {
   label: string; value: string; ok?: boolean; icon: LucideIcon; subvalue?: string; statusOverride?: 'ok' | 'warning' | 'alert';
 }) {
+  const status = statusOverride ?? (ok ? 'ok' : 'alert');
+  const iconCls = status === 'ok' ? 'icon-ok' : status === 'warning' ? 'icon-warning' : 'icon-critical';
+  const colorBg = status === 'ok'
+    ? 'rgba(34, 197, 94, 0.12)'
+    : status === 'warning'
+    ? 'rgba(245, 158, 11, 0.14)'
+    : 'rgba(239, 68, 68, 0.16)';
+  const colorBorder = status === 'ok'
+    ? 'rgba(34, 197, 94, 0.35)'
+    : status === 'warning'
+    ? 'rgba(245, 158, 11, 0.35)'
+    : 'rgba(239, 68, 68, 0.4)';
+
   return (
     <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-black border border-white/12 shadow-sm">
-      <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-white/10 flex items-center justify-center shrink-0 text-white">
-        <Icon className={cn("w-5 h-5 fill-none stroke-[2]", label === "Battery" && "rotate-90 scale-x-[-1]")} />
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+        style={{ background: colorBg, border: `1px solid ${colorBorder}` }}
+      >
+        <Icon className={cn("w-5 h-5 fill-none stroke-[2]", iconCls, label === "Battery" && "rotate-90 scale-x-[-1]")} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider font-mono">{label}</p>
