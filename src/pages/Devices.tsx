@@ -20,10 +20,10 @@ const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD;
 interface FanSegmentedControlProps {
   fanOn: boolean;
   speed: number; // 0–3
-  onSpeedChange: (speed: number) => void;
+  onSelect: (value: number) => void;
 }
 
-function FanSegmentedControl({ fanOn, speed, onSpeedChange }: FanSegmentedControlProps) {
+function FanSegmentedControl({ fanOn, speed, onSelect }: FanSegmentedControlProps) {
   const steps = [
     { label: "Off", value: 0 },
     { label: "1 · Low", value: 1 },
@@ -34,24 +34,25 @@ function FanSegmentedControl({ fanOn, speed, onSpeedChange }: FanSegmentedContro
   return (
     <div className="p-1 rounded-xl bg-black border border-white/10 flex items-center gap-1">
       {steps.map((step) => {
-        const isSelected = fanOn ? speed === step.value : step.value === 0;
+        // When fan is OFF: only 'Off' (step 0) is selected
+        // When fan is ON: the matching speed (or speed 1 if speed is 0) is selected
+        const isSelected = !fanOn
+          ? step.value === 0
+          : (speed === 0 ? step.value === 1 : speed === step.value);
 
         return (
           <button
             key={step.value}
-            disabled={!fanOn && step.value !== 0}
             onClick={() => {
-              if (!fanOn && step.value !== 0) return;
               haptic.tick();
               sounds.click();
-              onSpeedChange(step.value);
+              onSelect(step.value);
             }}
             className={cn(
-              "flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-center select-none",
+              "flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-center select-none cursor-pointer",
               isSelected
                 ? "bg-white text-black font-bold shadow-sm"
-                : "text-neutral-400 hover:text-white hover:bg-neutral-900",
-              !fanOn && step.value !== 0 && "opacity-30 cursor-not-allowed"
+                : "text-neutral-400 hover:text-white hover:bg-neutral-900"
             )}
           >
             {step.label}
@@ -125,6 +126,17 @@ export default function Devices() {
   const closeSecurityModal = () => {
     setShowSecurityModal(false);
     setSecurityInput("");
+  };
+
+  const handleFanChange = async (fanKey: keyof ControlData, speedKey: keyof ControlData, stepValue: number) => {
+    if (stepValue === 0) {
+      await update(fanKey, false);
+    } else {
+      await firebaseService.updateMultipleSwitches({
+        [fanKey]: true,
+        [speedKey]: stepValue,
+      });
+    }
   };
 
   const updateSpeed = (key: keyof ControlData, speed: number) => {
@@ -253,37 +265,23 @@ export default function Devices() {
                   
                   {/* Fan Tile + Integrated Speed Selector */}
                   <div className="space-y-2 p-3.5 rounded-2xl bg-neutral-950 border border-white/10">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                          fanOn ? "bg-white text-black" : "bg-neutral-900 text-neutral-400"
-                        )}>
-                          <Fan className={cn("w-4 h-4", fanOn && "animate-spin [animation-duration:1.5s]")} />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-white">Ceiling Fan</p>
-                          <p className="text-[10px] text-neutral-400">{fanOn ? `Speed ${fanSpeed || 1}` : "Turned Off"}</p>
-                        </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                        fanOn ? "bg-white text-black" : "bg-neutral-900 text-neutral-400"
+                      )}>
+                        <Fan className={cn("w-4 h-4", fanOn && "animate-spin [animation-duration:1.5s]")} />
                       </div>
-
-                      <button
-                        onClick={() => update(fanKey, !fanOn)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg text-xs font-bold transition-colors",
-                          fanOn
-                            ? "bg-white text-black"
-                            : "bg-neutral-900 text-neutral-400 hover:text-white"
-                        )}
-                      >
-                        {fanOn ? "Active" : "Off"}
-                      </button>
+                      <div>
+                        <p className="text-xs font-bold text-white">Ceiling Fan</p>
+                        <p className="text-[10px] text-neutral-400">{fanOn ? `Speed ${fanSpeed || 1}` : "Turned Off"}</p>
+                      </div>
                     </div>
 
                     <FanSegmentedControl
                       fanOn={fanOn}
                       speed={fanSpeed}
-                      onSpeedChange={(s) => updateSpeed(speedKey, s)}
+                      onSelect={(val) => handleFanChange(fanKey, speedKey, val)}
                     />
                   </div>
                 </div>
@@ -321,25 +319,22 @@ export default function Devices() {
 
             {/* Lobby Fan with inline selector */}
             <div className="p-3.5 rounded-2xl bg-neutral-950 border border-white/10 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Fan className={cn("w-4 h-4", controls.lobbyFan ? "text-white" : "text-neutral-400")} />
-                  <span className="text-xs font-bold text-white">Lobby Fan</span>
+              <div className="flex items-center gap-2.5">
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                  controls.lobbyFan ? "bg-white text-black" : "bg-neutral-900 text-neutral-400"
+                )}>
+                  <Fan className={cn("w-4 h-4", controls.lobbyFan && "animate-spin [animation-duration:1.5s]")} />
                 </div>
-                <button
-                  onClick={() => update("lobbyFan", !controls.lobbyFan)}
-                  className={cn(
-                    "px-2 py-0.5 rounded text-[11px] font-bold",
-                    controls.lobbyFan ? "bg-white text-black" : "bg-neutral-900 text-neutral-400"
-                  )}
-                >
-                  {controls.lobbyFan ? "On" : "Off"}
-                </button>
+                <div>
+                  <p className="text-xs font-bold text-white">Lobby Fan</p>
+                  <p className="text-[10px] text-neutral-400">{controls.lobbyFan ? `Speed ${(controls.lobbyFanSpeed as number) || 1}` : "Turned Off"}</p>
+                </div>
               </div>
               <FanSegmentedControl
                 fanOn={!!controls.lobbyFan}
                 speed={(controls.lobbyFanSpeed as number) ?? 0}
-                onSpeedChange={(s) => updateSpeed("lobbyFanSpeed", s)}
+                onSelect={(val) => handleFanChange("lobbyFan", "lobbyFanSpeed", val)}
               />
             </div>
           </div>
