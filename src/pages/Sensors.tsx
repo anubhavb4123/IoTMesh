@@ -13,7 +13,7 @@ import {
   WifiOff
 } from "lucide-react";
 import { SensorsSkeleton } from "@/components/skeletons/SensorsSkeleton";
-import { cn } from "@/lib/utils";
+import { cn, parseNodeTimestampToMs } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────
 interface HistoryPoint {
@@ -107,12 +107,13 @@ export default function Sensors() {
     return () => unsub();
   }, []);
 
-  // Liveness watchdog
+  // Liveness watchdog (Under 1 min = Online, More than 1 min = Offline)
   useEffect(() => {
     const tick = () => {
-      const ms = parseLastUpdateToMs(sensorData?.last_update);
+      const ms = parseNodeTimestampToMs(sensorData?.last_update);
       if (!ms) { setIsOnline(false); return; }
-      setIsOnline(Date.now() - ms <= 120_000);
+      const diff = Date.now() - ms;
+      setIsOnline(diff >= -5000 && diff <= 60_000);
     };
     tick();
     const id = setInterval(tick, 1000);

@@ -39,7 +39,16 @@ const CONTROL_PATH = "home/room1/controls";
 const PATHS = {
   SENSORS: "home/room1/sensor",
   CONTROLS: "home/room1/controls",
+  CONTROLS_ROOM1: "home/room1/controls",
+  CONTROLS_ROOM2: "home/room2/controls",
+  CONTROLS_ROOM3: "home/room3/controls",
+  CONTROLS_COMMON: "home/commonarea/controls",
+  CONTROLS_RELAY: "home/relay/controls",
   STATUS: "home/room1/status",
+  STATUS_ROOM1: "home/room1/status",
+  STATUS_ROOM2: "home/room2/status",
+  STATUS_ROOM3: "home/room3/status",
+  STATUS_COMMON: "home/commonarea/status",
   USERS: "users",
   ALERTS: "home/room1/alerts/logs",
   IGNITION: "special/ignition",
@@ -131,6 +140,68 @@ export interface ControlData {
   nightMode: boolean;
 }
 
+/** Map a ControlData key to its Firebase path and exact child property name according to user mapping */
+export function getFirebaseControlTarget(key: keyof ControlData): { path: string; property: string } {
+  // Room 1: light, fan, switch, fanspeed
+  if (key === "room1Light") return { path: "home/room1/controls", property: "light" };
+  if (key === "room1Fan") return { path: "home/room1/controls", property: "fan" };
+  if (key === "room1Switch") return { path: "home/room1/controls", property: "switch" };
+  if (key === "room1FanSpeed") return { path: "home/room1/controls", property: "fanspeed" };
+
+  // Room 2: light, fan, switch, fanspeed
+  if (key === "room2Light") return { path: "home/room2/controls", property: "light" };
+  if (key === "room2Fan") return { path: "home/room2/controls", property: "fan" };
+  if (key === "room2Switch") return { path: "home/room2/controls", property: "switch" };
+  if (key === "room2FanSpeed") return { path: "home/room2/controls", property: "fanspeed" };
+
+  // Room 3: light, fan, switch, fanspeed
+  if (key === "room3Light") return { path: "home/room3/controls", property: "light" };
+  if (key === "room3Fan") return { path: "home/room3/controls", property: "fan" };
+  if (key === "room3Switch") return { path: "home/room3/controls", property: "switch" };
+  if (key === "room3FanSpeed") return { path: "home/room3/controls", property: "fanspeed" };
+
+  // Common Area: light, fan, fanspeed, refrigerator (and tv)
+  if (key === "lobbyLight") return { path: "home/commonarea/controls", property: "light" };
+  if (key === "lobbyFan") return { path: "home/commonarea/controls", property: "fan" };
+  if (key === "lobbyFanSpeed") return { path: "home/commonarea/controls", property: "fanspeed" };
+  if (key === "refrigerator") return { path: "home/commonarea/controls", property: "refrigerator" };
+  if (key === "lobbyTV") return { path: "home/commonarea/controls", property: "tv" };
+
+  // Relay: relay1, relay2, relay3, relay4
+  if (key === "relay1") return { path: "home/relay/controls", property: "relay1" };
+  if (key === "relay2") return { path: "home/relay/controls", property: "relay2" };
+  if (key === "relay3") return { path: "home/relay/controls", property: "relay3" };
+  if (key === "relay4") return { path: "home/relay/controls", property: "relay4" };
+
+  // Security / System modes
+  if (key === "lock" || key === "motion" || key === "nightMode") {
+    return { path: "security/controls", property: key };
+  }
+
+  return { path: "home/room1/controls", property: key };
+}
+
+/** Determines the Firebase node path for a control key */
+export function getNodeControlsPath(key: keyof ControlData): string {
+  return getFirebaseControlTarget(key).path;
+}
+
+export interface NodeStatusData {
+  online?: boolean;
+  ip?: string;
+  rssi?: number;
+  uptime?: number;      // seconds since boot
+  freeHeap?: number;   // bytes
+  chipTempC?: number;  // ESP32-C3 internal chip temperature
+  lastSeen?: string | number;   // e.g. "16/09/2026 17:44:33 IST" or epoch
+  lastSeenEpoch?: number;       // Unix epoch in seconds
+  serverTimestamp?: number;     // Firebase RTDB server value in ms
+  timestamp?: number;           // Unix epoch in seconds or ms
+}
+
+export type Room1StatusData = NodeStatusData;
+
+/** @deprecated Use Room1StatusData instead */
 export interface StatusData {
   online: boolean;
   lastSeen: number;
@@ -178,45 +249,165 @@ class FirebaseService {
   }
   
   async getControlStates(): Promise<ControlData> {
-    const snap = await get(ref(database, PATHS.CONTROLS));
-    return snap.exists()
-      ? { ...DEFAULT_CONTROLS, ...snap.val() }
-      : DEFAULT_CONTROLS;
-  }
-
-  listenToControlStates(
-    callback: (data: ControlData) => void
-  ) {
-    const controlsRef = ref(database, CONTROL_PATH);
-
-    return onValue(controlsRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        callback(DEFAULT_CONTROLS);
-        return;
-      }
-
-      const data = snapshot.val();
-
-      callback({
-        ...DEFAULT_CONTROLS,
-        ...data, // merge to prevent missing keys
+    try {
+      const paths = [
+        "home/room1/controls",
+        "home/room2/controls",
+        "home/room3/controls",
+        "home/commonarea/controls",
+        "home/relay/controls",
+        "security/controls",
+      ];
+      const snaps = await Promise.all(paths.map((p) => get(ref(database, p))));
+      let merged: ControlData = { ...DEFAULT_CONTROLS };
+      snaps.forEach((snap, idx) => {
+        if (!snap.exists()) return;
+        const val = snap.val();
+        if (!val || typeof val !== "object") return;
+        const p = paths[idx];
+        if (p === "home/room1/controls") {
+          if ("light" in val) merged.room1Light = Boolean(val.light);
+          if ("switch" in val) merged.room1Switch = Boolean(val.switch);
+          if ("fan" in val) merged.room1Fan = Boolean(val.fan);
+          if ("fanspeed" in val) merged.room1FanSpeed = Number(val.fanspeed);
+        } else if (p.includes("room2")) {
+          if ("light" in val) merged.room2Light = Boolean(val.light);
+          if ("switch" in val) merged.room2Switch = Boolean(val.switch);
+          if ("fan" in val) merged.room2Fan = Boolean(val.fan);
+          if ("fanspeed" in val) merged.room2FanSpeed = Number(val.fanspeed);
+        } else if (p.includes("room3")) {
+          if ("light" in val) merged.room3Light = Boolean(val.light);
+          if ("switch" in val) merged.room3Switch = Boolean(val.switch);
+          if ("fan" in val) merged.room3Fan = Boolean(val.fan);
+          if ("fanspeed" in val) merged.room3FanSpeed = Number(val.fanspeed);
+        } else if (p.includes("common")) {
+          if ("light" in val) merged.lobbyLight = Boolean(val.light);
+          if ("fan" in val) merged.lobbyFan = Boolean(val.fan);
+          if ("fanspeed" in val) merged.lobbyFanSpeed = Number(val.fanspeed);
+          if ("refrigerator" in val) merged.refrigerator = Boolean(val.refrigerator);
+          if ("tv" in val) merged.lobbyTV = Boolean(val.tv);
+        } else if (p.includes("relay")) {
+          if ("relay1" in val) merged.relay1 = Boolean(val.relay1);
+          if ("relay2" in val) merged.relay2 = Boolean(val.relay2);
+          if ("relay3" in val) merged.relay3 = Boolean(val.relay3);
+          if ("relay4" in val) merged.relay4 = Boolean(val.relay4);
+        } else if (p === "security/controls") {
+          if ("lock" in val) merged.lock = Boolean(val.lock);
+          if ("motion" in val) merged.motion = Boolean(val.motion);
+          if ("nightMode" in val) merged.nightMode = Boolean(val.nightMode);
+        }
       });
+      return merged;
+    } catch (e) {
+      console.error("Error fetching control states:", e);
+      return DEFAULT_CONTROLS;
+    }
+  }
+
+  listenToControlStates(callback: (data: ControlData) => void): () => void {
+    let mergedState: ControlData = { ...DEFAULT_CONTROLS };
+
+    const pathsToListen = [
+      "home/room1/controls",
+      "home/room2/controls",
+      "home/room3/controls",
+      "home/commonarea/controls",
+      "home/relay/controls",
+      "security/controls",
+    ];
+
+    const unsubs: (() => void)[] = [];
+
+    pathsToListen.forEach((path) => {
+      const unsub = onValue(
+        ref(database, path),
+        (snapshot) => {
+          if (!snapshot.exists()) return;
+          const val = snapshot.val();
+          if (!val || typeof val !== "object") return;
+
+          const mapped: Partial<ControlData> = {};
+
+          if (path === "home/room1/controls") {
+            if ("light" in val) mapped.room1Light = Boolean(val.light);
+            if ("switch" in val) mapped.room1Switch = Boolean(val.switch);
+            if ("fan" in val) mapped.room1Fan = Boolean(val.fan);
+            if ("fanspeed" in val) mapped.room1FanSpeed = Number(val.fanspeed);
+          } else if (path.includes("room2")) {
+            if ("light" in val) mapped.room2Light = Boolean(val.light);
+            if ("switch" in val) mapped.room2Switch = Boolean(val.switch);
+            if ("fan" in val) mapped.room2Fan = Boolean(val.fan);
+            if ("fanspeed" in val) mapped.room2FanSpeed = Number(val.fanspeed);
+          } else if (path.includes("room3")) {
+            if ("light" in val) mapped.room3Light = Boolean(val.light);
+            if ("switch" in val) mapped.room3Switch = Boolean(val.switch);
+            if ("fan" in val) mapped.room3Fan = Boolean(val.fan);
+            if ("fanspeed" in val) mapped.room3FanSpeed = Number(val.fanspeed);
+          } else if (path.includes("common")) {
+            if ("light" in val) mapped.lobbyLight = Boolean(val.light);
+            if ("fan" in val) mapped.lobbyFan = Boolean(val.fan);
+            if ("fanspeed" in val) mapped.lobbyFanSpeed = Number(val.fanspeed);
+            if ("refrigerator" in val) mapped.refrigerator = Boolean(val.refrigerator);
+            if ("tv" in val) mapped.lobbyTV = Boolean(val.tv);
+          } else if (path.includes("relay")) {
+            if ("relay1" in val) mapped.relay1 = Boolean(val.relay1);
+            if ("relay2" in val) mapped.relay2 = Boolean(val.relay2);
+            if ("relay3" in val) mapped.relay3 = Boolean(val.relay3);
+            if ("relay4" in val) mapped.relay4 = Boolean(val.relay4);
+          } else if (path === "security/controls") {
+            if ("lock" in val) mapped.lock = Boolean(val.lock);
+            if ("motion" in val) mapped.motion = Boolean(val.motion);
+            if ("nightMode" in val) mapped.nightMode = Boolean(val.nightMode);
+          }
+
+          mergedState = {
+            ...mergedState,
+            ...mapped,
+          };
+
+          callback({ ...mergedState });
+        },
+        (error) => {
+          console.warn(`[Firebase RTDB] Listener on ${path} warning:`, error.message);
+        }
+      );
+
+      unsubs.push(unsub);
     });
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
   }
 
-  updateSwitchState(
-    key: keyof ControlData,
-    value: boolean
-  ) {
-    return update(ref(database, CONTROL_PATH), { [key]: value });
-  }
-  // ✅ ADD THIS
-  updateMultipleSwitches(updates: Partial<ControlData>) {
-    return update(ref(database, CONTROL_PATH), updates);
+  async updateSwitchState(key: keyof ControlData, value: boolean) {
+    const { path: targetPath, property } = getFirebaseControlTarget(key);
+    const payload: Record<string, any> = { [property]: value };
+
+    return update(ref(database, targetPath), payload);
   }
 
-  updateFanSpeed(key: keyof ControlData, speed: number) {
-    return update(ref(database, CONTROL_PATH), { [key]: speed });
+  async updateMultipleSwitches(updates: Partial<ControlData>) {
+    const grouped: Record<string, Record<string, any>> = {};
+
+    for (const [k, v] of Object.entries(updates)) {
+      const key = k as keyof ControlData;
+      const { path: targetPath, property } = getFirebaseControlTarget(key);
+      if (!grouped[targetPath]) grouped[targetPath] = {};
+      grouped[targetPath][property] = v;
+    }
+
+    const promises = Object.entries(grouped).map(([targetPath, payload]) =>
+      update(ref(database, targetPath), payload)
+    );
+
+    await Promise.allSettled(promises);
+  }
+
+  async updateFanSpeed(key: keyof ControlData, speed: number) {
+    const { path: targetPath, property } = getFirebaseControlTarget(key);
+    const payload: Record<string, any> = { [property]: speed };
+    return update(ref(database, targetPath), payload);
   }
   // ── Ignition ──
   triggerIgnition() {
@@ -238,6 +429,53 @@ class FirebaseService {
     return onValue(ref(database, PATHS.STATUS), (snap) => {
       if (snap.exists()) callback(snap.val());
     });
+  }
+
+  /** Generic multi-path listener for ESP node status */
+  listenToNodeStatus(
+    paths: string | string[],
+    callback: (data: NodeStatusData | null) => void
+  ): () => void {
+    const pathList = Array.isArray(paths) ? paths : [paths];
+    const unsubs: (() => void)[] = [];
+    let latestData: NodeStatusData | null = null;
+
+    pathList.forEach((p) => {
+      const cleanPath = p.replace(/^\//, "");
+      const unsub = onValue(ref(database, cleanPath), (snap) => {
+        if (snap.exists()) {
+          latestData = snap.val() as NodeStatusData;
+          callback(latestData);
+        } else if (!latestData) {
+          callback(null);
+        }
+      });
+      unsubs.push(unsub);
+    });
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }
+
+  /** Listen to Room 1 ESP node status from /home/room1/status */
+  listenToRoom1Status(callback: (data: NodeStatusData | null) => void): () => void {
+    return this.listenToNodeStatus(["home/room1/status"], callback);
+  }
+
+  /** Listen to Room 2 ESP node status from /home/room2/status */
+  listenToRoom2Status(callback: (data: NodeStatusData | null) => void): () => void {
+    return this.listenToNodeStatus(["home/room2/status"], callback);
+  }
+
+  /** Listen to Room 3 ESP node status from /home/room3/status */
+  listenToRoom3Status(callback: (data: NodeStatusData | null) => void): () => void {
+    return this.listenToNodeStatus(["home/room3/status"], callback);
+  }
+
+  /** Listen to Common Area ESP node status from /home/commonarea/status */
+  listenToCommonAreaStatus(callback: (data: NodeStatusData | null) => void): () => void {
+    return this.listenToNodeStatus(["home/commonarea/status"], callback);
   }
 
   listenToWeather(callback: (data: WeatherData | null) => void): () => void {

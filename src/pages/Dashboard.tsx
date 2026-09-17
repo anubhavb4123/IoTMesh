@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { SensorCard } from "@/components/SensorCard";
-import { cn } from "@/lib/utils";
+import { cn, parseNodeTimestampToMs } from "@/lib/utils";
 import {
   Thermometer, Droplets, Wind, Gauge, Waves,
   CloudRain, PersonStanding, DoorOpen, Database,
@@ -107,13 +107,14 @@ export default function Dashboard() {
   };
 
   // Online check
+  // Online check (Under 1 min = Online, More than 1 min = Offline)
   useEffect(() => {
     const tick = () => {
-      const lastMs = parseLastUpdateToMs(d.last_update);
+      const lastMs = parseNodeTimestampToMs(d.last_update);
       if (!lastMs) { setSensorOnline(false); setSyncAge("—"); return; }
       const diff = Date.now() - lastMs;
-      setSensorOnline(diff <= 120_000);
-      const s = Math.floor(diff / 1000);
+      setSensorOnline(diff >= -5000 && diff <= 60_000);
+      const s = Math.max(0, Math.floor(diff / 1000));
       setSyncAge(s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : `${Math.floor(s / 3600)}h ago`);
     };
     tick();

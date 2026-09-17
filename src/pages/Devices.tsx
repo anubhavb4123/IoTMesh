@@ -7,12 +7,12 @@ import {
   Lightbulb, Fan, ToggleLeft, Tv, Zap, Lock, LockOpen,
   Activity, Sun, Moon, Refrigerator, KeyRound, X, Power
 } from "lucide-react";
-import { firebaseService, ControlData } from "@/lib/firebase";
+import { firebaseService, ControlData, NodeStatusData } from "@/lib/firebase";
 import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 import { useAuth } from "@/contexts/AuthContext";
-import { cn } from "@/lib/utils";
+import { cn, parseNodeTimestampToMs, formatNodeLastSeen } from "@/lib/utils";
 
 const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD;
 
@@ -34,8 +34,6 @@ function FanSegmentedControl({ fanOn, speed, onSelect }: FanSegmentedControlProp
   return (
     <div className="p-1 rounded-xl bg-black border border-white/10 flex items-center gap-1">
       {steps.map((step) => {
-        // When fan is OFF: only 'Off' (step 0) is selected
-        // When fan is ON: the matching speed (or speed 1 if speed is 0) is selected
         const isSelected = !fanOn
           ? step.value === 0
           : (speed === 0 ? step.value === 1 : speed === step.value);
@@ -63,9 +61,136 @@ function FanSegmentedControl({ fanOn, speed, onSelect }: FanSegmentedControlProp
   );
 }
 
+// ── ESP Node Status Component ─────────────────────────────────
+interface NodeStatusPanelProps {
+  title: string;
+  status: NodeStatusData | null;
+}
+
+function NodeStatusPanel({ title, status }: NodeStatusPanelProps) {
+  const [online, setOnline] = useState<boolean>(false);
+  const [ageText, setAgeText] = useState<string>("—");
+
+  useEffect(() => {
+    const tick = () => {
+      const ts = status?.serverTimestamp ?? status?.lastSeenEpoch ?? status?.timestamp ?? status?.lastSeen;
+      const ms = parseNodeTimestampToMs(ts);
+      if (!ms) {
+        setOnline(false);
+        setAgeText("—");
+        return;
+      }
+      const diff = Date.now() - ms;
+      // Under 1 min (<= 60,000 ms) = Online, more than 1 min = Offline
+      const isOnline = diff >= -5000 && diff <= 60_000;
+      setOnline(isOnline);
+
+      const s = Math.max(0, Math.floor(diff / 1000));
+      setAgeText(s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : `${Math.floor(s / 3600)}h ago`);
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [status?.serverTimestamp, status?.lastSeen, status?.lastSeenEpoch, status?.timestamp]);
+
+  return (
+    <div className="rounded-xl border border-white/8 bg-neutral-950 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">
+          {title}
+        </span>
+        <span className={cn(
+          "flex items-center gap-1.5 text-[10px] font-semibold font-mono px-2 py-0.5 rounded-full transition-colors",
+          online
+            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+            : "bg-red-500/10 text-red-400 border border-red-500/20"
+        )}>
+          <span className={cn(
+            "w-1.5 h-1.5 rounded-full",
+            online ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+          )} />
+          {status == null ? "Offline" : online ? "Online" : "Offline"}
+          {status != null && ageText !== "—" && (
+            <span className="text-neutral-500 text-[9px]">· {ageText}</span>
+          )}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {[
+          { label: "IP",        value: status?.ip ?? "—" },
+          { label: "RSSI",      value: status?.rssi != null ? `${status.rssi} dBm` : "—" },
+          { label: "Uptime",    value: status?.uptime != null
+              ? status.uptime < 60
+                ? `${status.uptime}s`
+                : status.uptime < 3600
+                ? `${Math.floor(status.uptime / 60)}m ${status.uptime % 60}s`
+                : `${Math.floor(status.uptime / 3600)}h ${Math.floor((status.uptime % 3600) / 60)}m`
+              : "—" },
+          { label: "Free Heap", value: status?.freeHeap != null ? `${(status.freeHeap / 1024).toFixed(1)} KB` : "—" },
+          { label: "Chip Temp", value: status?.chipTempC != null ? `${status.chipTempC.toFixed(1)} °C` : "—" },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex items-center justify-between gap-1">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 font-mono whitespace-nowrap">{label}</span>
+            <span className="text-[10px] font-mono text-neutral-300 truncate text-right">{value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Dedicated Full-Width Last Seen Row (never truncated) */}
+      <div className="pt-2 mt-0.5 border-t border-white/10 flex items-center justify-between gap-2">
+        <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 font-mono whitespace-nowrap">
+          Last Seen
+        </span>
+        <span
+          className="text-[10px] font-mono text-neutral-200 text-right font-medium"
+          title={String(status?.lastSeen ?? "")}
+        >
+          {formatNodeLastSeen(status?.serverTimestamp ?? status?.lastSeenEpoch ?? status?.timestamp ?? status?.lastSeen)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function Devices() {
   const [controls, setControls] = useState<ControlData>({} as ControlData);
   const { role } = useAuth();
+  const [roomStatuses, setRoomStatuses] = useState<{
+    room1: NodeStatusData | null;
+    room2: NodeStatusData | null;
+    room3: NodeStatusData | null;
+    common: NodeStatusData | null;
+  }>({
+    room1: null,
+    room2: null,
+    room3: null,
+    common: null,
+  });
+
+  // Listen to all room and common area node statuses from Firebase RTDB
+  useEffect(() => {
+    const unsub1 = firebaseService.listenToRoom1Status((data) =>
+      setRoomStatuses((prev) => ({ ...prev, room1: data }))
+    );
+    const unsub2 = firebaseService.listenToRoom2Status((data) =>
+      setRoomStatuses((prev) => ({ ...prev, room2: data }))
+    );
+    const unsub3 = firebaseService.listenToRoom3Status((data) =>
+      setRoomStatuses((prev) => ({ ...prev, room3: data }))
+    );
+    const unsubCommon = firebaseService.listenToCommonAreaStatus((data) =>
+      setRoomStatuses((prev) => ({ ...prev, common: data }))
+    );
+
+    return () => {
+      unsub1();
+      unsub2();
+      unsub3();
+      unsubCommon();
+    };
+  }, []);
 
   // Security password modal state (guests only)
   const [showSecurityModal, setShowSecurityModal] = useState(false);
@@ -130,7 +255,10 @@ export default function Devices() {
 
   const handleFanChange = async (fanKey: keyof ControlData, speedKey: keyof ControlData, stepValue: number) => {
     if (stepValue === 0) {
-      await update(fanKey, false);
+      await firebaseService.updateMultipleSwitches({
+        [fanKey]: false,
+        [speedKey]: 0,
+      });
     } else {
       await firebaseService.updateMultipleSwitches({
         [fanKey]: true,
@@ -249,6 +377,12 @@ export default function Devices() {
                   <span className="text-[11px] text-neutral-400 font-medium font-mono">3 Devices</span>
                 </div>
 
+                {/* ESP32 Status Panel for each Room */}
+                <NodeStatusPanel
+                  title={`ESP32 · ${room}`}
+                  status={roomStatuses[prefix]}
+                />
+
                 <div className="space-y-2.5">
                   <DeviceControl
                     title="Ceiling Light"
@@ -296,6 +430,12 @@ export default function Devices() {
             <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono">Common Areas</h2>
             <span className="text-[11px] text-neutral-400 font-medium font-mono">Lobby & Appliances</span>
           </div>
+
+          {/* ESP32 Status Panel for Common Area */}
+          <NodeStatusPanel
+            title="ESP32 · Common Area"
+            status={roomStatuses.common}
+          />
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <DeviceControl

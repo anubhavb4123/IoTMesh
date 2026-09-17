@@ -1,0 +1,134 @@
+{
+  "rules": {
+    "home": {
+      ".read": true,
+
+      "room1": {
+        "controls": {
+          ".read": true,
+          ".write": true
+        },
+        "status": {
+          ".read": true,
+          ".write": true
+        },
+        "sensor": {
+          ".read": true,
+          ".write": true
+        },
+        "history": {
+          ".read": true,
+          ".write": true
+        },
+        "alerts": {
+          ".read": true,
+          ".write": true
+        },
+        "automations": {
+          ".read": true,
+          ".write": true
+        },
+        "weather": {
+          ".read": true,
+          ".write": true
+        }
+      },
+
+      "room2": {
+        "controls": {
+          ".read": true,
+          ".write": true
+        },
+        "status": {
+          ".read": true,
+          ".write": true
+        },
+        "sensor": {
+          ".read": true,
+          ".write": true
+        },
+        "history": {
+          ".read": true,
+          ".write": true
+        }
+      },
+
+      "room3": {
+        "controls": {
+          ".read": true,
+          ".write": true
+        },
+        "status": {
+          ".read": true,
+          ".write": true
+        },
+        "sensor": {
+          ".read": true,
+          ".write": true
+        },
+        "history": {
+          ".read": true,
+          ".write": true
+        }
+      },
+
+      "commonarea": {
+        "controls": {
+          ".read": true,
+          ".write": true
+        },
+        "status": {
+          ".read": true,
+          ".write": true
+        }
+      },
+
+      "relay": {
+        "controls": {
+          ".read": true,
+          ".write": true
+        }
+      },
+
+      "devices": {
+        ".read": true,
+        ".write": true
+      },
+
+      "users": {
+        ".read": true,
+        ".write": true
+      }
+    },
+
+    "users": {
+      ".read": true,
+      ".write": true
+    },
+
+    "telegram": {
+      ".read": true,
+      ".write": true
+    },
+
+    "special": {
+      ".read": true,
+      ".write": true
+    },
+
+    "security": {
+      ".read": true,
+      ".write": true
+    },
+
+    "ota": {
+      ".read": true,
+      ".write": true
+    },
+
+    "DEBUG": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
