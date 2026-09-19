@@ -367,35 +367,65 @@ void applyRelayState(Channel &ch) {
 void setRelayFromCloud(uint8_t index, bool targetState) {
   if (index >= NUM_CHANNELS) return;
 
+  // IMPORTANT: If this channel was just toggled locally and is waiting to sync to cloud,
+  // do NOT let an echoed or delayed cloud message revert the user's physical toggle!
+  if (channels[index].pendingSync) {
+    Serial.printf("[Cloud Command] Ignored for %s: local physical switch sync pending\n", channels[index].name);
+    return;
+  }
+
+  // If the relay is already in the requested state, avoid redundant actions
+  if (channels[index].relayState == targetState) return;
+
   Serial.printf("[Cloud Command] Channel %d (%s) -> Target: %s (Was: %s)\n",
                 index, channels[index].name, targetState ? "ON" : "OFF", channels[index].relayState ? "ON" : "OFF");
 
   channels[index].relayState = targetState;
   applyRelayState(channels[index]);
-
-  // Clear pendingSync since Firebase was the originator of this state
-  channels[index].pendingSync = false;
 }
 
 // =================================================================================
 //  9. RELAY STATE TO CLOUD SYNCHRONIZATION
 // =================================================================================
 void syncPendingStatesToFirebase() {
+  if (WiFi.status() != WL_CONNECTED || !Firebase.ready()) return;
+
   for (uint8_t i = 0; i < NUM_CHANNELS; i++) {
     if (channels[i].pendingSync) {
-      String fullPath = String(FB_PATH_CONTROLS) + "/" + channels[i].firebaseKey;
+      bool success = false;
 
-      if (Firebase.RTDB.setBool(&fbdoWrite, fullPath, channels[i].relayState)) {
-        channels[i].pendingSync = false;
-        Serial.printf("[Relay -> Firebase] %s synced to RTDB: %s\n",
-                      channels[i].firebaseKey, channels[i].relayState ? "true" : "false");
+      // Special handling for Fan (Channel index 2):
+      // Update both 'fan' state and 'fanspeed' in a SINGLE atomic Firebase update!
+      // This prevents double HTTPS round-trips and eliminates the race condition where
+      // fanspeed=0 echoed back and forced the fan relay back OFF.
+      if (i == 2) {
+        FirebaseJson fanJson;
+        fanJson.set("fan", channels[2].relayState);
+        int speedToSync = channels[2].relayState ? (currentFanSpeed > 0 ? currentFanSpeed : 3) : 0;
+        currentFanSpeed = speedToSync;
+        fanJson.set("fanspeed", speedToSync);
 
-        // When fan relay (index 2) changes via physical switch, keep fanspeed synchronized
-        if (i == 2) {
-          int speedToSync = channels[2].relayState ? (currentFanSpeed > 0 ? currentFanSpeed : 3) : 0;
-          currentFanSpeed = speedToSync;
-          Firebase.RTDB.setInt(&fbdoWrite, String(FB_PATH_CONTROLS) + "/fanspeed", speedToSync);
+        if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_CONTROLS, &fanJson)) {
+          success = true;
+        } else {
+          Serial.printf("[Relay -> Firebase] ❌ Fan sync failed: %s (HTTP %d)\n",
+                        fbdoWrite.errorReason().c_str(), fbdoWrite.httpCode());
         }
+      } else {
+        // Light (0) or Wall Switch (1): Direct boolean set
+        String fullPath = String(FB_PATH_CONTROLS) + "/" + channels[i].firebaseKey;
+        if (Firebase.RTDB.setBool(&fbdoWrite, fullPath, channels[i].relayState)) {
+          success = true;
+        } else {
+          Serial.printf("[Relay -> Firebase] ❌ %s sync failed: %s (HTTP %d)\n",
+                        channels[i].firebaseKey, fbdoWrite.errorReason().c_str(), fbdoWrite.httpCode());
+        }
+      }
+
+      if (success) {
+        channels[i].pendingSync = false;
+        Serial.printf("[Relay -> Firebase] ✅ %s synced to RTDB: %s\n",
+                      channels[i].firebaseKey, channels[i].relayState ? "true" : "false");
       }
     }
   }
@@ -449,12 +479,15 @@ void handleStreamCallback(FirebaseStream data) {
         setRelayFromCloud(2, val);
       }
       if (json->get(jsonData, "fanspeed")) {
-        currentFanSpeed = jsonData.intValue;
-        Serial.printf("[Cloud Command] Fan Speed -> %d\n", currentFanSpeed);
-        if (currentFanSpeed == 0 && channels[2].relayState) {
-          setRelayFromCloud(2, false);
-        } else if (currentFanSpeed > 0 && !channels[2].relayState) {
-          setRelayFromCloud(2, true);
+        int newSpeed = jsonData.intValue;
+        Serial.printf("[Cloud Command] Fan Speed -> %d\n", newSpeed);
+        currentFanSpeed = newSpeed;
+        if (!channels[2].pendingSync) {
+          if (newSpeed == 0 && channels[2].relayState) {
+            setRelayFromCloud(2, false);
+          } else if (newSpeed > 0 && !channels[2].relayState) {
+            setRelayFromCloud(2, true);
+          }
         }
       }
     }
@@ -473,12 +506,15 @@ void handleStreamCallback(FirebaseStream data) {
         currentFanSpeed = 0;
       }
     } else if (path == "/fanspeed" || path == "fanspeed") {
-      currentFanSpeed = (dataType == "integer" || dataType == "int") ? data.intData() : atoi(data.stringData().c_str());
-      Serial.printf("[Cloud Command] Fan Speed -> %d\n", currentFanSpeed);
-      if (currentFanSpeed == 0 && channels[2].relayState) {
-        setRelayFromCloud(2, false);
-      } else if (currentFanSpeed > 0 && !channels[2].relayState) {
-        setRelayFromCloud(2, true);
+      int newSpeed = (dataType == "integer" || dataType == "int") ? data.intData() : atoi(data.stringData().c_str());
+      Serial.printf("[Cloud Command] Fan Speed -> %d\n", newSpeed);
+      currentFanSpeed = newSpeed;
+      if (!channels[2].pendingSync) {
+        if (newSpeed == 0 && channels[2].relayState) {
+          setRelayFromCloud(2, false);
+        } else if (newSpeed > 0 && !channels[2].relayState) {
+          setRelayFromCloud(2, true);
+        }
       }
     }
   }
@@ -685,25 +721,24 @@ void initializeFirebase() {
   fbConfig.database_url = FIREBASE_HOST;                      // Correct field (host is deprecated)
   fbConfig.signer.tokens.legacy_token = FIREBASE_DB_SECRET;  // Legacy Database Secret for auth
 
-  // Robust connection timeouts
-  fbConfig.timeout.wifiReconnect    = 10000;
-  fbConfig.timeout.socketConnection = 10000; // Increased: C3 SSL needs more time
-  fbConfig.timeout.sslHandshake     = 15000; // Increased: prevent premature SSL failure
+  // Robust connection timeouts (optimized for fast response without long freezes)
+  fbConfig.timeout.wifiReconnect    = 5000;
+  fbConfig.timeout.socketConnection = 5000;  // 5s: prevents freezing the loop if socket stalls
+  fbConfig.timeout.sslHandshake     = 6000;  // 6s: fast recovery
   fbConfig.timeout.rtdbKeepAlive    = 45000;
   fbConfig.timeout.rtdbStreamReconnect = 5000;
 
   Firebase.begin(&fbConfig, &fbAuth);
   Firebase.reconnectWiFi(false); // Managed by handleNetworkHealth(); do NOT let library block switch operations
 
-  // ── Memory-efficient SSL buffers (CRITICAL for ESP32-C3 dual-connection) ──
-  // Default SSL context = ~16KB per connection. Two connections = ~32KB → OOM.
-  // setSSLBufferSize(rx, tx): reduces each SSL context to just rx+tx bytes.
+  // ── Memory-efficient SSL buffers (Optimized for ESP32-C3) ──
+  // 2048 RX buffer ensures Google Firebase HTTPS headers & TLS frames don't overflow,
+  // preventing dropped writes and 10-15s timeouts.
   fbdoStream.setResponseSize(2048);          // Stream: receives JSON payloads
-  fbdoStream.setBSSLBufferSize(1024, 512);   // Stream SSL: 1.5KB total
+  fbdoStream.setBSSLBufferSize(2048, 1024);  // Stream SSL: 3KB total
 
   fbdoWrite.setResponseSize(1024);           // Write: small ACK responses only
-  fbdoWrite.setBSSLBufferSize(512, 512);     // Write SSL: 1KB total
-  // Total SSL RAM: ~3KB (was ~32KB) → both connections now coexist on C3 ✅
+  fbdoWrite.setBSSLBufferSize(2048, 1024);  // Write SSL: 3KB total (prevents buffer overflow)
 
   firebaseInitialized = true;
   Serial.println(F("[Firebase] Client initialized. Waiting for authentication ready..."));
