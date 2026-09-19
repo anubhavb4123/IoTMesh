@@ -104,7 +104,8 @@
 const unsigned long INTERVAL_SENSOR_READ_MS      = 2000;   // Read physical sensors every 2 seconds
 const unsigned long INTERVAL_FIREBASE_UPLOAD_MS  = 5000;   // Push sensor data to RTDB every 5 seconds
 const unsigned long INTERVAL_LCD_ROTATE_MS       = 3000;   // Rotate LCD screen view every 3 seconds
-const unsigned long INTERVAL_WIFI_CHECK_MS       = 10000;  // Verify WiFi connection health every 10s
+const unsigned long INTERVAL_WIFI_CHECK_MS       = 5000;   // Verify WiFi connection health every 5s
+const unsigned long INTERVAL_WIFI_RETRY_MS       = 20000;  // When offline, retry WiFi every 20s
 const unsigned long INTERVAL_STATUS_HEARTBEAT_MS = 15000;  // Push online status heartbeat every 15s
 const unsigned long INTERVAL_STREAM_WATCHDOG_MS  = 45000;  // Restart Firebase stream if stalled
 
@@ -170,7 +171,10 @@ bool     pcf8574Available          = false;  // Flag if dedicated relay PCF8574 
 bool     lcdInitialized            = false;  // Flag if LCD is active
 bool     bmpInitialized            = false;  // Flag if BMP180 is active
 uint8_t  currentLcdScreen          = 0;      // Current active LCD page (0..4)
+bool     isOnlineMode              = false;  // Active network state (true = Online, false = Offline Safe Mode)
 bool     firebaseStreamActive      = false;
+unsigned long lastWifiRetryMs      = 0;
+unsigned int  wifiRetryCount       = 0;
 
 // Task Timers
 unsigned long lastSensorReadMs     = 0;
@@ -544,6 +548,7 @@ void connectWiFi() {
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
+    isOnlineMode = true;
     digitalWrite(STATUS_LED_PIN, HIGH);
     Serial.println(F("[WiFi] ✅ Connected Successfully!"));
     Serial.printf("[WiFi] IP Assigned: %s | RSSI: %d dBm | MAC: %s\n",
@@ -551,17 +556,64 @@ void connectWiFi() {
                   WiFi.RSSI(),
                   WiFi.macAddress().c_str());
   } else {
+    isOnlineMode = false;
+    lastWifiRetryMs = millis();
     digitalWrite(STATUS_LED_PIN, LOW);
     Serial.println(F("[WiFi] ⚠️ Failed to connect. Operating in Offline Safe Mode."));
   }
 }
 
 void checkWiFi() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println(F("[WiFi] Connection dropped! Attempting background reconnect..."));
+  unsigned long currentMs = millis();
+  bool wifiConnected = (WiFi.status() == WL_CONNECTED);
+
+  // Case 1: Was Online -> Now Disconnected
+  if (isOnlineMode && !wifiConnected) {
+    isOnlineMode = false;
+    firebaseStreamActive = false;
+    wifiRetryCount = 0;
+    lastWifiRetryMs = currentMs;
     digitalWrite(STATUS_LED_PIN, LOW);
-    WiFi.disconnect();
-    WiFi.reconnect();
+
+    fbdoStream.clear();
+
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════"));
+    Serial.println(F("[WiFi] ⚠️ Connection dropped! Switching to OFFLINE MODE."));
+    Serial.printf(F("[System] Will retry WiFi connection every %lu seconds in background.\n"), INTERVAL_WIFI_RETRY_MS / 1000);
+    Serial.println(F("══════════════════════════════════════════════════"));
+    return;
+  }
+
+  // Case 2: Offline Mode -> Periodic Background Retry
+  if (!isOnlineMode) {
+    if (!wifiConnected) {
+      if (currentMs - lastWifiRetryMs >= INTERVAL_WIFI_RETRY_MS) {
+        lastWifiRetryMs = currentMs;
+        wifiRetryCount++;
+        Serial.printf("[Offline Mode] Retrying WiFi connection to '%s' (Attempt #%u in background)...\n",
+                      WIFI_SSID, wifiRetryCount);
+
+        WiFi.disconnect();
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      }
+      return;
+    }
+
+    // Case 3: Reconnected!
+    isOnlineMode = true;
+    wifiRetryCount = 0;
+    digitalWrite(STATUS_LED_PIN, HIGH);
+
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════"));
+    Serial.println(F("[WiFi] ✅ Reconnected Successfully! Switching to ONLINE MODE."));
+    Serial.printf(F("[WiFi] IP Assigned: %s | Signal: %d dBm\n"), WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    Serial.println(F("══════════════════════════════════════════════════"));
+
+    firebaseStreamActive = false;
+    setupFirebaseStream();
+    lastStatusUpdateMs = 0; // Trigger immediate heartbeat
   }
 }
 
@@ -586,7 +638,7 @@ void initializeFirebase() {
 
   // Initialize Firebase Client
   Firebase.begin(&fbConfig, &fbAuth);
-  Firebase.reconnectWiFi(true);
+  Firebase.reconnectWiFi(false);
 
   // Set buffer sizes for robust streaming
   fbdoStream.setResponseSize(2048);
