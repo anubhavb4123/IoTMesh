@@ -34,12 +34,21 @@
 #include <addons/TokenHelper.h>
 #include <addons/RTDBHelper.h>
 #include "driver/temp_sensor.h"     // ESP32-C3 built-in chip temperature sensor
+#include "esp_bt.h"                 // Bluetooth control & power management
 
 // =================================================================================
 //  2. NETWORK & FIREBASE CONFIGURATION
 // =================================================================================
 #define WIFI_SSID               "BAJPAI_2.4Ghz"               // Your WiFi Network SSID
 #define WIFI_PASSWORD           "44444422"                   // Your WiFi Password
+
+// Wi-Fi RF Transmit (TX) Power:
+// ESP32-C3 Super Mini boards can suffer from brownout reboots or connection drops
+// when transmitting at default maximum power (19.5dBm).
+// Setting TX power to 8.5dBm (or 10dBm) provides rock-solid stability and prevents voltage sags.
+// - WIFI_POWER_8_5dBm  : 8.5 dBm (Recommended for ESP32-C3 Super Mini stability)
+// - (wifi_power_t)40   : 10.0 dBm (40 * 0.25 dBm)
+#define WIFI_TX_POWER           WIFI_POWER_8_5dBm
 
 // Firebase Project Credentials
 #define FIREBASE_HOST           "https://iotmesh-4123-default-rtdb.firebaseio.com/"
@@ -105,7 +114,8 @@
 
 // Timing Constants
 const unsigned long DEBOUNCE_DELAY_MS        = 50;
-const unsigned long WIFI_CHECK_INTERVAL_MS   = 10000; // Check WiFi health every 10s
+const unsigned long WIFI_CHECK_INTERVAL_MS   = 5000;  // Check WiFi health every 5s
+const unsigned long WIFI_RETRY_INTERVAL_MS   = 20000; // When offline, retry WiFi every 20s
 const unsigned long HEARTBEAT_INTERVAL_MS    = 15000; // Push online status every 15s
 
 // =================================================================================
@@ -141,10 +151,13 @@ FirebaseData fbdoWrite;
 FirebaseAuth fbAuth;
 FirebaseConfig fbConfig;
 
+bool isOnlineMode            = false;  // True = Connected to WiFi & Cloud; False = Standalone Offline Mode
 bool firebaseInitialized     = false;
 bool firebaseStreamActive    = false;
 bool otaInitialized          = false;  // OTA ready flag
 unsigned long lastWifiCheck  = 0;
+unsigned long lastWifiRetry  = 0;      // Timestamp of last WiFi reconnect attempt while offline
+unsigned int  wifiRetryCount = 0;      // Number of reconnect attempts made while offline
 unsigned long lastHeartbeat  = 0;
 
 // Function Prototypes
@@ -153,7 +166,7 @@ void handlePhysicalSwitches();
 void toggleRelayFromSwitch(uint8_t index);
 void setRelayFromCloud(uint8_t index, bool targetState);
 void connectWiFiNonBlocking();
-void checkWiFiHealth();
+void handleNetworkHealth();
 void initializeFirebase();
 void setupFirebaseStream();
 void syncPendingStatesToFirebase();
@@ -174,6 +187,19 @@ void setup() {
   Serial.println(F("   IoTMesh Room 1 Controller (ESP32-C3)           "));
   Serial.println(F("   Hybrid Cloud + Offline Switchboard Control     "));
   Serial.println(F("=================================================="));
+
+  // 0. Disable Bluetooth immediately (saves ~10-15mA power, frees RAM, prevents RF brownouts)
+  btStop();
+#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32S3)
+  esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+#else
+  #if defined(ESP_BT_MODE_BTDM)
+    esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
+  #elif defined(ESP_BT_MODE_BLE)
+    esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+  #endif
+#endif
+  Serial.println(F("[Hardware] Bluetooth disabled (RF & power optimization applied)."));
 
   // 1. Initialize Hardware Pins FIRST (Offline switches immediately operational)
   for (uint8_t i = 0; i < NUM_CHANNELS; i++) {
@@ -210,10 +236,19 @@ void setup() {
 
   // 3. If connected at boot, initialize Firebase + OTA
   if (WiFi.status() == WL_CONNECTED) {
+    isOnlineMode = true;
+    Serial.println(F("[System] Mode: ONLINE (Cloud Connected)"));
     initializeFirebase();
     initializeOTA();
   } else {
-    Serial.println(F("[System] Operating in Standalone Offline Mode. Reconnecting in background..."));
+    isOnlineMode = false;
+    lastWifiRetry = millis();
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════"));
+    Serial.println(F("[System] Mode: OFFLINE (Autonomous Local Switchboard)"));
+    Serial.println(F("[System] Physical switches are 100% active with ZERO lag."));
+    Serial.printf("[System] Retrying WiFi every %lu seconds in background...\n", WIFI_RETRY_INTERVAL_MS / 1000);
+    Serial.println(F("══════════════════════════════════════════════════"));
   }
 }
 
@@ -223,20 +258,22 @@ void setup() {
 void loop() {
   unsigned long currentMillis = millis();
 
-  // ── Step 0: OTA update handler (must run every loop when active) ──
-  if (otaInitialized) ArduinoOTA.handle();
+  // ── Step 0: OTA update handler (runs only when online & initialized) ──
+  if (isOnlineMode && otaInitialized) {
+    ArduinoOTA.handle();
+  }
 
   // ── Step 1: ALWAYS handle physical switches (runs continuously with zero lag) ──
   handlePhysicalSwitches();
 
-  // ── Step 2: WiFi Health & Auto-Init Check ──
+  // ── Step 2: WiFi Health & Mode Transition Manager ──
   if (currentMillis - lastWifiCheck >= WIFI_CHECK_INTERVAL_MS) {
     lastWifiCheck = currentMillis;
-    checkWiFiHealth();
+    handleNetworkHealth();
   }
 
-  // ── Step 3: Cloud Operations ──
-  if (WiFi.status() == WL_CONNECTED) {
+  // ── Step 3: Cloud Operations (Executed ONLY when in Online Mode) ──
+  if (isOnlineMode && WiFi.status() == WL_CONNECTED) {
     // If connected later via background reconnect, ensure Firebase is initialized
     if (!firebaseInitialized) {
       initializeFirebase();
@@ -500,6 +537,11 @@ void updateFirebaseHeartbeat() {
 void connectWiFiNonBlocking() {
   Serial.printf("[WiFi] Connecting to SSID: '%s' ...\n", WIFI_SSID);
   WiFi.mode(WIFI_STA);
+
+  // Set Wi-Fi TX Power to 8.5 dBm to eliminate ESP32-C3 Super Mini RF brownouts
+  WiFi.setTxPower(WIFI_TX_POWER);
+  Serial.println(F("[WiFi] TX Power set to 8.5 dBm (stability & brownout prevention)."));
+
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -523,23 +565,85 @@ void connectWiFiNonBlocking() {
   }
 }
 
-void checkWiFiHealth() {
-  if (WiFi.status() != WL_CONNECTED) {
-    static unsigned long lastReconnectAttempt = 0;
-    if (millis() - lastReconnectAttempt > 15000) {
-      lastReconnectAttempt = millis();
-      Serial.printf("[WiFi] Reconnecting in background... (Status: %d)\n", WiFi.status());
-      firebaseStreamActive = false;
-      WiFi.reconnect();
+void handleNetworkHealth() {
+  unsigned long currentMillis = millis();
+  bool wifiConnected = (WiFi.status() == WL_CONNECTED);
+
+  // ══════════════════════════════════════════════════════════════════
+  //  CASE 1: WAS ONLINE -> NOW DISCONNECTED (Router off / signal lost)
+  // ══════════════════════════════════════════════════════════════════
+  if (isOnlineMode && !wifiConnected) {
+    isOnlineMode = false;
+    firebaseStreamActive = false;
+    wifiRetryCount = 0;
+    lastWifiRetry = currentMillis; // Start retry timer from now
+
+    // Cleanly close stream to release socket and prevent hanging Firebase calls
+    fbdoStream.clear();
+
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    Serial.println(F("[Network] ⚠️  WiFi connection lost / router disconnected!"));
+    Serial.println(F("[System]  Switching to Autonomous OFFLINE MODE."));
+    Serial.println(F("[System]  Physical switches remain 100% operational with ZERO lag."));
+    Serial.printf("[System]  Will retry WiFi connection every %lu seconds in background.\n", WIFI_RETRY_INTERVAL_MS / 1000);
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    return;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  CASE 2: IN OFFLINE MODE -> PERIODIC BACKGROUND RETRY
+  // ══════════════════════════════════════════════════════════════════
+  if (!isOnlineMode) {
+    if (!wifiConnected) {
+      if (currentMillis - lastWifiRetry >= WIFI_RETRY_INTERVAL_MS) {
+        lastWifiRetry = currentMillis;
+        wifiRetryCount++;
+        Serial.println();
+        Serial.printf("[Offline Mode] Retrying WiFi connection to '%s' (Attempt #%u in background)...\n",
+                      WIFI_SSID, wifiRetryCount);
+
+        // Completely non-blocking reconnect initiation
+        WiFi.disconnect();
+        WiFi.setTxPower(WIFI_TX_POWER);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      }
+      return;
     }
-  } else {
-    // If WiFi connected (either at boot or background), ensure Firebase + OTA are initialized!
+
+    // ══════════════════════════════════════════════════════════════════
+    //  CASE 3: WAS OFFLINE -> WIFI RECONNECTED!
+    // ══════════════════════════════════════════════════════════════════
+    isOnlineMode = true;
+    wifiRetryCount = 0;
+
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    Serial.println(F("[Network] ✅ WiFi Reconnected successfully!"));
+    Serial.printf("[Network] IP Assigned: %s | Signal: %d dBm\n",
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    Serial.println(F("[System]  Switching from OFFLINE MODE -> ONLINE MODE."));
+    Serial.println(F("[System]  Resuming Firebase synchronization and cloud services..."));
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+
     if (!firebaseInitialized) {
       initializeFirebase();
+    } else {
+      // Re-arm stream so it cleanly reconnects to Firebase RTDB
+      firebaseStreamActive = false;
+      setupFirebaseStream();
     }
+
     if (!otaInitialized) {
       initializeOTA();
     }
+
+    // Force an immediate heartbeat push now that we are online
+    lastHeartbeat = currentMillis;
+    updateFirebaseHeartbeat();
+
+    // Immediately push any local switch states that were changed while offline
+    syncPendingStatesToFirebase();
   }
 }
 
@@ -556,21 +660,25 @@ void initializeFirebase() {
   // "expired" to the chip, causing: "ERROR.mConnectSSL: Failed to initialize
   // the SSL layer". NTP sync fixes this before any SSL connection is made.
   // IST = UTC + 5h 30m = 19800 seconds offset
-  configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.windows.com");
-  Serial.print(F("[Firebase] Syncing time via NTP (IST)..."));
-  struct tm timeinfo;
-  unsigned long ntpStart = millis();
-  while (!getLocalTime(&timeinfo) && (millis() - ntpStart < 8000)) {
-    delay(500);
-    Serial.print(".");
-    handlePhysicalSwitches(); // Keep switches responsive during NTP sync
-  }
-  Serial.println();
-  if (getLocalTime(&timeinfo)) {
-    Serial.printf("[Firebase] ✅ Time synced: %02d:%02d:%02d IST\n",
-                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-  } else {
-    Serial.println(F("[Firebase] ⚠️  NTP sync timed out — SSL errors may occur. Check internet access."));
+  static bool ntpSynced = false;
+  if (!ntpSynced) {
+    configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.windows.com");
+    Serial.print(F("[Firebase] Syncing time via NTP (IST)..."));
+    struct tm timeinfo;
+    unsigned long ntpStart = millis();
+    while (!getLocalTime(&timeinfo) && (millis() - ntpStart < 8000)) {
+      delay(500);
+      Serial.print(".");
+      handlePhysicalSwitches(); // Keep switches responsive during NTP sync
+    }
+    Serial.println();
+    if (getLocalTime(&timeinfo)) {
+      ntpSynced = true;
+      Serial.printf("[Firebase] ✅ Time synced: %02d:%02d:%02d IST\n",
+                    timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    } else {
+      Serial.println(F("[Firebase] ⚠️  NTP sync timed out — SSL errors may occur. Check internet access."));
+    }
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -585,7 +693,7 @@ void initializeFirebase() {
   fbConfig.timeout.rtdbStreamReconnect = 5000;
 
   Firebase.begin(&fbConfig, &fbAuth);
-  Firebase.reconnectWiFi(true);
+  Firebase.reconnectWiFi(false); // Managed by handleNetworkHealth(); do NOT let library block switch operations
 
   // ── Memory-efficient SSL buffers (CRITICAL for ESP32-C3 dual-connection) ──
   // Default SSL context = ~16KB per connection. Two connections = ~32KB → OOM.
