@@ -10,12 +10,11 @@ export function ProtectedRoute({
   children,
   adminOnly = false,
 }: ProtectedRouteProps) {
-  const { role } = useAuth();
-
-  const user = localStorage.getItem("mock_user");
+  const { role, user } = useAuth();
+  const storedUser = localStorage.getItem("mock_user");
 
   // { Not logged in }
-  if (!user) {
+  if (!user && !storedUser) {
     return <Navigate to="/auth" replace />;
   }
 

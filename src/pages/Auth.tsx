@@ -21,12 +21,27 @@ const ENV_ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { setRole } = useAuth();
+  const { setRole, login } = useAuth();
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [step, setStep] = useState<"signin" | "admin_password">("signin");
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+
+  // ── Auto redirect if already logged in ──
+  const [isCheckingAuth, setIsCheckingAuth] = useState(() => {
+    try {
+      const stored = localStorage.getItem("mock_user");
+      if (stored) {
+        const u = JSON.parse(stored);
+        return !!(u && u.name);
+      }
+    } catch {
+      localStorage.removeItem("mock_user");
+    }
+    return false;
+  });
 
   // ── Runtime password overrides from Firebase ──
   const [fbPasswords, setFbPasswords] = useState<Record<string, string>>({});
@@ -50,10 +65,19 @@ export default function Auth() {
   useEffect(() => {
     const stored = localStorage.getItem("mock_user");
     if (stored) {
-      const user = JSON.parse(stored);
-      setRole(user.role);
+      try {
+        const user = JSON.parse(stored);
+        if (user && user.name) {
+          setRole(user.role || "guest");
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+      } catch {
+        localStorage.removeItem("mock_user");
+      }
     }
-  }, []);
+    setIsCheckingAuth(false);
+  }, [navigate, setRole]);
 
   // Save login to Firebase
   const saveLoginToFirebase = (role: "guest" | "admin") => {
@@ -104,13 +128,12 @@ export default function Auth() {
     await new Promise((r) => setTimeout(r, 400));
 
     if (adminPassword === ADMIN_PASSWORD) {
-      localStorage.setItem("mock_user", JSON.stringify({ name, role: "admin" }));
-      setRole("admin");
+      login(name, "admin", rememberMe);
       saveLoginToFirebase("admin");
       sounds.loginSuccess();
       haptic.success();
       toast.success("Welcome, Administrator", { className: "toast-success" });
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } else {
       sounds.wrongPass();
       haptic.error();
@@ -123,14 +146,26 @@ export default function Auth() {
   const handleGuestLogin = async () => {
     setIsLoading(true);
     await new Promise((r) => setTimeout(r, 300));
-    localStorage.setItem("mock_user", JSON.stringify({ name, role: "guest" }));
-    setRole("guest");
+    login(name, "guest", rememberMe);
     saveLoginToFirebase("guest");
     sounds.loginSuccess();
     haptic.success();
     toast.success("Welcome, Guest", { className: "toast-success" });
-    navigate("/dashboard");
+    navigate("/dashboard", { replace: true });
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="auth-page flex items-center justify-center min-h-screen relative overflow-hidden bg-black">
+        <AuthBackground />
+        <div className="auth-overlay" />
+        <div className="relative z-10 flex flex-col items-center gap-3 text-center px-4">
+          <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          <p className="text-sm font-mono tracking-wider text-neutral-300">Restoring IoTMesh Session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page">
@@ -157,25 +192,24 @@ export default function Auth() {
               </span>
             </span>
             <svg className="auth-explore-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
 
-        {/* ── Login card ── */}
+        {/* Auth card */}
         <Card className="auth-card" style={{ animationDelay: "0.2s" }}>
-          {/* Top highlight line */}
           <div className="auth-card-highlight" />
 
+          {/* Header with animated logo */}
           <CardHeader className="auth-card-header">
-            {/* Logo */}
             <div className="auth-logo" style={{ animationDelay: "0.35s" }}>
               <video autoPlay muted loop playsInline className="auth-logo-video">
                 <source src="/logo-video.mp4" type="video/mp4" />
               </video>
+              <div className="auth-logo-ring" />
             </div>
 
-            {/* Title & Description */}
             <div className="auth-title-group" style={{ animationDelay: "0.45s" }}>
               <CardTitle className="auth-title">
                 {step === "signin" ? (
@@ -186,7 +220,7 @@ export default function Auth() {
               </CardTitle>
               <CardDescription className="auth-description">
                 {step === "signin"
-                  ? "Sign in with your credentials to access the control panel"
+                  ? "Enter your credentials to access the futuristic IoT dashboard"
                   : "Enter admin passkey or continue with guest privileges"}
               </CardDescription>
             </div>
@@ -231,6 +265,19 @@ export default function Auth() {
                   />
                 </div>
 
+                <div className="flex items-center gap-2 py-1 select-none">
+                  <input
+                    type="checkbox"
+                    id="remember-me"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-neutral-900 accent-white cursor-pointer"
+                  />
+                  <label htmlFor="remember-me" className="text-xs text-neutral-400 hover:text-neutral-200 cursor-pointer">
+                    Remember this device (stay signed in)
+                  </label>
+                </div>
+
                 <Button
                   type="submit"
                   className="auth-btn-primary"
@@ -271,6 +318,19 @@ export default function Auth() {
                     autoComplete="off"
                     disabled={isLoading}
                   />
+                </div>
+
+                <div className="flex items-center gap-2 py-1 select-none">
+                  <input
+                    type="checkbox"
+                    id="remember-me-step2"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-neutral-900 accent-white cursor-pointer"
+                  />
+                  <label htmlFor="remember-me-step2" className="text-xs text-neutral-400 hover:text-neutral-200 cursor-pointer">
+                    Remember this device (stay signed in)
+                  </label>
                 </div>
 
                 <div className="auth-actions">
