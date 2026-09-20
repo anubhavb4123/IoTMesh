@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -21,6 +21,12 @@ import FirmwareUpdate from "./pages/FirmwareUpdate";
 
 const queryClient = new QueryClient();
 
+const RootRedirect = () => {
+  const { user } = useAuth();
+  const hasStoredUser = !!localStorage.getItem("mock_user");
+  return <Navigate to={user || hasStoredUser ? "/dashboard" : "/auth"} replace />;
+};
+
 const App = () => {
 
   return (
@@ -32,7 +38,7 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/" element={<Navigate to="/auth" replace />} />
+                <Route path="/" element={<RootRedirect />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/iotmesh" element={<IotMeshA />} />
 

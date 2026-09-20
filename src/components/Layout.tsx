@@ -63,7 +63,18 @@ export const Layout = ({ children }: LayoutProps) => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // AUTO LOGOUT (30 min)
+  // AUTO LOGOUT (30 min for temporary sessions; persistent for remembered sessions)
+  const isRemembered = (() => {
+    try {
+      const stored = localStorage.getItem("mock_user");
+      if (!stored) return false;
+      const data = JSON.parse(stored);
+      return data.remember !== false;
+    } catch {
+      return false;
+    }
+  })();
+
   const AUTO_LOGOUT_TIME = 30 * 60 * 1000;
   const [remainingTime, setRemainingTime] = useState(AUTO_LOGOUT_TIME);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,6 +98,8 @@ export const Layout = ({ children }: LayoutProps) => {
   };
 
   useEffect(() => {
+    if (isRemembered) return;
+
     timerRef.current = setInterval(() => {
       setRemainingTime((prev) => {
         if (prev <= 1000) {
@@ -100,13 +113,15 @@ export const Layout = ({ children }: LayoutProps) => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [isRemembered]);
 
   useEffect(() => {
+    if (isRemembered) return;
+
     const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
     events.forEach((e) => window.addEventListener(e, resetTimer));
     return () => events.forEach((e) => window.removeEventListener(e, resetTimer));
-  }, []);
+  }, [isRemembered]);
 
   const minutes = Math.floor(remainingTime / 60000);
   const seconds = Math.floor((remainingTime % 60000) / 1000);
@@ -226,7 +241,16 @@ export const Layout = ({ children }: LayoutProps) => {
                 <Clock className="w-3 h-3 text-neutral-500" />
                 Session
               </span>
-              <span className="text-neutral-200">{minutes}:{seconds.toString().padStart(2, "0")}</span>
+              <span className="text-neutral-200">
+                {isRemembered ? (
+                  <span className="text-emerald-400 font-sans text-[11px] flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Persistent
+                  </span>
+                ) : (
+                  `${minutes}:${seconds.toString().padStart(2, "0")}`
+                )}
+              </span>
             </div>
           </div>
 
@@ -302,7 +326,16 @@ export const Layout = ({ children }: LayoutProps) => {
           <div className="pt-6 mt-6 border-t border-white/10 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-white">{user?.name || "Guest"}</p>
-              <p className="text-[11px] text-neutral-400 font-mono">Auto logout in {minutes}:{seconds.toString().padStart(2, "0")}</p>
+              <p className="text-[11px] text-neutral-400 font-mono">
+                {isRemembered ? (
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Persistent Session
+                  </span>
+                ) : (
+                  `Auto logout in ${minutes}:${seconds.toString().padStart(2, "0")}`
+                )}
+              </p>
             </div>
             <Button
               variant="outline"
