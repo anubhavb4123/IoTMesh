@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { BarcodeSparkline } from "@/components/ui/BarcodeSparkline";
 
 interface SensorCardProps {
   title: string;
@@ -12,29 +13,29 @@ interface SensorCardProps {
 }
 
 const STATUS_CONFIG: Record<string, {
-  iconClass: string;
   color: string;
   bg: string;
+  badge: string;
 }> = {
   ok: {
-    iconClass: "icon-ok",
-    color: "#22c55e",
-    bg: "rgba(34, 197, 94, 0.12)",
+    color: "#15803d",
+    bg: "#eaf8f0",
+    badge: "badge-running",
   },
   warning: {
-    iconClass: "icon-warning",
-    color: "#f59e0b",
-    bg: "rgba(245, 158, 11, 0.14)",
+    color: "#a16207",
+    bg: "#fefce8",
+    badge: "badge-warning",
   },
   alert: {
-    iconClass: "icon-critical",
-    color: "#ef4444",
-    bg: "rgba(239, 68, 68, 0.16)",
+    color: "#b91c1c",
+    bg: "#fef2f2",
+    badge: "badge-stopped",
   },
   cold: {
-    iconClass: "icon-cold",
-    color: "#3b82f6",
-    bg: "rgba(59, 130, 246, 0.12)",
+    color: "#1d4ed8",
+    bg: "#eff6ff",
+    badge: "badge-running",
   },
 };
 
@@ -54,31 +55,39 @@ export const SensorCard = ({
       : value ?? "—";
 
   return (
-    <Card className="bg-black rounded-2xl p-4 transition-all duration-200 group shadow-sm border border-white/12 hover:border-white/25">
+    <div className="clay-card p-4 space-y-3 transition-all duration-200 hover:scale-[1.01] hover:shadow-md">
       
-      {/* Top row: Animated Color-Blinking Icon + Title */}
-      <div className="flex items-center gap-2.5 mb-3">
-        {/* Animated Color-Blinking Icon Box */}
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors"
-          style={{
-            background: cfg.bg,
-            border: `1px solid ${cfg.color}44`,
-          }}
-        >
-          <Icon className={cn("w-4 h-4 fill-none stroke-[2]", cfg.iconClass)} />
+      {/* Top row: Icon in soft box + Title + Status Dot */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-inner"
+            style={{
+              background: cfg.bg,
+              color: cfg.color,
+            }}
+          >
+            <Icon className="w-4 h-4" />
+          </div>
+
+          <span className="text-xs font-bold text-[#18191c] truncate">
+            {title}
+          </span>
         </div>
 
-        <span className="text-xs font-semibold text-white tracking-wide truncate">{title}</span>
+        <span
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ background: cfg.color }}
+        />
       </div>
 
       {/* Main Metric Value */}
-      <div className="flex items-baseline gap-1.5 mt-2.5">
-        <span className="text-2xl font-bold tracking-tight text-white font-mono">
+      <div className="flex items-baseline gap-1.5 pt-1">
+        <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#18191c] font-mono">
           {formattedValue}
         </span>
         {unit && (
-          <span className="text-xs font-bold text-neutral-400 font-sans">
+          <span className="text-xs font-bold text-[#797a82] font-sans">
             {unit}
           </span>
         )}
@@ -86,10 +95,10 @@ export const SensorCard = ({
 
       {/* Description */}
       {description && (
-        <p className="text-[11px] text-neutral-400 mt-1 truncate font-medium">
+        <p className="text-[11px] text-[#797a82] truncate font-medium">
           {description}
         </p>
       )}
-    </Card>
+    </div>
   );
 };

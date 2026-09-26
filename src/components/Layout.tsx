@@ -16,7 +16,13 @@ import {
   Workflow,
   ShieldCheck,
   Cpu,
+  Settings,
+  Sparkles,
   Clock,
+  ChevronDown,
+  RefreshCw,
+  MoreHorizontal,
+  LucideIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -28,33 +34,29 @@ interface LayoutProps {
   children: ReactNode;
 }
 
-const navSections = [
-  {
-    title: "Monitor & Control",
-    items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { name: "Devices", href: "/devices", icon: Lightbulb },
-      { name: "Sensors", href: "/sensors", icon: Activity },
-      { name: "Alerts", href: "/alerts", icon: Bell },
-    ],
-  },
-  {
-    title: "Automations & Safety",
-    items: [
-      { name: "Automation", href: "/automation", icon: Workflow },
-      { name: "Ignition", href: "/ignition", icon: Flame },
-      { name: "Telegram", href: "/telegram", icon: MessageSquare },
-    ],
-  },
-  {
-    title: "System Admin",
-    items: [
-      { name: "Users", href: "/users", icon: Users, adminOnly: true },
-      { name: "Security", href: "/security", icon: ShieldCheck, adminOnly: true },
-      { name: "Firmware", href: "/firmware", icon: Cpu, adminOnly: true },
-    ],
-  },
+interface NavItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  adminOnly?: boolean;
+}
+
+const primaryNavItems: NavItem[] = [
+  { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard },
+  { name: "DEVICES", href: "/devices", icon: Lightbulb },
+  { name: "SENSORS", href: "/sensors", icon: Activity },
+  { name: "ALERTS", href: "/alerts", icon: Bell },
+  { name: "AUTOMATION", href: "/automation", icon: Workflow },
 ];
+
+const secondaryNavItems: NavItem[] = [
+  { name: "SECURITY", href: "/security", icon: ShieldCheck, adminOnly: true },
+  { name: "TELEGRAM", href: "/telegram", icon: MessageSquare },
+  { name: "USERS", href: "/users", icon: Users, adminOnly: true },
+  { name: "IGNITION", href: "/ignition", icon: Flame },
+];
+
+const allNavItems: NavItem[] = [...primaryNavItems, ...secondaryNavItems];
 
 export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
@@ -62,6 +64,8 @@ export const Layout = ({ children }: LayoutProps) => {
   const { user, role, signOut } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
 
   // AUTO LOGOUT (30 min for temporary sessions; persistent for remembered sessions)
   const isRemembered = (() => {
@@ -127,40 +131,113 @@ export const Layout = ({ children }: LayoutProps) => {
   const seconds = Math.floor((remainingTime % 60000) / 1000);
 
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white selection:bg-white selection:text-black">
-      {/* Subtle background grid */}
-      <div className="fixed inset-0 pointer-events-none bg-grid-pattern opacity-60 z-0" />
-
-      {/* ── DESKTOP SIDEBAR ── */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col bg-black border-r border-white/10 z-30">
-        <div className="flex flex-col h-full px-4 py-5">
+    <div className="min-h-screen flex flex-col bg-[#edece8] text-[#18191c] relative selection:bg-[#18191c] selection:text-white">
+      
+      {/* ── TOP FLOATING NAVIGATION BAR ── */}
+      <header className="sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 pt-3 pb-2 bg-[#edece8]/90 backdrop-blur-md border-b border-black/[0.04]">
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-2 sm:gap-4">
           
-          {/* Brand */}
-          <div className="flex items-center gap-3 px-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center shadow-sm">
-              <Cpu className="w-4 h-4" />
+          {/* Brand Logo (Left) */}
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 shrink-0 group focus:outline-none"
+          >
+            <div className="w-8 h-8 rounded-xl bg-[#18191c] text-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105">
+              <Cpu className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm tracking-wider text-white">IoTMesh</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-neutral-900 border border-white/20 text-white">
-                  v18.4
+            <div className="hidden sm:block">
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-sm tracking-tight text-[#18191c]">
+                  IoTMesh
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full font-mono font-bold bg-[#dedcd5] text-[#55565d]">
+                  PRO
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-400">Smart Home Automation</p>
             </div>
-          </div>
+          </Link>
 
-          {/* Navigation Sections */}
-          <div className="flex-1 space-y-6 overflow-y-auto pr-1">
-            {navSections.map((section) => (
-              <div key={section.title} className="space-y-1">
-                <p className="px-2 text-[10px] font-bold tracking-wider text-neutral-400 uppercase font-mono">
-                  {section.title}
-                </p>
-                <div className="space-y-0.5">
-                  {section.items.map((item) => {
-                    const isActive = location.pathname === item.href;
+          {/* Centered Segmented Capsule Pill Navbar (Desktop & Tablet) */}
+          <nav className="hidden md:flex items-center clay-pill-bar shrink-0">
+            {primaryNavItems.map((item) => {
+              const isActive = location.pathname.toLowerCase() === item.href.toLowerCase();
+
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider transition-all duration-150",
+                    isActive
+                      ? "bg-[#18191c] text-white shadow-sm"
+                      : "text-[#5e6068] hover:text-[#18191c] hover:bg-white/60"
+                  )}
+                >
+                  <item.icon className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-[#797a82]")} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+
+            {/* Extra items for 2XL screen */}
+            <div className="hidden 2xl:flex items-center">
+              {secondaryNavItems.map((item) => {
+                const isActive = location.pathname.toLowerCase() === item.href.toLowerCase();
+                const isDisabled = item.adminOnly && role !== "admin";
+
+                if (isDisabled) {
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => handleAdminOnlyClick(item.name)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider text-[#9b9a94] hover:text-[#55565d]"
+                    >
+                      <item.icon className="w-3.5 h-3.5 opacity-60" />
+                      <span>{item.name}</span>
+                    </button>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider transition-all duration-150",
+                      isActive
+                        ? "bg-[#18191c] text-white shadow-sm"
+                        : "text-[#5e6068] hover:text-[#18191c] hover:bg-white/60"
+                    )}
+                  >
+                    <item.icon className={cn("w-3.5 h-3.5", isActive ? "text-white" : "text-[#797a82]")} />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* More Dropdown Pill (for screens below 2XL) */}
+            <div className="relative 2xl:hidden">
+              <button
+                onClick={() => setMoreDropdownOpen(!moreDropdownOpen)}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold tracking-wider transition-all",
+                  secondaryNavItems.some(i => i.href.toLowerCase() === location.pathname.toLowerCase())
+                    ? "bg-[#18191c] text-white shadow-sm"
+                    : "text-[#5e6068] hover:text-[#18191c]"
+                )}
+              >
+                <span>MORE</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+
+              {moreDropdownOpen && (
+                <div
+                  className="absolute left-0 mt-2 w-44 rounded-2xl bg-white border border-black/[0.08] shadow-xl p-2 space-y-1 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  onClick={() => setMoreDropdownOpen(false)}
+                >
+                  {secondaryNavItems.map((item) => {
+                    const isActive = location.pathname.toLowerCase() === item.href.toLowerCase();
                     const isDisabled = item.adminOnly && role !== "admin";
 
                     if (isDisabled) {
@@ -168,15 +245,13 @@ export const Layout = ({ children }: LayoutProps) => {
                         <button
                           key={item.name}
                           onClick={() => handleAdminOnlyClick(item.name)}
-                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900/60 transition-colors group"
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#9b9a94] hover:bg-[#edece8]"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <item.icon className="w-4 h-4 text-neutral-600 group-hover:text-neutral-400 transition-colors" />
+                          <div className="flex items-center gap-2">
+                            <item.icon className="w-3.5 h-3.5 opacity-60" />
                             <span>{item.name}</span>
                           </div>
-                          <span className="text-[9px] uppercase px-1 rounded bg-neutral-900 border border-white/10 text-neutral-400 font-mono">
-                            Admin
-                          </span>
+                          <span className="text-[9px] font-mono px-1 rounded bg-[#dedcd5]">Admin</span>
                         </button>
                       );
                     }
@@ -186,178 +261,218 @@ export const Layout = ({ children }: LayoutProps) => {
                         key={item.name}
                         to={item.href}
                         className={cn(
-                          "flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-150",
+                          "flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-colors",
                           isActive
-                            ? "bg-white text-black font-semibold shadow-sm"
-                            : "text-neutral-300 hover:text-white hover:bg-neutral-900/80"
+                            ? "bg-[#18191c] text-white"
+                            : "text-[#44464f] hover:bg-[#edece8] hover:text-[#18191c]"
                         )}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <item.icon
-                            className={cn(
-                              "w-4 h-4 transition-colors",
-                              isActive ? "text-black" : "text-neutral-400"
-                            )}
-                          />
-                          <span>{item.name}</span>
-                        </div>
+                        <item.icon className="w-3.5 h-3.5" />
+                        <span>{item.name}</span>
                       </Link>
                     );
                   })}
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+          </nav>
 
-          {/* User Profile & Auto-logout Footer */}
-          <div className="mt-auto pt-4 border-t border-white/10 space-y-3">
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-full bg-neutral-900 border border-white/20 flex items-center justify-center text-xs font-bold text-white">
-                  {user?.name?.[0]?.toUpperCase() || "U"}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">{user?.name || "Guest User"}</p>
-                  <span className={cn(
-                    "text-[10px] uppercase font-mono font-bold",
-                    role === "admin" ? "text-red-400" : "text-neutral-400"
-                  )}>
-                    {role === "admin" ? "Administrator" : "Guest"}
-                  </span>
-                </div>
-              </div>
+          {/* Right Action Icons */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            
+            {/* Quick Refresh */}
+            <button
+              onClick={() => {
+                haptic.tick();
+                sounds.click();
+                window.location.reload();
+              }}
+              title="Refresh Telemetry"
+              className="w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-black/[0.06] text-[#4d4f57] hover:text-[#18191c] flex items-center justify-center shadow-sm transition-all hover:scale-105 active:scale-95"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
 
+            {/* Notifications Bell */}
+            <button
+              onClick={() => {
+                navigate("/alerts");
+                haptic.medium();
+              }}
+              title="System Alerts"
+              className="relative w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-black/[0.06] text-[#4d4f57] hover:text-[#18191c] flex items-center justify-center shadow-sm transition-all hover:scale-105 active:scale-95"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#ef4444] border-2 border-white" />
+            </button>
+
+            {/* Settings */}
+            <button
+              onClick={() => {
+                if (role === "admin") {
+                  navigate("/security");
+                } else {
+                  handleAdminOnlyClick("Security Settings");
+                }
+              }}
+              title="Security & System Settings"
+              className="w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-black/[0.06] text-[#4d4f57] hover:text-[#18191c] flex items-center justify-center shadow-sm transition-all hover:scale-105 active:scale-95"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+
+            {/* User Profile Pill Avatar */}
+            <div className="relative">
               <button
-                onClick={handleLogout}
-                title="Sign Out"
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full bg-white/90 hover:bg-white border border-black/[0.07] shadow-sm transition-all hover:scale-[1.02]"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <div className="w-6 h-6 rounded-full bg-[#18191c] text-white flex items-center justify-center text-[10px] font-extrabold uppercase shadow-inner">
+                  {user?.name?.[0] || "U"}
+                </div>
+                <span className="hidden sm:inline-block text-xs font-bold text-[#18191c] max-w-[70px] truncate">
+                  {user?.name || "Admin"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-[#797a82]" />
               </button>
+
+              {/* User Dropdown */}
+              {userDropdownOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-52 rounded-2xl bg-white border border-black/[0.08] shadow-xl p-3 space-y-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  onClick={() => setUserDropdownOpen(false)}
+                >
+                  <div className="px-2 py-1.5 border-b border-black/[0.06]">
+                    <p className="text-xs font-bold text-[#18191c] truncate">{user?.name || "User"}</p>
+                    <p className="text-[10px] font-mono text-[#797a82]">
+                      Role: <span className={cn("font-bold uppercase", role === "admin" ? "text-red-600" : "text-emerald-600")}>{role}</span>
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Link
+                      to="/devices"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-[#44464f] hover:bg-[#edece8] hover:text-[#18191c] transition-colors"
+                    >
+                      <Lightbulb className="w-3.5 h-3.5" />
+                      <span>Device Controls</span>
+                    </Link>
+                    <Link
+                      to="/security"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-[#44464f] hover:bg-[#edece8] hover:text-[#18191c] transition-colors"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Security & Passkeys</span>
+                    </Link>
+                    <Link
+                      to="/telegram"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-[#44464f] hover:bg-[#edece8] hover:text-[#18191c] transition-colors"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Telegram Dispatch</span>
+                    </Link>
+                    <Link
+                      to="/users"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-[#44464f] hover:bg-[#edece8] hover:text-[#18191c] transition-colors"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Users Directory</span>
+                    </Link>
+                  </div>
+
+                  <div className="pt-2 border-t border-black/[0.06] flex items-center justify-between px-1">
+                    <span className="text-[10px] font-mono text-[#797a82] flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {isRemembered ? "Persistent" : `${minutes}m`}
+                    </span>
+                    <button
+                      onClick={handleLogout}
+                      className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1"
+                    >
+                      <LogOut className="w-3.5 h-3.5" /> Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-between px-2 text-[11px] text-neutral-400 font-mono">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3 h-3 text-neutral-500" />
-                Session
-              </span>
-              <span className="text-neutral-200">
-                {isRemembered ? (
-                  <span className="text-emerald-400 font-sans text-[11px] flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Persistent
-                  </span>
-                ) : (
-                  `${minutes}:${seconds.toString().padStart(2, "0")}`
-                )}
-              </span>
-            </div>
+            {/* Mobile Menu Toggle Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-black/[0.07] flex items-center justify-center text-[#18191c] shadow-sm"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+
           </div>
-
         </div>
-      </aside>
-
-      {/* ── MOBILE TOP NAVBAR ── */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-black/95 backdrop-blur-md border-b border-white/10 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center">
-            <Cpu className="w-3.5 h-3.5" />
-          </div>
-          <span className="font-bold text-sm text-white tracking-wide">IoTMesh</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-neutral-900 border border-white/20 text-white">
-            {role === "admin" ? "Admin" : "Guest"}
-          </span>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="h-8 w-8 text-neutral-300 hover:text-white"
-        >
-          {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-        </Button>
       </header>
 
-      {/* ── MOBILE MENU DRAWER ── */}
+      {/* ── MOBILE DRAWER NAVIGATION ── */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-[53px] bottom-0 z-40 bg-black/98 backdrop-blur-xl border-b border-white/10 px-5 py-6 overflow-y-auto flex flex-col justify-between">
-          <div className="space-y-6">
-            {navSections.map((section) => (
-              <div key={section.title} className="space-y-2">
-                <p className="text-[10px] font-bold tracking-wider text-neutral-400 uppercase font-mono">
-                  {section.title}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {section.items.map((item) => {
-                    const isActive = location.pathname === item.href;
-                    const isDisabled = item.adminOnly && role !== "admin";
+        <div className="md:hidden fixed inset-x-0 top-[56px] bottom-0 z-50 bg-[#edece8]/98 backdrop-blur-2xl p-4 overflow-y-auto space-y-4 animate-in slide-in-from-top-4 duration-200">
+          <div className="clay-card p-4 space-y-3">
+            <p className="text-[10px] font-bold tracking-wider text-[#797a82] uppercase font-mono px-2">
+              Navigation Menu
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {allNavItems.map((item) => {
+                const isActive = location.pathname.toLowerCase() === item.href.toLowerCase();
+                const isDisabled = item.adminOnly && role !== "admin";
 
-                    return (
-                      <button
-                        key={item.name}
-                        onClick={() => {
-                          if (isDisabled) {
-                            handleAdminOnlyClick(item.name);
-                          } else {
-                            navigate(item.href);
-                            setMobileMenuOpen(false);
-                          }
-                        }}
-                        className={cn(
-                          "flex items-center gap-2.5 p-3 rounded-xl text-xs font-medium transition-all text-left",
-                          isActive
-                            ? "bg-white text-black font-semibold border border-white shadow-sm"
-                            : isDisabled
-                            ? "bg-neutral-900/30 text-neutral-600 border border-white/5"
-                            : "bg-neutral-900/80 text-neutral-300 hover:text-white border border-white/10"
-                        )}
-                      >
-                        <item.icon className={cn("w-4 h-4", isActive ? "text-black" : "text-neutral-400")} />
-                        <span>{item.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => {
+                      if (isDisabled) {
+                        handleAdminOnlyClick(item.name);
+                      } else {
+                        navigate(item.href);
+                        setMobileMenuOpen(false);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-2.5 p-3 rounded-2xl text-xs font-bold transition-all text-left",
+                      isActive
+                        ? "bg-[#18191c] text-white shadow-md"
+                        : isDisabled
+                        ? "bg-[#e4e3dd]/40 text-[#9b9a94]"
+                        : "bg-white/80 text-[#2c2d33] hover:bg-white border border-black/[0.05]"
+                    )}
+                  >
+                    <item.icon className={cn("w-4 h-4", isActive ? "text-white" : "text-[#797a82]")} />
+                    <span>{item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="pt-6 mt-6 border-t border-white/10 flex items-center justify-between">
+          {/* User & Logout in Drawer */}
+          <div className="clay-card p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-white">{user?.name || "Guest"}</p>
-              <p className="text-[11px] text-neutral-400 font-mono">
-                {isRemembered ? (
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Persistent Session
-                  </span>
-                ) : (
-                  `Auto logout in ${minutes}:${seconds.toString().padStart(2, "0")}`
-                )}
+              <p className="text-xs font-bold text-[#18191c]">{user?.name || "User"}</p>
+              <p className="text-[10px] font-mono text-[#797a82]">
+                Session: {isRemembered ? "Persistent" : `${minutes}m remaining`}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
+            <button
               onClick={handleLogout}
-              className="border-white/20 text-red-400 hover:bg-red-950/30 text-xs"
+              className="px-3 py-1.5 rounded-full bg-red-50 text-red-600 border border-red-200 font-bold text-xs flex items-center gap-1.5 hover:bg-red-100"
             >
-              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
-            </Button>
+              <LogOut className="w-3.5 h-3.5" /> Sign Out
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── MAIN CONTENT WRAPPER ── */}
-      <main className="flex-1 lg:ml-64 px-4 sm:px-6 lg:px-8 pt-20 lg:pt-8 relative z-10">
+      {/* ── MAIN CONTENT CONTAINER ── */}
+      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 relative z-10">
         {children}
       </main>
 
       {/* ── FOOTER ── */}
-      <div className="lg:ml-64 relative z-10">
-        <Footer />
-      </div>
+      <Footer />
     </div>
   );
 };

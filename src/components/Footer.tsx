@@ -1,4 +1,4 @@
-import { Github, Instagram, Mail, Globe, Cpu } from "lucide-react";
+import { Github, Instagram, Mail, Globe, Cpu, Heart } from "lucide-react";
 
 const socialLinks = [
   { href: "https://anubhavb-tech-hub.web.app/", label: "Website", Icon: Globe },
@@ -9,21 +9,21 @@ const socialLinks = [
 
 export default function Footer() {
   return (
-    <footer className="mt-12 mb-6 border-t border-white/10 pt-6 px-4 sm:px-6">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
+    <footer className="mt-auto py-8 px-4 sm:px-8 border-t border-black/[0.06] bg-transparent">
+      <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#797a82]">
         
         {/* Brand info */}
         <div className="flex items-center gap-2.5">
-          <div className="w-5 h-5 rounded-md bg-white text-black flex items-center justify-center">
-            <Cpu className="w-3 h-3" />
+          <div className="w-6 h-6 rounded-lg bg-[#18191c] text-white flex items-center justify-center shadow-sm">
+            <Cpu className="w-3.5 h-3.5" />
           </div>
-          <span className="font-bold text-white tracking-wide">IoTMesh</span>
-          <span className="text-neutral-600">·</span>
-          <span className="text-neutral-400 font-mono text-[11px]">v18.4</span>
+          <span className="font-extrabold text-[#18191c] tracking-tight text-sm">IoTMesh</span>
+          <span className="text-[#a9a8a2]">·</span>
+          <span className="text-[#797a82] font-mono text-[11px]">v18.4 Pro Suite</span>
         </div>
 
         {/* Social Links */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {socialLinks.map(({ href, label, Icon }) => (
             <a
               key={label}
@@ -31,16 +31,16 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={label}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-900 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/70 hover:bg-white border border-black/[0.06] text-[#55565e] hover:text-[#18191c] shadow-sm transition-all hover:scale-105"
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-4 h-4" />
             </a>
           ))}
         </div>
 
         {/* Author */}
-        <p className="text-neutral-500 text-[11px]">
-          Created by <span className="text-white font-semibold">Anubhav Bajpai</span> © {new Date().getFullYear()}
+        <p className="text-[#797a82] text-xs font-medium">
+          Engineered with precision by <span className="text-[#18191c] font-bold">Anubhav Bajpai</span> © {new Date().getFullYear()}
         </p>
 
       </div>

@@ -70,6 +70,7 @@ export interface SensorData {
   timestamp: number;
   last_update?: string;
   batteryVolt?: number;
+  batteryVoltage?: number;
   batteryPercent?: number;
 }
 
