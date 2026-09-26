@@ -131,18 +131,18 @@ export default function IgnitionControl() {
         {/* ── Header ── */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-red-400 shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#edece8] border border-black/[0.06] flex items-center justify-center text-red-600 shadow-inner">
               <Flame className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-white tracking-tight">Ignition Control Panel</h1>
-              <p className="text-xs text-zinc-400 mt-0.5">High-voltage solid-state relay interlock</p>
+              <h1 className="text-xl font-extrabold text-[#18191c] tracking-tight">Ignition Control Panel</h1>
+              <p className="text-xs text-[#797a82] mt-0.5">High-voltage solid-state relay interlock</p>
             </div>
           </div>
 
           <span className={cn(
-            "text-xs px-2.5 py-1 rounded-full font-mono border font-medium",
-            isAdmin ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"
+            "text-xs px-3 py-1 rounded-full font-mono font-bold",
+            isAdmin ? "badge-running" : "badge-stopped"
           )}>
             {isAdmin ? "Admin Authorized" : "Restricted"}
           </span>
@@ -150,51 +150,48 @@ export default function IgnitionControl() {
 
         {/* ── Permission Alert ── */}
         {!isAdmin && (
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
-            <ShieldAlert className="w-4 h-4 shrink-0" />
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600" />
             <span>This control panel is restricted to system administrators. Guest actuation is disabled.</span>
           </div>
         )}
 
         {/* ── Arm Status Bar ── */}
         {isAdmin && (
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80">
+          <div className="clay-card p-4 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className={cn(
-                "w-2 h-2 rounded-full",
-                armed ? "bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-zinc-600"
+                "w-2.5 h-2.5 rounded-full",
+                armed ? "bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" : "bg-[#797a82]"
               )} />
-              <span className="text-xs font-semibold text-zinc-200">
+              <span className="text-xs font-bold text-[#18191c]">
                 {armed ? "Perimeter Safety Interlock: ARMED" : "Perimeter Safety Interlock: DISARMED"}
               </span>
             </div>
 
             {armed ? (
-              <Button
-                variant="outline"
-                size="sm"
+              <button
                 onClick={handleDisarm}
-                className="border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 text-xs"
+                className="clay-btn text-xs font-bold text-red-600 border-red-200"
               >
-                <Lock className="w-3.5 h-3.5 mr-1.5" /> Disarm
-              </Button>
+                <Lock className="w-3.5 h-3.5 inline mr-1.5" /> Disarm
+              </button>
             ) : (
-              <Button
-                size="sm"
+              <button
                 onClick={() => { sounds.modalOpen(); setShowArmModal(true); }}
-                className="bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-medium"
+                className="clay-btn-dark text-xs"
               >
-                <KeyRound className="w-3.5 h-3.5 mr-1.5" /> Arm System
-              </Button>
+                <KeyRound className="w-3.5 h-3.5 inline mr-1.5" /> Arm System
+              </button>
             )}
           </div>
         )}
 
         {/* ── Main Control Card ── */}
-        <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-6 space-y-6">
+        <div className="clay-card p-6 space-y-6">
           <div className="space-y-1">
-            <h2 className="text-sm font-semibold text-white">5-Second Hold-to-Fire Actuator</h2>
-            <p className="text-xs text-zinc-400">
+            <h2 className="text-sm font-bold text-[#18191c]">5-Second Hold-to-Fire Actuator</h2>
+            <p className="text-xs text-[#797a82]">
               Hold the actuator continuously for 5 seconds to charge capacitors and trigger the pulse.
             </p>
           </div>
@@ -209,29 +206,29 @@ export default function IgnitionControl() {
               onTouchStart={startHold}
               onTouchEnd={stopHold}
               className={cn(
-                "w-full h-20 rounded-2xl font-semibold text-sm transition-all duration-150 relative overflow-hidden select-none flex items-center justify-center gap-2.5 border",
+                "w-full h-20 rounded-2xl font-bold text-sm transition-all duration-150 relative overflow-hidden select-none flex items-center justify-center gap-2.5 border shadow-md",
                 !isAdmin || !armed || active
-                  ? "bg-zinc-900/60 border-zinc-800 text-zinc-600 cursor-not-allowed"
+                  ? "bg-[#edece8] border-black/[0.06] text-[#9b9a94] cursor-not-allowed shadow-none"
                   : holding
-                  ? "bg-zinc-900 text-white border-red-500/80 scale-[0.99] shadow-lg"
-                  : "bg-zinc-950 text-white border-zinc-700 hover:border-zinc-500 active:scale-[0.98]"
+                  ? "bg-[#18191c] text-white border-red-500 scale-[0.99] shadow-xl"
+                  : "bg-white text-[#18191c] border-black/[0.1] hover:border-black/[0.2] active:scale-[0.98]"
               )}
             >
               {/* Hold fill backdrop */}
               {holding && (
                 <span
-                  className="absolute inset-0 bg-red-500/20 origin-left"
+                  className="absolute inset-0 bg-red-600/30 origin-left"
                   style={{ transform: `scaleX(${progressPct / 100})`, transition: "transform 0.9s linear" }}
                 />
               )}
 
               {/* Active ignition pulse */}
               {isActive && (
-                <span className="absolute inset-0 bg-red-600/30 animate-pulse" />
+                <span className="absolute inset-0 bg-red-600/40 animate-pulse" />
               )}
 
               <span className="relative z-10 flex items-center gap-2">
-                <Zap className={cn("w-4 h-4", holding || isActive ? "text-red-400 animate-bounce" : "text-zinc-400")} />
+                <Zap className={cn("w-4 h-4", holding || isActive ? "text-red-500 animate-bounce" : "text-[#797a82]")} />
                 {!isAdmin
                   ? "Admin Authorization Required"
                   : !armed
@@ -251,23 +248,23 @@ export default function IgnitionControl() {
               <div
                 key={step}
                 className={cn(
-                  "flex-1 h-1 rounded-full transition-all duration-300",
+                  "flex-1 h-1.5 rounded-full transition-all duration-300",
                   isActive
                     ? "bg-red-500 animate-pulse"
                     : progress >= step
                     ? "bg-red-500"
                     : holding
-                    ? "bg-zinc-700"
+                    ? "bg-[#18191c]"
                     : armed
-                    ? "bg-emerald-500/30"
-                    : "bg-zinc-800"
+                    ? "bg-emerald-300"
+                    : "bg-[#dedcd5]"
                 )}
               />
             ))}
           </div>
 
-          <p className="text-[11px] text-zinc-500 text-center">
-            ⚠️ Triggers hardware high-voltage pulse. Releasing button cancels sequence immediately.
+          <p className="text-[11px] text-[#797a82] text-center">
+            ⚠️ Triggers hardware high-voltage pulse. Releasing actuator button cancels sequence immediately.
           </p>
         </div>
 
@@ -276,24 +273,24 @@ export default function IgnitionControl() {
       {/* ── ARM PASSCODE MODAL ── */}
       {showArmModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShowArmModal(false); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-zinc-950 border border-zinc-800 p-6 space-y-4 shadow-2xl">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-black/[0.08] p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300">
+                <div className="w-8 h-8 rounded-xl bg-[#edece8] flex items-center justify-center text-[#18191c]">
                   <KeyRound className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-semibold text-white">Arm High-Voltage Ignition</h3>
+                <h3 className="text-sm font-bold text-[#18191c]">Arm High-Voltage Ignition</h3>
               </div>
-              <button onClick={() => setShowArmModal(false)} className="text-zinc-500 hover:text-white">
+              <button onClick={() => setShowArmModal(false)} className="text-[#797a82] hover:text-[#18191c]">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Enter the master arming passcode to bypass safety locks and enable the 5-second ignition trigger.
+            <p className="text-xs text-[#797a82] leading-relaxed">
+              Enter the master arming passcode to bypass safety interlocks and enable the 5-second ignition trigger.
             </p>
 
             <Input
@@ -302,17 +299,17 @@ export default function IgnitionControl() {
               value={armInput}
               onChange={(e) => setArmInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleArmSubmit(); }}
-              className="bg-zinc-900/60 border-zinc-800 text-white placeholder:text-zinc-600 rounded-xl"
+              className="bg-[#edece8] border-black/[0.08] text-[#18191c] placeholder:text-[#9b9a94] rounded-xl"
               autoFocus
             />
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setShowArmModal(false)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setShowArmModal(false)} className="clay-btn text-xs">
                 Cancel
-              </Button>
-              <Button size="sm" onClick={handleArmSubmit} className="bg-white text-zinc-950 hover:bg-zinc-200 font-medium">
+              </button>
+              <button onClick={handleArmSubmit} className="clay-btn-dark text-xs">
                 Verify & Arm
-              </Button>
+              </button>
             </div>
           </div>
         </div>

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Lightbulb, Fan, ToggleLeft, Tv, Zap, Lock, LockOpen,
-  Activity, Sun, Moon, Refrigerator, KeyRound, X, Power
+  Activity, Sun, Moon, Refrigerator, KeyRound, X, Power,
+  ShieldCheck, RefreshCw, Cpu
 } from "lucide-react";
 import { firebaseService, ControlData, NodeStatusData } from "@/lib/firebase";
 import { toast } from "sonner";
@@ -16,7 +17,7 @@ import { cn, parseNodeTimestampToMs, formatNodeLastSeen } from "@/lib/utils";
 
 const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD;
 
-// ── Minimalist Segmented Fan Speed Selector ────────────────────
+// ── Segmented Fan Speed Selector ────────────────────
 interface FanSegmentedControlProps {
   fanOn: boolean;
   speed: number; // 0–3
@@ -32,7 +33,7 @@ function FanSegmentedControl({ fanOn, speed, onSelect }: FanSegmentedControlProp
   ];
 
   return (
-    <div className="p-1 rounded-xl bg-black border border-white/10 flex items-center gap-1">
+    <div className="p-1 rounded-xl bg-[#edece8] border border-black/[0.06] flex items-center gap-1 shadow-inner">
       {steps.map((step) => {
         const isSelected = !fanOn
           ? step.value === 0
@@ -47,10 +48,10 @@ function FanSegmentedControl({ fanOn, speed, onSelect }: FanSegmentedControlProp
               onSelect(step.value);
             }}
             className={cn(
-              "flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-center select-none cursor-pointer",
+              "flex-1 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 text-center select-none cursor-pointer",
               isSelected
-                ? "bg-white text-black font-bold shadow-sm"
-                : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                ? "bg-[#18191c] text-white shadow-sm"
+                : "text-[#6c6e75] hover:text-[#18191c] hover:bg-white/60"
             )}
           >
             {step.label}
@@ -81,7 +82,6 @@ function NodeStatusPanel({ title, status }: NodeStatusPanelProps) {
         return;
       }
       const diff = Date.now() - ms;
-      // Under 1 min (<= 60,000 ms) = Online, more than 1 min = Offline
       const isOnline = diff >= -5000 && diff <= 60_000;
       setOnline(isOnline);
 
@@ -95,16 +95,16 @@ function NodeStatusPanel({ title, status }: NodeStatusPanelProps) {
   }, [status?.serverTimestamp, status?.lastSeen, status?.lastSeenEpoch, status?.timestamp]);
 
   return (
-    <div className="rounded-xl border border-white/8 bg-neutral-950 p-3 space-y-2">
+    <div className="rounded-2xl border border-black/[0.05] bg-white/60 p-3 space-y-2 shadow-inner">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#797a82] font-mono">
           {title}
         </span>
         <span className={cn(
-          "flex items-center gap-1.5 text-[10px] font-semibold font-mono px-2 py-0.5 rounded-full transition-colors",
+          "flex items-center gap-1.5 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full transition-colors",
           online
-            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-            : "bg-red-500/10 text-red-400 border border-red-500/20"
+            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+            : "bg-red-50 text-red-700 border border-red-200"
         )}>
           <span className={cn(
             "w-1.5 h-1.5 rounded-full",
@@ -112,7 +112,7 @@ function NodeStatusPanel({ title, status }: NodeStatusPanelProps) {
           )} />
           {status == null ? "Offline" : online ? "Online" : "Offline"}
           {status != null && ageText !== "—" && (
-            <span className="text-neutral-500 text-[9px]">· {ageText}</span>
+            <span className="text-[#9b9a94] text-[9px]">· {ageText}</span>
           )}
         </span>
       </div>
@@ -129,24 +129,20 @@ function NodeStatusPanel({ title, status }: NodeStatusPanelProps) {
                 : `${Math.floor(status.uptime / 3600)}h ${Math.floor((status.uptime % 3600) / 60)}m`
               : "—" },
           { label: "Free Heap", value: status?.freeHeap != null ? `${(status.freeHeap / 1024).toFixed(1)} KB` : "—" },
-          { label: "Chip Temp", value: status?.chipTempC != null ? `${status.chipTempC.toFixed(1)} °C` : "—" },
+          { label: "Chip Temp", value: status?.chipTempC != null ? `${status.chipTempC.toFixed(1)}°C` : "—" },
         ].map(({ label, value }) => (
           <div key={label} className="flex items-center justify-between gap-1">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 font-mono whitespace-nowrap">{label}</span>
-            <span className="text-[10px] font-mono text-neutral-300 truncate text-right">{value}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-[#797a82] font-mono whitespace-nowrap">{label}</span>
+            <span className="text-[10px] font-mono font-bold text-[#18191c] truncate text-right">{value}</span>
           </div>
         ))}
       </div>
 
-      {/* Dedicated Full-Width Last Seen Row (never truncated) */}
-      <div className="pt-2 mt-0.5 border-t border-white/10 flex items-center justify-between gap-2">
-        <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 font-mono whitespace-nowrap">
+      <div className="pt-1.5 mt-0.5 border-t border-black/[0.05] flex items-center justify-between gap-2">
+        <span className="text-[9px] font-bold uppercase tracking-wider text-[#797a82] font-mono">
           Last Seen
         </span>
-        <span
-          className="text-[10px] font-mono text-neutral-200 text-right font-medium"
-          title={String(status?.lastSeen ?? "")}
-        >
+        <span className="text-[10px] font-mono text-[#55565d] text-right font-medium">
           {formatNodeLastSeen(status?.serverTimestamp ?? status?.lastSeenEpoch ?? status?.timestamp ?? status?.lastSeen)}
         </span>
       </div>
@@ -226,7 +222,6 @@ export default function Devices() {
       update("lock", value);
       return;
     }
-    // Guest → require master passkey
     setPendingLockValue(value);
     setShowSecurityModal(true);
     setSecurityInput("");
@@ -265,10 +260,6 @@ export default function Devices() {
         [speedKey]: stepValue,
       });
     }
-  };
-
-  const updateSpeed = (key: keyof ControlData, speed: number) => {
-    firebaseService.updateFanSpeed(key, speed);
   };
 
   const ALL_NON_SECURITY: (keyof ControlData)[] = [
@@ -313,55 +304,52 @@ export default function Devices() {
 
   return (
     <Layout>
-      <div className="space-y-8 pb-12 max-w-7xl">
+      <div className="space-y-6 pb-12 max-w-[1440px] mx-auto">
 
         {/* ── Header & Scene Shortcuts ── */}
-        <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-2">
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Device Control</h1>
-            <p className="text-xs text-neutral-400 mt-0.5">Manage room appliances, relays, and perimeter locks</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#18191c]">
+              Device Control
+            </h1>
+            <p className="text-xs text-[#797a82] mt-0.5">
+              Manage room appliances, relays, and perimeter security locks
+            </p>
           </div>
 
           {/* Quick Scene Pill Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={allOffExceptSecurity}
-              className="flex items-center justify-center gap-2.5 p-3.5 rounded-2xl bg-black border border-white/12 text-neutral-200 hover:text-white hover:border-white/30 hover:bg-neutral-950 transition-all font-semibold text-xs tile-btn shadow-sm"
+              className="clay-btn flex items-center gap-2 text-xs"
             >
-              <Power className="w-4 h-4 text-neutral-400" />
+              <Power className="w-3.5 h-3.5 text-[#55565d]" />
               <span>Turn All Off</span>
             </button>
 
             <button
               onClick={() => nightMode ? disableNightMode() : enableNightMode()}
               className={cn(
-                "flex items-center justify-center gap-2.5 p-3.5 rounded-2xl border font-bold text-xs tile-btn transition-all shadow-sm",
-                nightMode
-                  ? "bg-white text-black border-white shadow-md"
-                  : "bg-black border-white/12 text-neutral-200 hover:text-white hover:border-white/30 hover:bg-neutral-950"
+                "flex items-center gap-2 text-xs transition-all",
+                nightMode ? "clay-btn-dark font-bold" : "clay-btn font-medium"
               )}
             >
-              <Moon className={cn("w-4 h-4", nightMode ? "text-black" : "text-neutral-400")} />
+              <Moon className="w-3.5 h-3.5" />
               <span>{nightMode ? "Night Mode (Active)" : "Activate Night Mode"}</span>
             </button>
 
             <button
               onClick={activateDayMode}
               disabled={nightMode}
-              className={cn(
-                "flex items-center justify-center gap-2.5 p-3.5 rounded-2xl border font-semibold text-xs tile-btn transition-all shadow-sm",
-                dayMode && !nightMode
-                  ? "bg-black border-white/12 text-neutral-200 hover:text-white hover:border-white/30"
-                  : "bg-neutral-950/40 border-white/5 text-neutral-600 cursor-not-allowed"
-              )}
+              className="clay-btn flex items-center gap-2 text-xs disabled:opacity-50"
             >
-              <Sun className="w-4 h-4 text-amber-400" />
+              <Sun className="w-3.5 h-3.5 text-amber-500" />
               <span>Day Mode</span>
             </button>
           </div>
         </div>
 
-        {/* ── Rooms (Room 1, 2, 3) ── */}
+        {/* ── Rooms Grid (Room 1, Room 2, Room 3) ── */}
         <div className="grid gap-6 lg:grid-cols-3">
           {(["Room 1", "Room 2", "Room 3"] as const).map((room, i) => {
             const prefix = `room${i + 1}` as "room1" | "room2" | "room3";
@@ -371,13 +359,17 @@ export default function Devices() {
             const fanSpeed = (controls[speedKey] as number) ?? 0;
 
             return (
-              <div key={room} className="rounded-2xl border border-white/12 bg-black p-4 space-y-3.5 shadow-sm">
+              <div key={room} className="clay-card p-5 space-y-4">
                 <div className="flex items-center justify-between px-1">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono">{room}</h2>
-                  <span className="text-[11px] text-neutral-400 font-medium font-mono">3 Devices</span>
+                  <h2 className="text-sm font-bold text-[#18191c] uppercase tracking-wider font-mono">
+                    {room}
+                  </h2>
+                  <span className="text-[11px] text-[#797a82] font-semibold font-mono">
+                    3 Devices
+                  </span>
                 </div>
 
-                {/* ESP32 Status Panel for each Room */}
+                {/* ESP32 Status Panel */}
                 <NodeStatusPanel
                   title={`ESP32 · ${room}`}
                   status={roomStatuses[prefix]}
@@ -398,17 +390,19 @@ export default function Devices() {
                   />
                   
                   {/* Fan Tile + Integrated Speed Selector */}
-                  <div className="space-y-2 p-3.5 rounded-2xl bg-neutral-950 border border-white/10">
-                    <div className="flex items-center gap-2.5">
+                  <div className="space-y-2.5 p-4 rounded-2xl bg-white/70 border border-black/[0.05] shadow-sm">
+                    <div className="flex items-center gap-3">
                       <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                        fanOn ? "bg-white text-black" : "bg-neutral-900 text-neutral-400"
+                        "w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-inner",
+                        fanOn ? "bg-[#18191c] text-white" : "bg-[#edece8] text-[#55565d]"
                       )}>
                         <Fan className={cn("w-4 h-4", fanOn && "animate-spin [animation-duration:1.5s]")} />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-white">Ceiling Fan</p>
-                        <p className="text-[10px] text-neutral-400">{fanOn ? `Speed ${fanSpeed || 1}` : "Turned Off"}</p>
+                        <p className="text-xs font-bold text-[#18191c]">Ceiling Fan</p>
+                        <p className="text-[10px] text-[#797a82] font-medium">
+                          {fanOn ? `Speed ${fanSpeed || 1}` : "Turned Off"}
+                        </p>
                       </div>
                     </div>
 
@@ -425,15 +419,18 @@ export default function Devices() {
         </div>
 
         {/* ── Common Areas ── */}
-        <div className="rounded-2xl border border-white/12 bg-black p-4 space-y-3.5 shadow-sm">
+        <div className="clay-card p-6 space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono">Common Areas</h2>
-            <span className="text-[11px] text-neutral-400 font-medium font-mono">Lobby & Appliances</span>
+            <h2 className="text-sm font-bold text-[#18191c] uppercase tracking-wider font-mono">
+              Common Areas & Appliances
+            </h2>
+            <span className="text-[11px] text-[#797a82] font-bold font-mono">
+              Lobby & Kitchen
+            </span>
           </div>
 
-          {/* ESP32 Status Panel for Common Area */}
           <NodeStatusPanel
-            title="ESP32 · Common Area"
+            title="ESP32 · Common Area Gateway"
             status={roomStatuses.common}
           />
 
@@ -457,18 +454,20 @@ export default function Devices() {
               onToggle={(v) => update("refrigerator", v)}
             />
 
-            {/* Lobby Fan with inline selector */}
-            <div className="p-3.5 rounded-2xl bg-neutral-950 border border-white/10 space-y-2">
-              <div className="flex items-center gap-2.5">
+            {/* Lobby Fan */}
+            <div className="p-4 rounded-2xl bg-white/70 border border-black/[0.05] space-y-2.5 shadow-sm">
+              <div className="flex items-center gap-3">
                 <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                  controls.lobbyFan ? "bg-white text-black" : "bg-neutral-900 text-neutral-400"
+                  "w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-inner",
+                  controls.lobbyFan ? "bg-[#18191c] text-white" : "bg-[#edece8] text-[#55565d]"
                 )}>
                   <Fan className={cn("w-4 h-4", controls.lobbyFan && "animate-spin [animation-duration:1.5s]")} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-white">Lobby Fan</p>
-                  <p className="text-[10px] text-neutral-400">{controls.lobbyFan ? `Speed ${(controls.lobbyFanSpeed as number) || 1}` : "Turned Off"}</p>
+                  <p className="text-xs font-bold text-[#18191c]">Lobby Fan</p>
+                  <p className="text-[10px] text-[#797a82]">
+                    {controls.lobbyFan ? `Speed ${(controls.lobbyFanSpeed as number) || 1}` : "Turned Off"}
+                  </p>
                 </div>
               </div>
               <FanSegmentedControl
@@ -480,11 +479,13 @@ export default function Devices() {
           </div>
         </div>
 
-        {/* ── Relay Controls Bank ── */}
-        <div className="rounded-2xl border border-white/12 bg-black p-4 space-y-3.5 shadow-sm">
+        {/* ── 4-Channel Relay Bank ── */}
+        <div className="clay-card p-6 space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono">4-Channel Relay Bank</h2>
-            <span className="text-[11px] font-mono text-neutral-400">Optocoupled Relays</span>
+            <h2 className="text-sm font-bold text-[#18191c] uppercase tracking-wider font-mono">
+              4-Channel Optocoupled Relay Bank
+            </h2>
+            <span className="text-[11px] font-mono font-bold text-[#797a82]">High Voltage Switching</span>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -492,7 +493,7 @@ export default function Devices() {
               <DeviceControl
                 key={r}
                 title={`Relay Channel ${idx + 1}`}
-                subtitle={controls[r] ? "Energized" : "De-energized"}
+                subtitle={controls[r] ? "Energized (Closed)" : "De-energized (Open)"}
                 icon={Zap}
                 isActive={!!controls[r]}
                 onToggle={(v) => update(r, v)}
@@ -501,14 +502,16 @@ export default function Devices() {
           </div>
         </div>
 
-        {/* ── Perimeter Security & Door Lock ── */}
-        <div className="rounded-2xl border border-white/12 bg-black p-4 space-y-3.5 shadow-sm">
+        {/* ── Perimeter Security ── */}
+        <div className="clay-card p-6 space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-white font-mono">Perimeter Security</h2>
-            <span className="text-[11px] font-medium text-emerald-400 font-mono">Active Defense</span>
+            <h2 className="text-sm font-bold text-[#18191c] uppercase tracking-wider font-mono">
+              Perimeter Security & Door Lock
+            </h2>
+            <span className="text-[11px] font-bold text-emerald-600 font-mono">Active Defense</span>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <DeviceControl
               title="Main Door Lock"
               subtitle={controls.lock ? "Locked 🔒" : "Unlocked 🔓"}
@@ -528,29 +531,29 @@ export default function Devices() {
 
       </div>
 
-      {/* ── SECURITY PASSWORD MODAL (Guest Lock Interlock) ── */}
+      {/* ── SECURITY PASSWORD MODAL ── */}
       {showSecurityModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
           onClick={(e) => { if (e.target === e.currentTarget) closeSecurityModal(); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-black border border-white/15 p-6 space-y-4 shadow-2xl">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-black/[0.08] p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-white/10 flex items-center justify-center text-white">
+                <div className="w-8 h-8 rounded-xl bg-[#edece8] flex items-center justify-center text-[#18191c]">
                   <KeyRound className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-white">
+                <h3 className="text-sm font-bold text-[#18191c]">
                   {pendingLockValue ? "Lock Door" : "Unlock Door"}
                 </h3>
               </div>
-              <button onClick={closeSecurityModal} className="text-neutral-400 hover:text-white">
+              <button onClick={closeSecurityModal} className="text-[#797a82] hover:text-[#18191c]">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-neutral-400 leading-relaxed">
-              Guest authorization required. Please enter the master security password to toggle the door lock.
+            <p className="text-xs text-[#797a82] leading-relaxed">
+              Guest authorization required. Please enter the master security password to actuate the door lock.
             </p>
 
             <Input
@@ -559,17 +562,17 @@ export default function Devices() {
               value={securityInput}
               onChange={(e) => setSecurityInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleSecuritySubmit(); }}
-              className="bg-neutral-950 border-white/15 text-white placeholder:text-neutral-600 rounded-xl"
+              className="bg-[#edece8] border-black/[0.08] text-[#18191c] placeholder:text-[#9b9a94] rounded-xl"
               autoFocus
             />
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" size="sm" onClick={closeSecurityModal} className="text-neutral-400 hover:text-white">
+              <button onClick={closeSecurityModal} className="clay-btn text-xs">
                 Cancel
-              </Button>
-              <Button size="sm" onClick={handleSecuritySubmit} className="bg-white text-black hover:bg-neutral-200 font-bold">
+              </button>
+              <button onClick={handleSecuritySubmit} className="clay-btn-dark text-xs">
                 Verify & Actuate
-              </Button>
+              </button>
             </div>
           </div>
         </div>

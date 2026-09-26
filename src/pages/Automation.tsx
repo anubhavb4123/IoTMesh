@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Workflow, Plus, Trash2, ChevronDown, Zap,
   Thermometer, Droplets, Wind, Gauge, Waves, CloudRain,
   PersonStanding, DoorOpen, Lightbulb, Fan, Lock, Tv,
-  Refrigerator, ToggleLeft, ArrowRight, Check, Edit2
+  Refrigerator, ToggleLeft, ArrowRight, Check, Edit2, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
@@ -115,16 +114,16 @@ function Select({ value, onChange, options, placeholder }: {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-200 outline-none transition-all focus:border-zinc-600 focus:bg-zinc-850 cursor-pointer"
+        className="w-full appearance-none rounded-xl border border-black/[0.08] bg-[#edece8] px-3 py-2 text-xs font-bold text-[#18191c] outline-none transition-all focus:border-[#18191c] focus:bg-white cursor-pointer shadow-inner"
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-zinc-950 text-zinc-200">
+          <option key={o.value} value={o.value} className="bg-white text-[#18191c]">
             {o.label}
           </option>
         ))}
       </select>
-      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#797a82] pointer-events-none" />
     </div>
   );
 }
@@ -135,7 +134,6 @@ export default function Automation() {
   const [isCreating, setIsCreating] = useState(false);
   const { sensorData } = useSensorData();
 
-  // Load from Firebase
   useEffect(() => {
     const unsub = onValue(ref(database, AUTOMATION_PATH), (snap) => {
       if (snap.exists()) {
@@ -159,7 +157,6 @@ export default function Automation() {
     await set(ref(database, AUTOMATION_PATH), obj);
   };
 
-  // Evaluate rules against live sensor data
   useEffect(() => {
     if (!sensorData || rules.length === 0) return;
 
@@ -259,38 +256,40 @@ export default function Automation() {
 
   return (
     <Layout>
-      <div className="space-y-6 pb-12 max-w-5xl">
+      <div className="space-y-6 pb-12 max-w-[1440px] mx-auto">
 
         {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-2">
           <div>
-            <h1 className="text-xl font-semibold text-white tracking-tight">Smart Automations</h1>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Event-driven rules linking sensor triggers to appliance actuation
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#18191c]">
+              Smart Automations
+            </h1>
+            <p className="text-xs text-[#797a82] mt-0.5">
+              Event-driven rules linking sensor telemetry triggers to hardware actuation
             </p>
           </div>
 
           {!isCreating && (
-            <Button
+            <button
               onClick={startCreating}
-              className="bg-white text-zinc-950 hover:bg-zinc-200 font-medium text-xs rounded-xl shadow-sm self-start sm:self-auto"
+              className="clay-btn-dark flex items-center gap-2 text-xs self-start md:self-auto"
             >
-              <Plus className="w-4 h-4 mr-1.5" />
-              New Automation
-            </Button>
+              <Plus className="w-4 h-4 text-white" />
+              <span>New Automation</span>
+            </button>
           )}
         </div>
 
         {/* ── Editor Card ── */}
         {editingRule && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 space-y-6">
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
-              <h2 className="text-sm font-semibold text-white">
-                {isCreating ? "Create New Automation" : "Edit Automation Rule"}
+          <div className="clay-card p-6 space-y-6 border border-black/[0.1] shadow-xl">
+            <div className="flex items-center justify-between border-b border-black/[0.06] pb-4">
+              <h2 className="text-sm font-bold text-[#18191c]">
+                {isCreating ? "Create New Automation Rule" : "Edit Automation Rule"}
               </h2>
               <button
                 onClick={() => { setEditingRule(null); setIsCreating(false); }}
-                className="text-xs text-zinc-400 hover:text-white"
+                className="text-xs text-[#797a82] hover:text-[#18191c] font-bold"
               >
                 Cancel
               </button>
@@ -298,26 +297,26 @@ export default function Automation() {
 
             {/* Rule Name Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Rule Name</label>
+              <label className="text-xs font-bold text-[#55565d]">Rule Name</label>
               <input
                 type="text"
                 value={editingRule.name}
                 onChange={(e) => setEditingRule({ ...editingRule, name: e.target.value })}
-                placeholder="e.g. Turn on Room 1 fan when hot"
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs text-white outline-none focus:border-zinc-600 placeholder:text-zinc-600"
+                placeholder="e.g. Turn on Room 1 fan when temperature exceeds 32°C"
+                className="w-full rounded-xl border border-black/[0.08] bg-[#edece8] px-3.5 py-2.5 text-xs font-bold text-[#18191c] outline-none focus:border-[#18191c] focus:bg-white placeholder:text-[#9b9a94] shadow-inner"
               />
             </div>
 
             {/* IF Triggers */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-200 uppercase font-mono">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#18191c] text-white uppercase font-mono">
                   IF (Triggers)
                 </span>
-                <span className="text-xs text-zinc-500">When all conditions match</span>
+                <span className="text-xs text-[#797a82]">When all conditions match</span>
               </div>
 
-              <div className="space-y-2 pl-3 border-l-2 border-zinc-800">
+              <div className="space-y-2 pl-3 border-l-2 border-black/[0.1]">
                 {editingRule.conditions.map((c, i) => {
                   const isBool = isBoolSensor(c.sensor);
                   const isPower = isPowerSensor(c.sensor);
@@ -386,7 +385,7 @@ export default function Automation() {
                               setEditingRule({ ...editingRule, conditions: conds });
                             }}
                             placeholder="Threshold"
-                            className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-mono text-zinc-200 outline-none focus:border-zinc-600"
+                            className="w-full rounded-xl border border-black/[0.08] bg-[#edece8] px-3 py-2 text-xs font-mono font-bold text-[#18191c] outline-none focus:border-[#18191c] focus:bg-white shadow-inner"
                           />
                         )}
                       </div>
@@ -396,7 +395,7 @@ export default function Automation() {
                           const conds = editingRule.conditions.filter((_, j) => j !== i);
                           setEditingRule({ ...editingRule, conditions: conds });
                         }}
-                        className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/20 transition-colors"
+                        className="p-2 rounded-lg text-[#797a82] hover:text-red-600 hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -411,7 +410,7 @@ export default function Automation() {
                       conditions: [...editingRule.conditions, { sensor: "temperature", operator: ">", value: "30" }],
                     });
                   }}
-                  className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white pt-1"
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#18191c] hover:underline pt-1"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add condition
                 </button>
@@ -421,13 +420,13 @@ export default function Automation() {
             {/* THEN Actions */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-200 uppercase font-mono">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#18191c] text-white uppercase font-mono">
                   THEN (Actions)
                 </span>
-                <span className="text-xs text-zinc-500">Execute these commands</span>
+                <span className="text-xs text-[#797a82]">Execute these commands</span>
               </div>
 
-              <div className="space-y-2 pl-3 border-l-2 border-zinc-800">
+              <div className="space-y-2 pl-3 border-l-2 border-black/[0.1]">
                 {editingRule.actions.map((a, i) => (
                   <div key={i} className="flex items-center gap-2 flex-wrap">
                     <div className="w-56">
@@ -459,7 +458,7 @@ export default function Automation() {
                         const acts = editingRule.actions.filter((_, j) => j !== i);
                         setEditingRule({ ...editingRule, actions: acts });
                       }}
-                      className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/20 transition-colors"
+                      className="p-2 rounded-lg text-[#797a82] hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -473,7 +472,7 @@ export default function Automation() {
                       actions: [...editingRule.actions, { device: "room1Light", action: "on" }],
                     });
                   }}
-                  className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white pt-1"
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#18191c] hover:underline pt-1"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add action
                 </button>
@@ -481,22 +480,19 @@ export default function Automation() {
             </div>
 
             {/* Action Bar */}
-            <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800/80">
-              <Button
-                variant="ghost"
-                size="sm"
+            <div className="flex justify-end gap-2 pt-2 border-t border-black/[0.06]">
+              <button
                 onClick={() => { setEditingRule(null); setIsCreating(false); }}
-                className="text-zinc-400 hover:text-white"
+                className="clay-btn text-xs"
               >
                 Cancel
-              </Button>
-              <Button
-                size="sm"
+              </button>
+              <button
                 onClick={saveRule}
-                className="bg-white text-zinc-950 hover:bg-zinc-200 font-medium text-xs"
+                className="clay-btn-dark text-xs"
               >
                 Save Automation
-              </Button>
+              </button>
             </div>
           </div>
         )}
@@ -504,49 +500,40 @@ export default function Automation() {
         {/* ── Active Automations List ── */}
         <div className="space-y-3">
           {rules.length === 0 && !isCreating ? (
-            <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-12 text-center space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-400 mx-auto">
-                <Workflow className="w-5 h-5" />
+            <div className="clay-card p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#edece8] flex items-center justify-center text-[#18191c] mx-auto shadow-inner">
+                <Workflow className="w-6 h-6" />
               </div>
-              <p className="text-sm font-medium text-zinc-300">No automations configured</p>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+              <p className="text-sm font-bold text-[#18191c]">No automations configured</p>
+              <p className="text-xs text-[#797a82] max-w-sm mx-auto">
                 Create event-driven rules to trigger fans, lights, or relays automatically based on temperature, motion, or sensor levels.
               </p>
-              <Button onClick={startCreating} className="bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-medium mt-2">
+              <button onClick={startCreating} className="clay-btn-dark text-xs mt-2 inline-flex items-center gap-1.5">
                 <Plus className="w-4 h-4 mr-1.5" /> Create First Rule
-              </Button>
+              </button>
             </div>
           ) : (
             rules.map((rule) => (
               <div
                 key={rule.id}
                 className={cn(
-                  "flex items-center justify-between p-4 rounded-2xl border transition-all",
-                  rule.enabled
-                    ? "bg-zinc-900/40 border-zinc-800/80 hover:border-zinc-700/80"
-                    : "bg-zinc-950/40 border-zinc-800/40 opacity-60"
+                  "flex items-center justify-between p-4 rounded-2xl bg-white/80 hover:bg-white border border-black/[0.06] transition-all shadow-sm hover:shadow-md",
+                  !rule.enabled && "opacity-60 bg-white/50"
                 )}
               >
                 {/* Left: Switch + Name + Summary */}
-                <div className="flex items-center gap-3.5 min-w-0 pr-4">
+                <div className="flex items-center gap-4 min-w-0 pr-4">
                   <button
+                    type="button"
                     onClick={() => toggleRule(rule.id)}
-                    className={cn(
-                      "w-10 h-6 rounded-full transition-colors relative shrink-0",
-                      rule.enabled ? "bg-white" : "bg-zinc-800 border border-zinc-700"
-                    )}
+                    className={cn("clay-switch shrink-0", rule.enabled && "checked")}
                   >
-                    <span
-                      className={cn(
-                        "w-4 h-4 rounded-full transition-transform absolute top-1",
-                        rule.enabled ? "left-5 bg-zinc-950" : "left-1 bg-zinc-400"
-                      )}
-                    />
+                    <span className="clay-switch-thumb" />
                   </button>
 
                   <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-semibold text-zinc-200 truncate">{rule.name || "Untitled Rule"}</p>
-                    <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono flex-wrap">
+                    <p className="text-xs font-bold text-[#18191c] truncate">{rule.name || "Untitled Rule"}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-[#797a82] font-mono font-bold flex-wrap">
                       <span>{rule.conditions.length} trigger{rule.conditions.length !== 1 ? "s" : ""}</span>
                       <span>→</span>
                       <span>{rule.actions.length} action{rule.actions.length !== 1 ? "s" : ""}</span>
@@ -556,22 +543,18 @@ export default function Automation() {
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <button
                     onClick={() => { setEditingRule({ ...rule }); setIsCreating(false); }}
-                    className="h-8 w-8 text-zinc-400 hover:text-white"
+                    className="p-2 rounded-xl text-[#797a82] hover:text-[#18191c] hover:bg-[#edece8] transition-colors"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  </button>
+                  <button
                     onClick={() => deleteRule(rule.id)}
-                    className="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-950/20"
+                    className="p-2 rounded-xl text-[#797a82] hover:text-red-600 hover:bg-red-50 transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+                  </button>
                 </div>
               </div>
             ))

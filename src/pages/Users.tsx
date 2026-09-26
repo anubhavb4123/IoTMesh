@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Users as UsersIcon, Shield, User, Trash2, Send } from "lucide-react";
 import { database } from "@/lib/firebase";
 import { ref, onValue, remove } from "firebase/database";
@@ -66,10 +65,10 @@ export default function Users() {
   const getRoleBadge = (role: string) => {
     const Icon = role === "admin" ? Shield : User;
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border ${
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border ${
         role === "admin"
-          ? "bg-red-500/10 border-red-500/20 text-red-400"
-          : "bg-zinc-800 border-zinc-700 text-zinc-300"
+          ? "bg-red-50 border-red-200 text-red-700"
+          : "bg-[#edece8] border-black/[0.08] text-[#18191c]"
       }`}>
         <Icon className="w-3 h-3" />
         {role === "admin" ? "Admin" : "Guest"}
@@ -81,47 +80,53 @@ export default function Users() {
 
   return (
     <Layout>
-      <div className="space-y-6 pb-12 max-w-6xl">
+      <div className="space-y-6 pb-12 max-w-[1440px] mx-auto">
 
         {/* ── Header ── */}
-        <div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">Access Directory & Telegram Subscribers</h1>
-          <p className="text-xs text-zinc-400 mt-0.5">Audit authenticated sessions and emergency alert channels</p>
+        <div className="pt-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#18191c]">
+            Access Directory & Telegram Subscribers
+          </h1>
+          <p className="text-xs text-[#797a82] mt-0.5">
+            Audit authenticated sessions and emergency alert delivery channels — Admin Only
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* Users Table */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-5 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
-              <div className="flex items-center gap-2">
-                <UsersIcon className="w-4 h-4 text-zinc-400" />
-                <h2 className="text-sm font-semibold text-white">Active Login Sessions</h2>
+          <div className="clay-card p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-black/[0.06]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#edece8] flex items-center justify-center text-[#18191c]">
+                  <UsersIcon className="w-4 h-4" />
+                </div>
+                <h2 className="text-sm font-bold text-[#18191c]">Active Login Sessions</h2>
               </div>
-              <span className="text-xs font-mono text-zinc-500">{users.length} logged</span>
+              <span className="text-xs font-mono font-bold text-[#797a82]">{users.length} logged</span>
             </div>
 
             <Table>
               <TableHeader>
-                <TableRow className="border-zinc-800/60 hover:bg-transparent">
-                  <TableHead className="text-zinc-500 text-xs">Name</TableHead>
-                  <TableHead className="text-zinc-500 text-xs">Role</TableHead>
-                  <TableHead className="text-zinc-500 text-xs">Last Login</TableHead>
-                  {currentUserRole === "admin" && <TableHead className="text-right text-zinc-500 text-xs">Action</TableHead>}
+                <TableRow className="border-black/[0.06] hover:bg-transparent">
+                  <TableHead className="text-[#797a82] text-xs font-bold">Name</TableHead>
+                  <TableHead className="text-[#797a82] text-xs font-bold">Role</TableHead>
+                  <TableHead className="text-[#797a82] text-xs font-bold">Last Login</TableHead>
+                  {currentUserRole === "admin" && <TableHead className="text-right text-[#797a82] text-xs font-bold">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center text-xs text-zinc-500 py-6">No users found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-xs text-[#797a82] py-6">No users found</TableCell></TableRow>
                 ) : (
                   users.map((u) => (
-                    <TableRow key={u.id} className="border-zinc-800/40 hover:bg-zinc-850/40">
-                      <TableCell className="font-medium text-xs text-zinc-200">{u.name}</TableCell>
+                    <TableRow key={u.id} className="border-black/[0.04] hover:bg-white/80">
+                      <TableCell className="font-bold text-xs text-[#18191c]">{u.name}</TableCell>
                       <TableCell>{getRoleBadge(u.role)}</TableCell>
-                      <TableCell className="text-xs text-zinc-400 font-mono">{new Date(u.timestamp).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-xs text-[#797a82] font-mono">{new Date(u.timestamp).toLocaleDateString()}</TableCell>
                       {currentUserRole === "admin" && (
                         <TableCell className="text-right">
-                          <button onClick={() => deleteUser(u.id)} className="text-zinc-500 hover:text-red-400 p-1">
+                          <button onClick={() => deleteUser(u.id)} className="text-[#797a82] hover:text-red-600 p-1">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </TableCell>
@@ -134,36 +139,38 @@ export default function Users() {
           </div>
 
           {/* Telegram Subscribers Table */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-5 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
-              <div className="flex items-center gap-2">
-                <Send className="w-4 h-4 text-zinc-400" />
-                <h2 className="text-sm font-semibold text-white">Telegram Dispatch List</h2>
+          <div className="clay-card p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-black/[0.06]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#edece8] flex items-center justify-center text-[#18191c]">
+                  <Send className="w-4 h-4" />
+                </div>
+                <h2 className="text-sm font-bold text-[#18191c]">Telegram Dispatch List</h2>
               </div>
-              <span className="text-xs font-mono text-zinc-500">{subscribers.length} recipients</span>
+              <span className="text-xs font-mono font-bold text-[#797a82]">{subscribers.length} recipients</span>
             </div>
 
             <Table>
               <TableHeader>
-                <TableRow className="border-zinc-800/60 hover:bg-transparent">
-                  <TableHead className="text-zinc-500 text-xs">Recipient</TableHead>
-                  <TableHead className="text-zinc-500 text-xs">Chat ID</TableHead>
-                  <TableHead className="text-zinc-500 text-xs">Registered</TableHead>
-                  {currentUserRole === "admin" && <TableHead className="text-right text-zinc-500 text-xs">Action</TableHead>}
+                <TableRow className="border-black/[0.06] hover:bg-transparent">
+                  <TableHead className="text-[#797a82] text-xs font-bold">Recipient</TableHead>
+                  <TableHead className="text-[#797a82] text-xs font-bold">Chat ID</TableHead>
+                  <TableHead className="text-[#797a82] text-xs font-bold">Registered</TableHead>
+                  {currentUserRole === "admin" && <TableHead className="text-right text-[#797a82] text-xs font-bold">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {subscribers.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center text-xs text-zinc-500 py-6">No subscribers registered</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-xs text-[#797a82] py-6">No subscribers registered</TableCell></TableRow>
                 ) : (
                   subscribers.map((s) => (
-                    <TableRow key={s.id} className="border-zinc-800/40 hover:bg-zinc-850/40">
-                      <TableCell className="font-medium text-xs text-zinc-200">{s.name}</TableCell>
-                      <TableCell className="text-xs font-mono text-zinc-400">{s.chatId}</TableCell>
-                      <TableCell className="text-xs text-zinc-500 font-mono">{new Date(s.createdAt).toLocaleDateString()}</TableCell>
+                    <TableRow key={s.id} className="border-black/[0.04] hover:bg-white/80">
+                      <TableCell className="font-bold text-xs text-[#18191c]">{s.name}</TableCell>
+                      <TableCell className="text-xs font-mono font-bold text-[#55565d]">{s.chatId}</TableCell>
+                      <TableCell className="text-xs text-[#797a82] font-mono">{new Date(s.createdAt).toLocaleDateString()}</TableCell>
                       {currentUserRole === "admin" && (
                         <TableCell className="text-right">
-                          <button onClick={() => deleteSubscriber(s.id)} className="text-zinc-500 hover:text-red-400 p-1">
+                          <button onClick={() => deleteSubscriber(s.id)} className="text-[#797a82] hover:text-red-600 p-1">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </TableCell>

@@ -19,22 +19,22 @@ interface Alert {
   timestamp: number;
 }
 
-const TYPE_CFG: Record<string, { icon: React.ElementType; label: string; dot: string }> = {
-  GAS: { icon: Wind, label: "Gas Leakage", dot: "bg-emerald-400" },
-  DOOR: { icon: DoorOpen, label: "Door Perimeter", dot: "bg-sky-400" },
-  POWER: { icon: Zap, label: "Power Grid", dot: "bg-amber-400" },
-  BATT: { icon: BatteryLow, label: "Battery Level", dot: "bg-orange-400" },
-  IGNITION: { icon: Flame, label: "Ignition Event", dot: "bg-red-400" },
-  HUMIDITY: { icon: Droplets, label: "Humidity", dot: "bg-cyan-400" },
-  WEATHER: { icon: CloudSun, label: "Weather Trend", dot: "bg-indigo-400" },
-  INFO: { icon: Info, label: "System Info", dot: "bg-zinc-400" },
+const TYPE_CFG: Record<string, { icon: React.ElementType; label: string; color: string }> = {
+  GAS: { icon: Wind, label: "Gas Leakage", color: "#16a34a" },
+  DOOR: { icon: DoorOpen, label: "Door Perimeter", color: "#0284c7" },
+  POWER: { icon: Zap, label: "Power Grid", color: "#d97706" },
+  BATT: { icon: BatteryLow, label: "Battery Level", color: "#ea580c" },
+  IGNITION: { icon: Flame, label: "Ignition Event", color: "#dc2626" },
+  HUMIDITY: { icon: Droplets, label: "Humidity", color: "#0891b2" },
+  WEATHER: { icon: CloudSun, label: "Weather Trend", color: "#6366f1" },
+  INFO: { icon: Info, label: "System Info", color: "#55565d" },
 };
 
-const SEVERITY_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  critical: { bg: "bg-red-500/10 border-red-500/20", text: "text-red-400", label: "Critical" },
-  error: { bg: "bg-red-500/10 border-red-500/20", text: "text-red-400", label: "Error" },
-  warning: { bg: "bg-amber-500/10 border-amber-500/20", text: "text-amber-400", label: "Warning" },
-  info: { bg: "bg-zinc-800/80 border-zinc-700/60", text: "text-zinc-400", label: "Info" },
+const SEVERITY_BADGE: Record<string, { badge: string; label: string }> = {
+  critical: { badge: "badge-stopped", label: "Critical" },
+  error: { badge: "badge-stopped", label: "Error" },
+  warning: { badge: "badge-warning", label: "Warning" },
+  info: { badge: "badge-running", label: "Info" },
 };
 
 function formatTimestamp(ts: number) {
@@ -81,26 +81,28 @@ export default function Alerts() {
 
   return (
     <Layout>
-      <div className="space-y-6 pb-12 max-w-7xl">
+      <div className="space-y-6 pb-12 max-w-[1440px] mx-auto">
 
         {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-2">
           <div>
-            <h1 className="text-xl font-semibold text-white tracking-tight">System Alerts & Event Logs</h1>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Diagnostic audit trail from hardware sensors and cloud triggers
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#18191c]">
+              System Alerts & Event Logs
+            </h1>
+            <p className="text-xs text-[#797a82] mt-0.5">
+              Diagnostic audit trail from hardware sensors and cloud trigger interlocks
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-zinc-500 bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
+            <span className="text-xs font-mono font-bold text-[#55565d] bg-white/80 px-3 py-1.5 rounded-full border border-black/[0.06] shadow-sm">
               {alerts.length} total events logged
             </span>
           </div>
         </div>
 
         {/* ── Category Filter Pills ── */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="clay-pill-bar flex gap-1 overflow-x-auto pb-1 max-w-max">
           {filterTypes.map((t) => {
             const count = t === "ALL" ? alerts.length : counts[t] ?? 0;
             const isSelected = filter === t;
@@ -110,16 +112,16 @@ export default function Alerts() {
                 key={t}
                 onClick={() => setFilter(t)}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 select-none",
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 select-none",
                   isSelected
-                    ? "bg-white text-black shadow-sm"
-                    : "bg-black border border-white/12 text-neutral-400 hover:text-white hover:border-white/30"
+                    ? "bg-[#18191c] text-white shadow-sm"
+                    : "text-[#5e6068] hover:text-[#18191c] hover:bg-white/60"
                 )}
               >
                 <span>{t}</span>
                 <span className={cn(
-                  "text-[10px] px-1.5 py-0.2 rounded-full font-mono",
-                  isSelected ? "bg-black text-white font-bold" : "bg-neutral-900 text-neutral-400"
+                  "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                  isSelected ? "bg-white text-[#18191c]" : "bg-[#dedcd5] text-[#55565d]"
                 )}>
                   {count}
                 </span>
@@ -129,12 +131,12 @@ export default function Alerts() {
         </div>
 
         {/* ── Event Timeline List ── */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {filtered.length === 0 ? (
-            <div className="rounded-2xl border border-white/12 bg-black p-12 text-center space-y-2">
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-              <p className="text-sm font-bold text-white">No alerts found</p>
-              <p className="text-xs text-neutral-400">No telemetry events match the selected category filter.</p>
+            <div className="clay-card p-12 text-center space-y-2">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+              <p className="text-sm font-bold text-[#18191c]">No alerts found</p>
+              <p className="text-xs text-[#797a82]">No telemetry events match the selected category filter.</p>
             </div>
           ) : (
             filtered.map((alert) => {
@@ -145,34 +147,34 @@ export default function Alerts() {
               return (
                 <div
                   key={alert.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-white/12 bg-black hover:border-white/25 transition-all gap-3 shadow-sm"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-white/80 hover:bg-white border border-black/[0.06] transition-all gap-3 shadow-sm hover:shadow-md"
                 >
                   {/* Left: Icon + Type + Message */}
                   <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-white/10 flex items-center justify-center shrink-0 text-white">
-                      <typeCfg.icon className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-xl bg-[#edece8] border border-black/[0.05] flex items-center justify-center shrink-0 text-[#18191c] shadow-inner">
+                      <typeCfg.icon className="w-5 h-5" />
                     </div>
 
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-white">{typeCfg.label}</span>
-                        <span className={cn("text-[10px] px-2 py-0.2 rounded-full border font-semibold", sev.bg, sev.text)}>
-                          {sev.label}
+                        <span className="text-xs font-bold text-[#18191c]">{typeCfg.label}</span>
+                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-bold font-mono", sev.badge)}>
+                          • {sev.label}
                         </span>
                         {alert.sensor_value !== null && alert.sensor_value !== undefined && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-900 border border-white/10 font-mono text-white">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#edece8] font-mono font-bold text-[#18191c]">
                             val: {alert.sensor_value}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-neutral-300 leading-relaxed truncate">{alert.message}</p>
+                      <p className="text-xs text-[#55565d] leading-relaxed truncate">{alert.message}</p>
                     </div>
                   </div>
 
                   {/* Right: Timestamp */}
-                  <div className="sm:text-right shrink-0 text-xs font-mono text-neutral-400 pl-12 sm:pl-0">
-                    <div className="text-white font-semibold">{time}</div>
-                    <div className="text-[10px] text-neutral-500">{date}</div>
+                  <div className="sm:text-right shrink-0 text-xs font-mono text-[#797a82] pl-12 sm:pl-0">
+                    <div className="text-[#18191c] font-bold">{time}</div>
+                    <div className="text-[10px] text-[#9b9a94]">{date}</div>
                   </div>
                 </div>
               );
