@@ -21,7 +21,7 @@
  * Firebase Realtime Database:
  *  - URL: https://iotmesh-4123-default-rtdb.firebaseio.com/
  *  - Controls Monitored: /home/room1/controls/
- *  - Sensor Telemetry:   /home/sensors/ & /home/room1/sensor
+ *  - Sensor Telemetry:   /home/sensors/ & /home/sensor
  *  - Device Health:      /home/room1/status
  * 
  * ══════════════════════════════════════════════════════════════════════════════════
@@ -54,7 +54,7 @@
 // Database Paths
 #define FB_PATH_CONTROLS        "/home/room1/controls"
 #define FB_PATH_SENSORS         "/home/sensors"
-#define FB_PATH_ROOM_SENSOR     "/home/room1/sensor"
+#define FB_PATH_ROOM_SENSOR     "/home/sensor"
 #define FB_PATH_STATUS          "/home/room1/status"
 
 // =================================================================================
@@ -801,7 +801,7 @@ void updateFirebase() {
   jsonSensors.set("uptime", uptimeSec);
   jsonSensors.set("timestamp", (double)millis());
 
-  // 2. Build Payload for /home/room1/sensor (Web App format compatibility)
+  // 2. Build Payload for /home/sensor (Web App format compatibility)
   jsonRoomSensor.set("temperature", effectiveTemp);
   jsonRoomSensor.set("temperatureBMP", telemetry.temperatureBMP);
   jsonRoomSensor.set("humidity", effectiveHum);

@@ -3,6 +3,35 @@
     "home": {
       ".read": true,
 
+      "sensor": {
+        ".read": true,
+        ".write": true
+      },
+      "sensors": {
+        ".read": true,
+        ".write": true
+      },
+      "alerts": {
+        ".read": true,
+        ".write": true
+      },
+      "history": {
+        ".read": true,
+        ".write": true
+      },
+      "weather": {
+        ".read": true,
+        ".write": true
+      },
+      "automations": {
+        ".read": true,
+        ".write": true
+      },
+      "automation": {
+        ".read": true,
+        ".write": true
+      },
+
       "room1": {
         "controls": {
           ".read": true,

@@ -45,10 +45,10 @@
           │ HTTPS / WSS                             │ Realtime Sync                 │ Webhooks / API
 ┌─────────┴────────────────────────┐    ┌───────────┴───────────────────────┐   ┌───┴─────────────────────────────┐
 │       Web Client Application     │    │     Firebase Cloud Realtime DB    │   │      Render Node.js Backend     │
-│ • React 18 + TypeScript + Vite   │    │  • home/room1/sensor (Telemetry)  │   │ • Event Listener & Dispatcher   │
+│ • React 18 + TypeScript + Vite   │    │  • home/sensor (Telemetry)        │   │ • Event Listener & Dispatcher   │
 │ • Web Audio Synthesis Soundscape │    │  • home/room1/controls (States)   │   │ • Telegram Bot API Engine       │
-│ • Web Vibration Haptic Feedback  │    │  • home/room1/alerts/logs (Logs)  │   │ • GitHub Releases OTA Publisher │
-│ • Recharts Historical Analytics  │    │  • home/room1/automations (Rules) │   │ • 2FA OTP Code Generator        │
+│ • Web Vibration Haptic Feedback  │    │  • home/alerts/logs (Logs)        │   │ • GitHub Releases OTA Publisher │
+│ • Recharts Historical Analytics  │    │  • home/automations (Rules)       │   │ • 2FA OTP Code Generator        │
 │ • Role-Based Protected Routes    │    │  • security/passwords (Overrides) │   │ • Background Health Monitor     │
 └──────────────────────────────────┘    └───────────┬───────────────────────┘   └─────────────────────────────────┘
                                                     │
@@ -63,8 +63,8 @@
 ```
 
 ### High-Level Data Flow:
-1. **Sensors → ESP → Firebase:** Microcontrollers sample analog and digital sensors (DHT11, BMP180, MQ135, HC-SR04, Rain, PIR, Door reed switch, Power sensor, Voltage divider) and stream JSON payloads to `home/room1/sensor`.
-2. **Firebase → Web Client:** The React web app establishes real-time WebSocket listeners (`onValue`) on `home/room1/sensor` to update UI dials, badges, and charts with sub-second latency.
+1. **Sensors → ESP → Firebase:** Microcontrollers sample analog and digital sensors (DHT11, BMP180, MQ135, HC-SR04, Rain, PIR, Door reed switch, Power sensor, Voltage divider) and stream JSON payloads to `home/sensor`.
+2. **Firebase → Web Client:** The React web app establishes real-time WebSocket listeners (`onValue`) on `home/sensor` to update UI dials, badges, and charts with sub-second latency.
 3. **Web Client → Firebase → ESP (Actuation):** Toggling a light, fan, relay, or lock writes to `home/room1/controls`. Connected ESP nodes receive the delta instantly and toggle their GPIO pins.
 4. **Firebase → Backend → Telegram:** Critical threshold breaches (`GAS`, `DOOR`, `POWER`, `BATT`, `IGNITION`) trigger backend event handlers to broadcast rich markdown alerts to registered Telegram subscribers.
 
@@ -116,7 +116,7 @@
 ---
 
 ### 2.3 Rule-Based Automation Engine
-* **Visual Condition-Action Builder:** Create custom IF/THEN automation rules stored in `home/room1/automations/{ruleId}`.
+* **Visual Condition-Action Builder:** Create custom IF/THEN automation rules stored in `home/automations/{ruleId}`.
 * **Condition Engine:**
   * Monitored Sensors: Temperature, Humidity, Gas PPM, Pressure, Water Level, Rain, Motion, Door, Power Source.
   * Supported Operators: `>`, `<`, `>=`, `<=`, `==`, `!=`.
@@ -179,7 +179,7 @@
 ---
 
 ### 2.8 Timeseries Analytics & Dual-Sensor Graphing
-* **Historical Telemetry Log:** Ingests timeseries data from `home/room1/history/h24`.
+* **Historical Telemetry Log:** Ingests timeseries data from `home/history/h24`.
 * **Dynamic Range Filtering:** Visualizes `1h`, `12h`, and `24h` sliding time windows.
 * **Composite Chart Visualizations:**
   * **Dual Temperature Chart:** Simultaneous overlay of DHT11 (solid red line + red gradient area) vs BMP180 (orange line + orange gradient area) with custom dual hover tooltips.
@@ -244,23 +244,72 @@ IoTMesh generates all sound effects procedurally via the **Web Audio API** with 
 ```json
 {
   "home": {
+    "sensor": {
+      "temperature": 28.4,
+      "temperatureBMP": 28.1,
+      "humidity": 58.0,
+      "pressure": 1013.2,
+      "gas": 184.0,
+      "rain": false,
+      "WaterLevel": 78.0,
+      "motion": false,
+      "door": 0,
+      "power": 1,
+      "batteryVolt": 4.12,
+      "batteryPercent": 88,
+      "timestamp": 1724667000000,
+      "last_update": "12:30:00 26-08-2026"
+    },
+    "weather": {
+      "trend": 0.42,
+      "prediction": "Rising (Clear Weather)",
+      "latest_hpa": 1013.2,
+      "oldest_hpa": 1011.1,
+      "samples": 12,
+      "updated_at": "12:30:00"
+    },
+    "history": {
+      "h24": {
+        "-OABC123": {
+          "timestamp": 1724667000000,
+          "temperature": 28.4,
+          "temperatureBMP": 28.1,
+          "humidity": 58.0,
+          "gas": 184.0,
+          "pressure": 1013.2,
+          "waterLevel": 78.0,
+          "batteryPercent": 88,
+          "batteryVolt": 4.12
+        }
+      }
+    },
+    "alerts": {
+      "logs": {
+        "-OALR999": {
+          "alert_type": "GAS",
+          "severity": "critical",
+          "message": "MQ Sensor triggered — emergency broadcast sent",
+          "sensor_value": 380,
+          "timestamp": 1724667000000
+        }
+      }
+    },
+    "automations": {
+      "rule_abc123": {
+        "id": "rule_abc123",
+        "name": "Cool Room When Hot",
+        "enabled": true,
+        "conditions": [
+          { "sensor": "temperature", "operator": ">", "value": "32" },
+          { "sensor": "motion", "operator": "==", "value": "true" }
+        ],
+        "actions": [
+          { "device": "room1Fan", "action": "on" },
+          { "device": "relay1", "action": "on" }
+        ]
+      }
+    },
     "room1": {
-      "sensor": {
-        "temperature": 28.4,
-        "temperatureBMP": 28.1,
-        "humidity": 58.0,
-        "pressure": 1013.2,
-        "gas": 184.0,
-        "rain": false,
-        "WaterLevel": 78.0,
-        "motion": false,
-        "door": 0,
-        "power": 1,
-        "batteryVolt": 4.12,
-        "batteryPercent": 88,
-        "timestamp": 1724667000000,
-        "last_update": "12:30:00 26-08-2026"
-      },
       "controls": {
         "room1Light": false,
         "room1Switch": false,
@@ -290,55 +339,6 @@ IoTMesh generates all sound effects procedurally via the **Web Audio API** with 
       "status": {
         "online": true,
         "lastSeen": 1724667000000
-      },
-      "weather": {
-        "trend": 0.42,
-        "prediction": "Rising (Clear Weather)",
-        "latest_hpa": 1013.2,
-        "oldest_hpa": 1011.1,
-        "samples": 12,
-        "updated_at": "12:30:00"
-      },
-      "history": {
-        "h24": {
-          "-OABC123": {
-            "timestamp": 1724667000000,
-            "temperature": 28.4,
-            "temperatureBMP": 28.1,
-            "humidity": 58.0,
-            "gas": 184.0,
-            "pressure": 1013.2,
-            "waterLevel": 78.0,
-            "batteryPercent": 88,
-            "batteryVolt": 4.12
-          }
-        }
-      },
-      "alerts": {
-        "logs": {
-          "-OALR999": {
-            "alert_type": "GAS",
-            "severity": "critical",
-            "message": "MQ Sensor triggered — emergency broadcast sent",
-            "sensor_value": 380,
-            "timestamp": 1724667000000
-          }
-        }
-      },
-      "automations": {
-        "rule_abc123": {
-          "id": "rule_abc123",
-          "name": "Cool Room When Hot",
-          "enabled": true,
-          "conditions": [
-            { "sensor": "temperature", "operator": ">", "value": "32" },
-            { "sensor": "motion", "operator": "==", "value": "true" }
-          ],
-          "actions": [
-            { "device": "room1Fan", "action": "on" },
-            { "device": "relay1", "action": "on" }
-          ]
-        }
       }
     },
     "users": {
@@ -544,7 +544,7 @@ The front-end integrates with an external Node.js event-driven backend (`VITE_BA
   * Writes release CDN download URL to Firebase `ota/latest` and `ota/current`.
   * Returns JSON payload `{ success: true, version, board, url }`.
 * **Telegram 2FA OTP Daemon:** Monitors `security/otp`, dispatches 6-digit OTP codes via Telegram Bot API, and enforces 5-minute expirations.
-* **Alert Broadcast Engine:** Listens to `home/room1/alerts/logs` and pushes markdown notifications to all registered subscriber chat IDs in `telegram/subscribers/list`.
+* **Alert Broadcast Engine:** Listens to `home/alerts/logs` and pushes markdown notifications to all registered subscriber chat IDs in `telegram/subscribers/list`.
 
 ---
 
@@ -555,21 +555,21 @@ When rebuilding the web application with a brand-new UI, ensure the following re
 - [ ] **Dual-Stage Authentication:** Step 1 Access Key check + Step 2 Admin passkey or Guest access.
 - [ ] **Dynamic Key Overrides:** Prioritize `security/passwords` from Firebase over `.env` defaults.
 - [ ] **Inactivity Auto-Logout:** Enforce a 30-minute idle timer with activity reset.
-- [ ] **Live Telemetry Parsing:** Subscribe to `home/room1/sensor` and parse all 11 sensor readings.
+- [ ] **Live Telemetry Parsing:** Subscribe to `home/sensor` and parse all 11 sensor readings.
 - [ ] **120-Second Liveness Watchdog:** Automatically switch LIVE/OFFLINE status badges based on `last_update`.
-- [ ] **Weather Prediction Trend:** Render barometric forecast string and `hPa/sample` delta from `home/room1/weather`.
+- [ ] **Weather Prediction Trend:** Render barometric forecast string and `hPa/sample` delta from `home/weather`.
 - [ ] **Power Subsystem:** Correctly distinguish Grid (`power === 1`) vs Inverter (`power === 0`) and format battery `%` and `V`.
 - [ ] **Appliance Switching:** Support discrete toggles for Lights, Switches, and Fans across all rooms.
 - [ ] **4-Speed Fan Modulation:** Implement 4-state fan speed step controls (`0, 1, 2, 3`).
 - [ ] **Relay Actuation:** Provide discrete control for `relay1`, `relay2`, `relay3`, and `relay4`.
 - [ ] **Scene Shortcuts:** Implement "All OFF" (preserving locks), "Night Mode" lockdown, and "Day Mode".
 - [ ] **Guest Lock Modal:** Intercept guest door lock toggles and require security password entry.
-- [ ] **Timeseries Analytics:** Graph 1h, 12h, and 24h ranges from `home/room1/history/h24`.
+- [ ] **Timeseries Analytics:** Graph 1h, 12h, and 24h ranges from `home/history/h24`.
 - [ ] **Composite Graphs:** Render dual temperature curves (DHT11 + BMP180) and dual battery graphs (% Area + Voltage Line).
 - [ ] **Statistical Aggregations:** Calculate live Min, Max, and Average values for active chart windows.
-- [ ] **Diagnostic Alert Log:** Render logs from `home/room1/alerts/logs` with category filters.
+- [ ] **Diagnostic Alert Log:** Render logs from `home/alerts/logs` with category filters.
 - [ ] **Telegram Subscriber Registry:** Allow saving subscribers with autoincrementing index under `telegram/subscribers/list`.
-- [ ] **Automation Engine:** Visual IF/THEN builder saving to `home/room1/automations` with active client evaluation.
+- [ ] **Automation Engine:** Visual IF/THEN builder saving to `home/automations` with active client evaluation.
 - [ ] **Ignition Safety Interlock:** Enforce Admin role, Arm Passcode check, 5-second physical hold, and 3-second auto-reset.
 - [ ] **Dynamic Password Rotation:** Allow admins to update credentials directly in `security/passwords`.
 - [ ] **Telegram 2FA OTP Reset:** Request OTP, receive code via Telegram, verify 6 digits, and update password.
