@@ -13,7 +13,7 @@ import {
   Wifi, Sun, Moon, AlertTriangle, ShieldAlert
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
-import { firebaseService, ControlData, NodeStatusData, WeatherData, database } from "@/lib/firebase";
+import { firebaseService, ControlData, NodeStatusData, WeatherData, database, PATHS } from "@/lib/firebase";
 import { ref, onValue } from "firebase/database";
 import { BarcodeSparkline } from "@/components/ui/BarcodeSparkline";
 import { GaugeArc } from "@/components/ui/GaugeArc";
@@ -79,7 +79,7 @@ export default function Dashboard() {
   // Real 24h Timeseries History from Firebase
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [chartMetric, setChartMetric] = useState<"temperature" | "humidity" | "gas" | "waterLevel" | "pressure">("temperature");
-  const [chartNode, setChartNode] = useState<"room1" | "room2" | "room3">("room1");
+  const [chartNode, setChartNode] = useState<"home" | "room1" | "room2" | "room3">("home");
   const [chartRange, setChartRange] = useState<1 | 6 | 12 | 24>(24);
 
   // Real Alerts from Firebase
@@ -109,7 +109,8 @@ export default function Dashboard() {
 
   // Listen to Timeseries History from Firebase with physical range sanitization & sliding time window
   useEffect(() => {
-    const histRef = ref(database, `home/${chartNode}/history/h24`);
+    const histPath = chartNode === "home" ? "home/history/h24" : `home/${chartNode}/history/h24`;
+    const histRef = ref(database, histPath);
     const unsub = onValue(histRef, (snapshot) => {
       if (!snapshot.exists()) {
         setHistory([]);
@@ -151,7 +152,7 @@ export default function Dashboard() {
 
   // Listen to Alerts from Firebase
   useEffect(() => {
-    const r = ref(database, "home/room1/alerts/logs");
+    const r = ref(database, PATHS.ALERTS);
     return onValue(r, (snap) => {
       if (snap.exists()) {
         const list = Object.entries(snap.val())
@@ -294,6 +295,7 @@ export default function Dashboard() {
 
   // Node Names Mapping
   const NODE_NAMES: Record<string, string> = {
+    home: "Home Hub",
     room1: "Room 1 ESP32 Hub",
     room2: "Room 2 Subnode",
     room3: "Room 3 Subnode",
@@ -605,7 +607,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Node Selector */}
                   <div className="clay-pill-bar flex items-center gap-1 p-0.5">
-                    {(["room1", "room2", "room3"] as const).map((nKey) => (
+                    {(["home", "room1", "room2", "room3"] as const).map((nKey) => (
                       <button
                         key={nKey}
                         onClick={() => setChartNode(nKey)}
@@ -616,7 +618,7 @@ export default function Dashboard() {
                             : "text-[#6c6e75] hover:text-[#18191c]"
                         )}
                       >
-                        {nKey === "room1" ? "Room 1 (Hub)" : nKey === "room2" ? "Room 2" : "Room 3"}
+                        {nKey === "home" ? "Home (Hub)" : nKey === "room1" ? "Room 1" : nKey === "room2" ? "Room 2" : "Room 3"}
                       </button>
                     ))}
                   </div>

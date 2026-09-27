@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { onValue, ref } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { database, PATHS } from "@/lib/firebase";
 import {
   Info, Zap, DoorOpen, Wind, BatteryLow, Flame,
   CloudSun, Droplets, Bell, ShieldAlert, CheckCircle2
@@ -51,7 +51,7 @@ export default function Alerts() {
   const [filter, setFilter] = useState("ALL");
 
   useEffect(() => {
-    const r = ref(database, "home/room1/alerts/logs");
+    const r = ref(database, PATHS.ALERTS);
     return onValue(r, (snap) => {
       if (snap.exists()) {
         const list = Object.entries(snap.val())

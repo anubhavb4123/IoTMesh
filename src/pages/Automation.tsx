@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 import { useSensorData } from "@/hooks/useSensorData";
-import { firebaseService, ControlData, database } from "@/lib/firebase";
+import { firebaseService, ControlData, database, PATHS } from "@/lib/firebase";
 import { ref, onValue, set } from "firebase/database";
 import { cn } from "@/lib/utils";
 
@@ -89,7 +89,7 @@ const ACTION_OPTIONS = [
 
 const BOOL_SENSORS = ["rain", "motion", "door"];
 const POWER_SENSOR = "power";
-const AUTOMATION_PATH = "home/room1/automations";
+const AUTOMATION_PATH = PATHS.AUTOMATIONS;
 
 function isBoolSensor(sensor: string) {
   return BOOL_SENSORS.includes(sensor);

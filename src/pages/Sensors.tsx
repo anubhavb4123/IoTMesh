@@ -33,9 +33,10 @@ type Metric = "temperature" | "humidity" | "gas" | "pressure" | "waterLevel" | "
 type Range = 1 | 6 | 12 | 24;
 
 const NODE_LABELS = {
-  room1: "Room 1 (Hub)",
-  room2: "Room 2 (Subnode)",
-  room3: "Room 3 (Subnode)",
+  home: "Home (Main Hub)",
+  room1: "Room 1",
+  room2: "Room 2",
+  room3: "Room 3",
 };
 
 const METRICS = [
@@ -71,7 +72,7 @@ const CustomTooltip = ({ active, payload, label, unit, color }: any) => {
 
 export default function Sensors() {
   const { sensorData: globalLive, loading, error } = useSensorData();
-  const [selectedNode, setSelectedNode] = useState<"room1" | "room2" | "room3">("room1");
+  const [selectedNode, setSelectedNode] = useState<"home" | "room1" | "room2" | "room3">("home");
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [nodeLive, setNodeLive] = useState<SensorData | null>(null);
   const [range, setRange] = useState<Range>(24);
@@ -81,11 +82,12 @@ export default function Sensors() {
 
   // Listen to node-specific live sensor telemetry
   useEffect(() => {
-    const sRef = ref(database, `home/${selectedNode}/sensor`);
+    const sPath = selectedNode === "home" ? "home/sensor" : `home/${selectedNode}/sensor`;
+    const sRef = ref(database, sPath);
     const unsub = onValue(sRef, (snap) => {
       if (snap.exists()) {
         setNodeLive(snap.val());
-      } else if (selectedNode === "room1") {
+      } else if (selectedNode === "home" || selectedNode === "room1") {
         setNodeLive(globalLive);
       } else {
         setNodeLive(null);
@@ -96,7 +98,8 @@ export default function Sensors() {
 
   // Listen to 24h Timeseries History from Firebase
   useEffect(() => {
-    const histRef = ref(database, `home/${selectedNode}/history/h24`);
+    const hPath = selectedNode === "home" ? "home/history/h24" : `home/${selectedNode}/history/h24`;
+    const histRef = ref(database, hPath);
     const unsub = onValue(histRef, (snapshot) => {
       if (!snapshot.exists()) {
         setHistory([]);
@@ -137,7 +140,7 @@ export default function Sensors() {
     return () => unsub();
   }, [selectedNode, range]);
 
-  const activeLive = nodeLive || (selectedNode === "room1" ? globalLive : null);
+  const activeLive = nodeLive || (selectedNode === "home" || selectedNode === "room1" ? globalLive : null);
 
   // Online telemetry sync age calculation
   useEffect(() => {
@@ -279,7 +282,7 @@ export default function Sensors() {
 
           {/* Node Selector Pills */}
           <div className="clay-pill-bar flex items-center gap-1 p-1 self-start md:self-auto flex-wrap">
-            {(["room1", "room2", "room3"] as const).map((nKey) => (
+            {(["home", "room1", "room2", "room3"] as const).map((nKey) => (
               <button
                 key={nKey}
                 onClick={() => setSelectedNode(nKey)}
@@ -291,7 +294,7 @@ export default function Sensors() {
                 )}
               >
                 <Radio className="w-3 h-3" />
-                <span>{nKey === "room1" ? "Room 1 (Hub)" : nKey === "room2" ? "Room 2" : "Room 3"}</span>
+                <span>{NODE_LABELS[nKey]}</span>
               </button>
             ))}
           </div>

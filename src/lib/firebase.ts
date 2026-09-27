@@ -37,7 +37,7 @@ const CONTROL_PATH = "home/room1/controls";
 // DATABASE PATHS
 // ------------------------------------------------------
 const PATHS = {
-  SENSORS: "home/room1/sensor",
+  SENSORS: "home/sensor",
   CONTROLS: "home/room1/controls",
   CONTROLS_ROOM1: "home/room1/controls",
   CONTROLS_ROOM2: "home/room2/controls",
@@ -50,9 +50,11 @@ const PATHS = {
   STATUS_ROOM3: "home/room3/status",
   STATUS_COMMON: "home/commonarea/status",
   USERS: "users",
-  ALERTS: "home/room1/alerts/logs",
+  ALERTS: "home/alerts/logs",
+  AUTOMATIONS: "home/automations",
   IGNITION: "special/ignition",
-  WEATHER: "home/room1/weather",
+  WEATHER: "home/weather",
+  HISTORY: "home/history/h24",
 } as const;
 
 // INTERFACES
@@ -500,7 +502,7 @@ class AlertService {
     this.lastAlert[key] = now;
     console.log(`[AlertService] newAlert called for ${key}`);
     console.log(`[AlertService] Writing alert to Firebase: ${key}`, alert);
-    await push(ref(database, "home/room1/alerts/logs"), alert);
+    await push(ref(database, PATHS.ALERTS), alert);
     console.log(`[AlertService] Alert written successfully for ${key}`);
   }
 
