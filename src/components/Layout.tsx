@@ -44,6 +44,7 @@ interface NavItem {
 const primaryNavItems: NavItem[] = [
   { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard },
   { name: "DEVICES", href: "/devices", icon: Lightbulb },
+  { name: "SCHEDULES", href: "/schedules", icon: Clock },
   { name: "SENSORS", href: "/sensors", icon: Activity },
   { name: "ALERTS", href: "/alerts", icon: Bell },
   { name: "AUTOMATION", href: "/automation", icon: Workflow },
@@ -356,6 +357,13 @@ export const Layout = ({ children }: LayoutProps) => {
                     >
                       <Lightbulb className="w-3.5 h-3.5" />
                       <span>Device Controls</span>
+                    </Link>
+                    <Link
+                      to="/schedules"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-[#44464f] hover:bg-[#edece8] hover:text-[#18191c] transition-colors"
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Timers & Schedules</span>
                     </Link>
                     <Link
                       to="/security"

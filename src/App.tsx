@@ -18,6 +18,7 @@ import Automation from "@/pages/Automation";
 import IotMeshA from "./pages/IotMeshA";
 import Security from "./pages/Security";
 import FirmwareUpdate from "./pages/FirmwareUpdate";
+import Schedules from "./pages/Schedules";
 
 const queryClient = new QueryClient();
 
@@ -106,6 +107,22 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Automation />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/schedules"
+                  element={
+                    <ProtectedRoute>
+                      <Schedules />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/timers"
+                  element={
+                    <ProtectedRoute>
+                      <Schedules />
                     </ProtectedRoute>
                   }
                 />

@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchedules } from "@/hooks/useSchedules";
+import { useNavigate } from "react-router-dom";
 import { cn, parseNodeTimestampToMs, formatNodeLastSeen } from "@/lib/utils";
 
 const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD;
@@ -151,8 +153,22 @@ function NodeStatusPanel({ title, status }: NodeStatusPanelProps) {
 }
 
 export default function Devices() {
+  const navigate = useNavigate();
   const [controls, setControls] = useState<ControlData>({} as ControlData);
   const { role } = useAuth();
+  const { getDeviceScheduleInfo, cancelTimer } = useSchedules();
+
+  const getBadge = (key: string) => {
+    const info = getDeviceScheduleInfo(key);
+    if (!info.hasScheduleOrTimer) return null;
+    return {
+      type: info.badgeType || "schedule",
+      label: info.badgeText,
+      onCancel: info.activeTimer ? () => cancelTimer(info.activeTimer!.id) : undefined,
+      onClick: () => navigate("/schedules"),
+    };
+  };
+
   const [roomStatuses, setRoomStatuses] = useState<{
     room1: NodeStatusData | null;
     room2: NodeStatusData | null;
@@ -381,29 +397,42 @@ export default function Devices() {
                     icon={Lightbulb}
                     isActive={!!(controls[`${prefix}Light`])}
                     onToggle={(v) => update(`${prefix}Light`, v)}
+                    timerBadge={getBadge(`${prefix}Light`)}
                   />
                   <DeviceControl
                     title="Wall Switch"
                     icon={ToggleLeft}
                     isActive={!!(controls[`${prefix}Switch`])}
                     onToggle={(v) => update(`${prefix}Switch`, v)}
+                    timerBadge={getBadge(`${prefix}Switch`)}
                   />
                   
                   {/* Fan Tile + Integrated Speed Selector */}
                   <div className="space-y-2.5 p-4 rounded-2xl bg-white/70 border border-black/[0.05] shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-inner",
-                        fanOn ? "bg-[#18191c] text-white" : "bg-[#edece8] text-[#55565d]"
-                      )}>
-                        <Fan className={cn("w-4 h-4", fanOn && "animate-spin [animation-duration:1.5s]")} />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-inner",
+                          fanOn ? "bg-[#18191c] text-white" : "bg-[#edece8] text-[#55565d]"
+                        )}>
+                          <Fan className={cn("w-4 h-4", fanOn && "animate-spin [animation-duration:1.5s]")} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-[#18191c]">Ceiling Fan</p>
+                          <p className="text-[10px] text-[#797a82] font-medium">
+                            {fanOn ? `Speed ${fanSpeed || 1}` : "Turned Off"}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-bold text-[#18191c]">Ceiling Fan</p>
-                        <p className="text-[10px] text-[#797a82] font-medium">
-                          {fanOn ? `Speed ${fanSpeed || 1}` : "Turned Off"}
-                        </p>
-                      </div>
+
+                      {getBadge(fanKey) && (
+                        <div
+                          onClick={() => navigate("/schedules")}
+                          className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-mono font-bold cursor-pointer hover:bg-amber-100"
+                        >
+                          {getBadge(fanKey)?.label}
+                        </div>
+                      )}
                     </div>
 
                     <FanSegmentedControl
@@ -440,35 +469,49 @@ export default function Devices() {
               icon={Lightbulb}
               isActive={!!controls.lobbyLight}
               onToggle={(v) => update("lobbyLight", v)}
+              timerBadge={getBadge("lobbyLight")}
             />
             <DeviceControl
               title="Living Room TV"
               icon={Tv}
               isActive={!!controls.lobbyTV}
               onToggle={(v) => update("lobbyTV", v)}
+              timerBadge={getBadge("lobbyTV")}
             />
             <DeviceControl
               title="Refrigerator"
               icon={Refrigerator}
               isActive={!!controls.refrigerator}
               onToggle={(v) => update("refrigerator", v)}
+              timerBadge={getBadge("refrigerator")}
             />
 
             {/* Lobby Fan */}
             <div className="p-4 rounded-2xl bg-white/70 border border-black/[0.05] space-y-2.5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-inner",
-                  controls.lobbyFan ? "bg-[#18191c] text-white" : "bg-[#edece8] text-[#55565d]"
-                )}>
-                  <Fan className={cn("w-4 h-4", controls.lobbyFan && "animate-spin [animation-duration:1.5s]")} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-inner",
+                    controls.lobbyFan ? "bg-[#18191c] text-white" : "bg-[#edece8] text-[#55565d]"
+                  )}>
+                    <Fan className={cn("w-4 h-4", controls.lobbyFan && "animate-spin [animation-duration:1.5s]")} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-[#18191c]">Lobby Fan</p>
+                    <p className="text-[10px] text-[#797a82]">
+                      {controls.lobbyFan ? `Speed ${(controls.lobbyFanSpeed as number) || 1}` : "Turned Off"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-[#18191c]">Lobby Fan</p>
-                  <p className="text-[10px] text-[#797a82]">
-                    {controls.lobbyFan ? `Speed ${(controls.lobbyFanSpeed as number) || 1}` : "Turned Off"}
-                  </p>
-                </div>
+
+                {getBadge("lobbyFan") && (
+                  <div
+                    onClick={() => navigate("/schedules")}
+                    className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-mono font-bold cursor-pointer hover:bg-amber-100"
+                  >
+                    {getBadge("lobbyFan")?.label}
+                  </div>
+                )}
               </div>
               <FanSegmentedControl
                 fanOn={!!controls.lobbyFan}
@@ -497,6 +540,7 @@ export default function Devices() {
                 icon={Zap}
                 isActive={!!controls[r]}
                 onToggle={(v) => update(r, v)}
+                timerBadge={getBadge(r)}
               />
             ))}
           </div>
@@ -518,6 +562,7 @@ export default function Devices() {
               icon={controls.lock ? Lock : LockOpen}
               isActive={!!controls.lock}
               onToggle={handleLockToggle}
+              timerBadge={getBadge("lock")}
             />
             <DeviceControl
               title="PIR Motion Alarm"
@@ -525,6 +570,7 @@ export default function Devices() {
               icon={Activity}
               isActive={!!controls.motion}
               onToggle={(v) => update("motion", v)}
+              timerBadge={getBadge("motion")}
             />
           </div>
         </div>

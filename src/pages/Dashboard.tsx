@@ -32,6 +32,7 @@ import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchedules } from "@/hooks/useSchedules";
 
 // ── Types ─────────────────────────────────────────────────────
 interface DashboardData {
@@ -66,6 +67,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { role } = useAuth();
   const { sensorData: live, loading, error } = useSensorData();
+  const { getDeviceScheduleInfo } = useSchedules();
   const [controls, setControls] = useState<ControlData>({} as ControlData);
   const [sensorOnline, setSensorOnline] = useState(false);
   const [syncAge, setSyncAge] = useState("—");
@@ -1094,7 +1096,17 @@ export default function Dashboard() {
                     <Lightbulb className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-[#18191c]">Room 1 Ceiling Light</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-[#18191c]">Room 1 Ceiling Light</p>
+                      {getDeviceScheduleInfo("room1Light").hasScheduleOrTimer && (
+                        <span
+                          onClick={() => navigate("/schedules")}
+                          className="text-[9px] px-1.5 py-0.2 rounded-full font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300 cursor-pointer"
+                        >
+                          {getDeviceScheduleInfo("room1Light").badgeText}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-[#797a82]">{controls.room1Light ? "Energized (ON)" : "Turned OFF"}</p>
                   </div>
                 </div>
@@ -1142,7 +1154,17 @@ export default function Dashboard() {
                     <Lightbulb className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-[#18191c]">Lobby Main Light</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-[#18191c]">Lobby Main Light</p>
+                      {getDeviceScheduleInfo("lobbyLight").hasScheduleOrTimer && (
+                        <span
+                          onClick={() => navigate("/schedules")}
+                          className="text-[9px] px-1.5 py-0.2 rounded-full font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300 cursor-pointer"
+                        >
+                          {getDeviceScheduleInfo("lobbyLight").badgeText}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-[#797a82]">{controls.lobbyLight ? "Energized (ON)" : "Turned OFF"}</p>
                   </div>
                 </div>
