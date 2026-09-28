@@ -31,6 +31,15 @@
         ".read": true,
         ".write": true
       },
+      "schedules": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["type", "status", "enabled", "device"]
+      },
+      "timers": {
+        ".read": true,
+        ".write": true
+      },
 
       "room1": {
         "controls": {
@@ -151,6 +160,11 @@
     },
 
     "ota": {
+      ".read": true,
+      ".write": true
+    },
+
+    "schedules": {
       ".read": true,
       ".write": true
     },

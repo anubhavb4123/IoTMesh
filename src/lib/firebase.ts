@@ -52,10 +52,41 @@ const PATHS = {
   USERS: "users",
   ALERTS: "home/alerts/logs",
   AUTOMATIONS: "home/automations",
+  SCHEDULES: "home/schedules",
   IGNITION: "special/ignition",
   WEATHER: "home/weather",
   HISTORY: "home/history/h24",
 } as const;
+
+export type ScheduleType = "timer" | "schedule";
+export type ScheduleAction = "on" | "off";
+export type RepeatType = "everyday" | "weekdays" | "weekends" | "custom" | "once";
+
+export interface ScheduleItem {
+  id: string;
+  name: string;
+  type: ScheduleType;          // "timer" | "schedule"
+  device: keyof ControlData | string; // e.g. "room1Light", "lobbyFan", etc.
+  action: ScheduleAction;      // "on" | "off"
+  enabled: boolean;
+  createdAt: number;
+  
+  // Countdown Timer properties
+  durationMinutes?: number;    // original duration in minutes
+  targetTimestamp?: number;    // epoch in ms when timer triggers
+  autoTurnOnFirst?: boolean;   // turn switch ON immediately, then OFF at targetTimestamp
+  status?: "active" | "completed" | "cancelled";
+  completedAt?: number;
+
+  // Recurring / Specific Schedule properties
+  time?: string;               // "HH:mm" in 24h format (e.g. "07:30", "22:00")
+  days?: number[];             // [0..6] (0 = Sun, 1 = Mon ... 6 = Sat)
+  repeatType?: RepeatType;
+  specificDate?: string;       // "YYYY-MM-DD" for one-off scheduled date
+  lastRun?: number;            // epoch in ms when last fired
+  lastRunKey?: string;
+  notification?: boolean;      // send Telegram alert when executed
+}
 
 // INTERFACES
 export interface SensorData {
@@ -226,6 +257,24 @@ export interface NewAlert {
   message: string;
   sensor_value?: number | null;
   timestamp: number;
+}
+
+/** Helper to recursively strip any undefined values from Firebase payloads */
+export function cleanFirebasePayload<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(cleanFirebasePayload) as unknown as T;
+  }
+  if (typeof obj === "object" && !(obj instanceof Date)) {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, any>)) {
+      if (value !== undefined) {
+        cleaned[key] = cleanFirebasePayload(value);
+      }
+    }
+    return cleaned as T;
+  }
+  return obj;
 }
 
 // ------------------------------------------------------
@@ -485,6 +534,30 @@ class FirebaseService {
     return onValue(ref(database, PATHS.WEATHER), (snap) => {
       callback(snap.exists() ? (snap.val() as WeatherData) : null);
     });
+  }
+
+  /** Listen to live Timers and Schedules from /home/schedules */
+  listenToSchedules(callback: (data: Record<string, ScheduleItem>) => void): () => void {
+    return onValue(ref(database, PATHS.SCHEDULES), (snap) => {
+      callback(snap.exists() ? (snap.val() as Record<string, ScheduleItem>) : {});
+    });
+  }
+
+  /** Save or create a Timer or Scheduled routine */
+  async saveSchedule(item: ScheduleItem): Promise<void> {
+    const clean = cleanFirebasePayload(item);
+    return set(ref(database, `${PATHS.SCHEDULES}/${item.id}`), clean);
+  }
+
+  /** Update partial properties of a Timer or Schedule */
+  async updateSchedule(id: string, updates: Partial<ScheduleItem>): Promise<void> {
+    const clean = cleanFirebasePayload(updates);
+    return update(ref(database, `${PATHS.SCHEDULES}/${id}`), clean);
+  }
+
+  /** Delete a Timer or Schedule */
+  async deleteSchedule(id: string): Promise<void> {
+    return set(ref(database, `${PATHS.SCHEDULES}/${id}`), null);
   }
 }
 
