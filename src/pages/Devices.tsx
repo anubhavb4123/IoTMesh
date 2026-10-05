@@ -8,7 +8,8 @@ import {
   Activity, Sun, Moon, Refrigerator, KeyRound, X, Power,
   ShieldCheck, RefreshCw, Cpu
 } from "lucide-react";
-import { firebaseService, ControlData, NodeStatusData } from "@/lib/firebase";
+import { firebaseService, ControlData, NodeStatusData, database } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
@@ -204,13 +205,25 @@ export default function Devices() {
     };
   }, []);
 
-  // Security password modal state (guests only)
+  // Security password modal state (for unlocking by non-admin users)
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [securityInput, setSecurityInput] = useState("");
-  const [pendingLockValue, setPendingLockValue] = useState<boolean>(false);
+  const [activeSecurityPassword, setActiveSecurityPassword] = useState<string>(
+    import.meta.env.VITE_SECURITY_PASSWORD || ""
+  );
 
   useEffect(() => {
     const unsub = firebaseService.listenToControlStates(setControls);
+    return () => unsub();
+  }, []);
+
+  // Sync active security password from RTDB if configured
+  useEffect(() => {
+    const unsub = onValue(ref(database, "security/passwords/securityPassword"), (snap) => {
+      if (snap.exists() && snap.val()) {
+        setActiveSecurityPassword(String(snap.val()));
+      }
+    });
     return () => unsub();
   }, []);
 
@@ -234,23 +247,36 @@ export default function Devices() {
       toast.error("Perimeter Locked", { description: "Security controls cannot be modified in Night Mode." });
       return;
     }
-    if (role === "admin") {
-      update("lock", value);
+    // Any user can lock the door without entering a password
+    if (value) {
+      update("lock", true);
+      sounds.success();
+      haptic.success();
+      toast.success("Door Locked 🔒");
       return;
     }
-    setPendingLockValue(value);
+    // Admin can unlock without entering a password
+    if (role === "admin") {
+      update("lock", false);
+      sounds.success();
+      haptic.success();
+      toast.success("Door Unlocked 🔓");
+      return;
+    }
+    // Non-admin users must enter security password to unlock
     setShowSecurityModal(true);
     setSecurityInput("");
   };
 
   const handleSecuritySubmit = () => {
-    if (securityInput === SECURITY_PASSWORD) {
+    const validPassword = activeSecurityPassword || SECURITY_PASSWORD;
+    if (securityInput === validPassword) {
       setShowSecurityModal(false);
       setSecurityInput("");
       sounds.success();
       haptic.success();
-      toast.success(pendingLockValue ? "Door Locked 🔒" : "Door Unlocked 🔓");
-      firebaseService.updateSwitchState("lock", pendingLockValue);
+      toast.success("Door Unlocked 🔓");
+      firebaseService.updateSwitchState("lock", false);
     } else {
       setSecurityInput("");
       sounds.wrongPass();
@@ -577,7 +603,7 @@ export default function Devices() {
 
       </div>
 
-      {/* ── SECURITY PASSWORD MODAL ── */}
+      {/* ── SECURITY PASSWORD MODAL (UNLOCK DOOR) ── */}
       {showSecurityModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
@@ -590,7 +616,7 @@ export default function Devices() {
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <h3 className="text-sm font-bold text-[#18191c]">
-                  {pendingLockValue ? "Lock Door" : "Unlock Door"}
+                  Unlock Door
                 </h3>
               </div>
               <button onClick={closeSecurityModal} className="text-[#797a82] hover:text-[#18191c]">
@@ -599,7 +625,7 @@ export default function Devices() {
             </div>
 
             <p className="text-xs text-[#797a82] leading-relaxed">
-              Guest authorization required. Please enter the master security password to actuate the door lock.
+              Authorization required. Please enter the security password to unlock the perimeter door lock.
             </p>
 
             <Input
@@ -617,7 +643,7 @@ export default function Devices() {
                 Cancel
               </button>
               <button onClick={handleSecuritySubmit} className="clay-btn-dark text-xs">
-                Verify & Actuate
+                Verify & Unlock
               </button>
             </div>
           </div>

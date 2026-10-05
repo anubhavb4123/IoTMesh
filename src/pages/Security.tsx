@@ -46,36 +46,20 @@ interface PasswordConfig {
 
 const PASSWORD_CONFIGS: PasswordConfig[] = [
   {
-    key: "guestPassword",
-    label: "Guest Access Key",
-    envKey: "VITE_GUEST_PASSWORD_New",
-    firebaseKey: "guestPassword",
-    icon: KeyRound,
-    description: "Used by guests to access the dashboard",
-  },
-  {
-    key: "adminPassword",
-    label: "Admin Passkey",
-    envKey: "VITE_ADMIN_PASSWORD",
-    firebaseKey: "adminPassword",
-    icon: Shield,
-    description: "Grants full administrative privileges",
+    key: "securityPassword",
+    label: "Perimeter Security Passcode",
+    envKey: "VITE_SECURITY_PASSWORD",
+    firebaseKey: "securityPassword",
+    icon: Lock,
+    description: "Master security lock override code to unlock main perimeter doors",
   },
   {
     key: "armPassword",
-    label: "Arm Passcode",
+    label: "Ignition Arm Passcode",
     envKey: "VITE_ARM_PASSWORD",
     firebaseKey: "armPassword",
     icon: ShieldCheck,
     description: "Required to arm the high-voltage ignition system",
-  },
-  {
-    key: "securityPassword",
-    label: "Security Master Password",
-    envKey: "VITE_SECURITY_PASSWORD",
-    firebaseKey: "securityPassword",
-    icon: Lock,
-    description: "Master security lock override code",
   },
 ];
 

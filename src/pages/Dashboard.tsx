@@ -272,12 +272,22 @@ export default function Dashboard() {
 
   // Toggle quick appliance from dashboard
   const handleToggle = async (key: keyof ControlData) => {
+    if (controls.nightMode && (key === "lock" || key === "motion")) {
+      sounds.error();
+      haptic.error();
+      toast.error("Perimeter Locked", { description: "Security controls cannot be modified in Night Mode." });
+      return;
+    }
     haptic.tick();
     sounds.click();
     const currentVal = !!controls[key];
     const nextVal = !currentVal;
     await firebaseService.updateSwitchState(key, nextVal);
-    toast.success(`${key} ${nextVal ? "turned ON" : "turned OFF"}`);
+    if (key === "lock") {
+      toast.success(nextVal ? "Door Locked 🔒" : "Door Unlocked 🔓");
+    } else {
+      toast.success(`${key} ${nextVal ? "turned ON" : "turned OFF"}`);
+    }
   };
 
   // Toggle night mode
@@ -1196,7 +1206,8 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (role === "admin") {
+                    // Any user can lock without a password; unlocking requires admin or password verification
+                    if (!controls.lock || role === "admin") {
                       handleToggle("lock");
                     } else {
                       navigate("/devices");
