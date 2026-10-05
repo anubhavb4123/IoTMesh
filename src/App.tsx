@@ -23,10 +23,19 @@ import Schedules from "./pages/Schedules";
 const queryClient = new QueryClient();
 
 const RootRedirect = () => {
-  const { user } = useAuth();
-  const hasStoredUser = !!localStorage.getItem("mock_user");
-  return <Navigate to={user || hasStoredUser ? "/dashboard" : "/auth"} replace />;
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#edece8]">
+        <div className="w-8 h-8 border-2 border-[#18191c]/20 border-t-[#18191c] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <Navigate to={user ? "/dashboard" : "/auth"} replace />;
 };
+
 
 const App = () => {
 
@@ -87,6 +96,14 @@ const App = () => {
 
                 <Route
                   path="/users"
+                  element={
+                    <ProtectedRoute adminOnly>
+                      <Users />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/user"
                   element={
                     <ProtectedRoute adminOnly>
                       <Users />

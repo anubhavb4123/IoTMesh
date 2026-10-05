@@ -2,7 +2,6 @@
   "rules": {
     "home": {
       ".read": true,
-
       "sensor": {
         ".read": true,
         ".write": true
@@ -34,13 +33,17 @@
       "schedules": {
         ".read": true,
         ".write": true,
-        ".indexOn": ["type", "status", "enabled", "device"]
+        ".indexOn": [
+          "type",
+          "status",
+          "enabled",
+          "device"
+        ]
       },
       "timers": {
         ".read": true,
         ".write": true
       },
-
       "room1": {
         "controls": {
           ".read": true,
@@ -71,7 +74,6 @@
           ".write": true
         }
       },
-
       "room2": {
         "controls": {
           ".read": true,
@@ -90,7 +92,6 @@
           ".write": true
         }
       },
-
       "room3": {
         "controls": {
           ".read": true,
@@ -109,7 +110,6 @@
           ".write": true
         }
       },
-
       "commonarea": {
         "controls": {
           ".read": true,
@@ -120,55 +120,49 @@
           ".write": true
         }
       },
-
       "relay": {
         "controls": {
           ".read": true,
           ".write": true
         }
       },
-
       "devices": {
         ".read": true,
         ".write": true
       },
-
       "users": {
         ".read": true,
         ".write": true
       }
     },
-
-    "users": {
+    "authorized_users": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null"
     },
-
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
     "telegram": {
       ".read": true,
       ".write": true
     },
-
     "special": {
       ".read": true,
       ".write": true
     },
-
     "security": {
       ".read": true,
       ".write": true
     },
-
     "ota": {
       ".read": true,
       ".write": true
     },
-
     "schedules": {
       ".read": true,
       ".write": true
     },
-
     "DEBUG": {
       ".read": false,
       ".write": false
