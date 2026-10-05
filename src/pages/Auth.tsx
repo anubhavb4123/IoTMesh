@@ -1,154 +1,90 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from "@/components/ui/card";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { database } from "@/lib/firebase";
-import { ref, push, onValue } from "firebase/database";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
-import { Cpu, Lock, KeyRound, Shield, ArrowRight, User, Sparkles } from "lucide-react";
+import { Cpu, ArrowRight, Sparkles, Loader2, ShieldAlert } from "lucide-react";
 
-const ENV_GUEST_PASSWORD = import.meta.env.VITE_GUEST_PASSWORD;
-const ENV_GUEST_PASSWORD_New = import.meta.env.VITE_GUEST_PASSWORD_New;
-const ENV_ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
+// Official Google "G" SVG Icon
+const GoogleIcon = () => (
+  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+    />
+  </svg>
+);
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { setRole, login } = useAuth();
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [step, setStep] = useState<"signin" | "admin_password">("signin");
-  const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const { user, loading, signInWithGoogle } = useAuth();
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null);
 
-  const [isCheckingAuth, setIsCheckingAuth] = useState(() => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  const handleGoogleSignIn = async () => {
+    setUnauthorizedEmail(null);
+    setIsAuthenticating(true);
+    sounds.click();
+    haptic.tick();
+
     try {
-      const stored = localStorage.getItem("mock_user");
-      if (stored) {
-        const u = JSON.parse(stored);
-        return !!(u && u.name);
-      }
-    } catch {
-      localStorage.removeItem("mock_user");
-    }
-    return false;
-  });
-
-  const [fbPasswords, setFbPasswords] = useState<Record<string, string>>({});
-
-  const GUEST_PASSWORD = ENV_GUEST_PASSWORD;
-  const GUEST_PASSWORD_New = fbPasswords.guestPassword || ENV_GUEST_PASSWORD_New;
-  const ADMIN_PASSWORD = fbPasswords.adminPassword || ENV_ADMIN_PASSWORD;
-
-  useEffect(() => {
-    const unsub = onValue(ref(database, "security/passwords"), (snap) => {
-      if (snap.exists()) {
-        setFbPasswords(snap.val());
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("mock_user");
-    if (stored) {
-      try {
-        const user = JSON.parse(stored);
-        if (user && user.name) {
-          setRole(user.role || "guest");
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-      } catch {
-        localStorage.removeItem("mock_user");
-      }
-    }
-    setIsCheckingAuth(false);
-  }, [navigate, setRole]);
-
-  const saveLoginToFirebase = (role: "guest" | "admin") => {
-    push(ref(database, "home/users"), { name, role, timestamp: Date.now() });
-  };
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!name.trim()) {
-      sounds.error();
-      haptic.warning();
-      toast.error("Please enter your name");
-      return;
-    }
-
-    setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
-
-    if (password === GUEST_PASSWORD) {
-      sounds.wrongPass();
-      haptic.error();
-      toast.error("System Update: Password has been rotated. Please use the latest access key.");
-      setIsLoading(false);
-      return;
-    }
-
-    if (password === GUEST_PASSWORD_New) {
-      sounds.success();
-      haptic.success();
-      toast.success("Access key verified");
-      setIsLoading(false);
-      setStep("admin_password");
-      return;
-    }
-
-    sounds.wrongPass();
-    haptic.error();
-    toast.error("Incorrect access key");
-    setIsLoading(false);
-  };
-
-  const handleAdminLogin = async () => {
-    setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
-
-    if (adminPassword === ADMIN_PASSWORD) {
-      login(name, "admin", rememberMe);
-      saveLoginToFirebase("admin");
+      await signInWithGoogle();
       sounds.loginSuccess();
       haptic.success();
-      toast.success("Welcome, Administrator");
+      toast.success("Welcome back to IoTMesh!");
       navigate("/dashboard", { replace: true });
-    } else {
-      sounds.wrongPass();
-      haptic.error();
-      toast.error("Invalid admin passkey");
+    } catch (err: any) {
+      if (err?.code === "auth/not-authorized") {
+        sounds.wrongPass();
+        haptic.error();
+        setUnauthorizedEmail(err.email || "Your account");
+        toast.error("Access Denied", {
+          description: "Your Gmail is not on the administrator whitelist.",
+        });
+      } else if (
+        err?.code === "auth/popup-closed-by-user" ||
+        err?.code === "auth/cancelled-popup-request"
+      ) {
+        toast.info("Google sign-in was cancelled");
+      } else {
+        sounds.wrongPass();
+        haptic.error();
+        toast.error(err?.message || "Authentication failed. Please try again.");
+      }
+    } finally {
+      setIsAuthenticating(false);
     }
-    setIsLoading(false);
   };
 
-  const handleGuestLogin = async () => {
-    setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 300));
-    login(name, "guest", rememberMe);
-    saveLoginToFirebase("guest");
-    sounds.loginSuccess();
-    haptic.success();
-    toast.success("Welcome, Guest");
-    navigate("/dashboard", { replace: true });
-  };
-
-  if (isCheckingAuth) {
+  // Show spinner while resolving initial session state
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#edece8] text-[#18191c]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-2 border-[#18191c]/20 border-t-[#18191c] rounded-full animate-spin" />
-          <p className="text-xs font-mono font-bold tracking-wider text-[#797a82]">Restoring IoTMesh Session...</p>
+          <p className="text-xs font-mono font-bold tracking-wider text-[#797a82]">
+            Restoring IoTMesh Session...
+          </p>
         </div>
       </div>
     );
@@ -156,10 +92,10 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#edece8] px-4 py-8 relative">
-      
-      {/* Container */}
+
+      {/* Main Container */}
       <div className="w-full max-w-[420px] space-y-4">
-        
+
         {/* Explore Pill Button */}
         <div className="flex justify-center">
           <button
@@ -174,135 +110,58 @@ export default function Auth() {
 
         {/* Auth Card */}
         <div className="clay-card p-8 space-y-6 shadow-xl border border-black/[0.08]">
-          
+
           {/* Logo & Title */}
           <div className="flex flex-col items-center text-center space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-[#18191c] text-white flex items-center justify-center shadow-lg">
               <Cpu className="w-7 h-7" />
             </div>
-
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight text-[#18191c]">
-                {step === "signin" ? "Welcome to IoTMesh" : "Select Access Tier"}
+                IoTMesh Command Center
               </h2>
               <p className="text-xs text-[#797a82] mt-1">
-                {step === "signin"
-                  ? "Enter your credentials to enter the IoT command center"
-                  : "Authenticate as administrator or continue with guest role"}
+                Unified hardware telemetry &amp; node orchestration
               </p>
             </div>
           </div>
 
-          {step === "signin" ? (
-            <form onSubmit={handleSignIn} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-[#55565d] flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5" /> Full Name
-                </Label>
-                <Input
-                  type="text"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-[#edece8] border-black/[0.08] text-xs font-bold text-[#18191c] placeholder:text-[#9b9a94] rounded-xl h-11"
-                  autoComplete="name"
-                  disabled={isLoading}
-                />
+          {/* Unauthorized Alert Banner */}
+          {unauthorizedEmail && (
+            <div className="rounded-2xl bg-red-50 border border-red-200 p-4 space-y-2 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 text-red-700">
+                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <p className="text-xs font-bold">Registration Required</p>
               </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-[#55565d] flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5" /> Access Key
-                </Label>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-[#edece8] border-black/[0.08] text-xs font-mono font-bold text-[#18191c] placeholder:text-[#9b9a94] rounded-xl h-11"
-                  autoComplete="current-password"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="flex items-center gap-2 py-1 select-none">
-                <input
-                  type="checkbox"
-                  id="remember-me"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-black/[0.2] bg-[#edece8] accent-[#18191c] cursor-pointer"
-                />
-                <label htmlFor="remember-me" className="text-xs text-[#797a82] hover:text-[#18191c] font-medium cursor-pointer">
-                  Remember this device (stay signed in)
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full clay-btn-dark h-11 text-xs font-bold shadow-md disabled:opacity-50"
-              >
-                {isLoading ? "Verifying..." : "Authenticate Session"}
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-xs font-bold text-emerald-800">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Verified as <strong>{name}</strong></span>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-[#55565d] flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5" /> Admin Passkey <span className="text-[10px] text-[#9b9a94] font-normal">(optional)</span>
-                </Label>
-                <Input
-                  type="password"
-                  placeholder="Enter administrator passkey"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  className="bg-[#edece8] border-black/[0.08] text-xs font-mono font-bold text-[#18191c] placeholder:text-[#9b9a94] rounded-xl h-11"
-                  autoComplete="off"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="space-y-2.5 pt-2">
-                <button
-                  onClick={handleAdminLogin}
-                  disabled={isLoading}
-                  className="w-full clay-btn-dark h-11 text-xs font-bold shadow-md flex items-center justify-center gap-2"
-                >
-                  <Shield className="w-4 h-4" />
-                  <span>Login as Administrator</span>
-                </button>
-
-                <div className="flex items-center gap-3 py-1">
-                  <div className="flex-1 h-px bg-black/[0.08]" />
-                  <span className="text-[10px] uppercase font-bold text-[#9b9a94] font-mono">or</span>
-                  <div className="flex-1 h-px bg-black/[0.08]" />
-                </div>
-
-                <button
-                  onClick={handleGuestLogin}
-                  disabled={isLoading}
-                  className="w-full clay-btn h-11 text-xs font-bold flex items-center justify-center gap-2 bg-white"
-                >
-                  <User className="w-4 h-4" />
-                  <span>Continue as Guest</span>
-                </button>
-              </div>
-
-              <button
-                onClick={() => { setStep("signin"); setAdminPassword(""); }}
-                className="w-full text-center text-xs font-bold text-[#797a82] hover:text-[#18191c] pt-1"
-              >
-                ← Back to credentials
-              </button>
+              <p className="text-xs text-red-600 leading-relaxed">
+                <span className="font-semibold text-red-800">{unauthorizedEmail}</span> has not been registered by an administrator. Contact an administrator to grant access.
+              </p>
             </div>
           )}
+
+          {/* Google OAuth Action Button */}
+          <div className="space-y-4">
+            <button
+              id="google-signin-btn"
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isAuthenticating}
+              className="w-full h-12 rounded-2xl bg-white hover:bg-neutral-50 active:scale-[0.98] border border-black/[0.12] text-[#18191c] text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isAuthenticating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#18191c]" />
+                  <span>Connecting to Google...</span>
+                </>
+              ) : (
+                <>
+                  <GoogleIcon />
+                  <span>Continue with Google</span>
+                </>
+              )}
+            </button>
+
+          </div>
 
         </div>
 

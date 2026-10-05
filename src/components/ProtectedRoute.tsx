@@ -10,11 +10,19 @@ export function ProtectedRoute({
   children,
   adminOnly = false,
 }: ProtectedRouteProps) {
-  const { role, user } = useAuth();
-  const storedUser = localStorage.getItem("mock_user");
+  const { user, role, loading } = useAuth();
 
-  // { Not logged in }
-  if (!user && !storedUser) {
+  // ⏳ Wait for Firebase Auth to resolve before making routing decisions
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#edece8]">
+        <div className="w-8 h-8 border-2 border-[#18191c]/20 border-t-[#18191c] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // ❌ Not logged in
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
@@ -25,4 +33,4 @@ export function ProtectedRoute({
 
   // ✅ Allowed
   return children;
-}
+}

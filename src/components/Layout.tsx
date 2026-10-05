@@ -62,23 +62,14 @@ const allNavItems: NavItem[] = [...primaryNavItems, ...secondaryNavItems];
 export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, role, signOut } = useAuth();
+  const { user, displayName, role, signOut } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
 
-  // AUTO LOGOUT (30 min for temporary sessions; persistent for remembered sessions)
-  const isRemembered = (() => {
-    try {
-      const stored = localStorage.getItem("mock_user");
-      if (!stored) return false;
-      const data = JSON.parse(stored);
-      return data.remember !== false;
-    } catch {
-      return false;
-    }
-  })();
+  // Firebase Auth manages session persistence natively — no need for localStorage check
+  const isRemembered = true;
 
   const AUTO_LOGOUT_TIME = 30 * 60 * 1000;
   const [remainingTime, setRemainingTime] = useState(AUTO_LOGOUT_TIME);
@@ -328,11 +319,19 @@ export const Layout = ({ children }: LayoutProps) => {
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full bg-white/90 hover:bg-white border border-black/[0.07] shadow-sm transition-all hover:scale-[1.02]"
               >
-                <div className="w-6 h-6 rounded-full bg-[#18191c] text-white flex items-center justify-center text-[10px] font-extrabold uppercase shadow-inner">
-                  {user?.name?.[0] || "U"}
-                </div>
+                {user?.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt=""
+                    className="w-6 h-6 rounded-full object-cover shadow-inner border border-black/[0.08]"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-[#18191c] text-white flex items-center justify-center text-[10px] font-extrabold uppercase shadow-inner">
+                    {displayName?.[0]?.toUpperCase() || "U"}
+                  </div>
+                )}
                 <span className="hidden sm:inline-block text-xs font-bold text-[#18191c] max-w-[70px] truncate">
-                  {user?.name || "Admin"}
+                  {displayName || "User"}
                 </span>
                 <ChevronDown className="w-3 h-3 text-[#797a82]" />
               </button>
@@ -340,14 +339,28 @@ export const Layout = ({ children }: LayoutProps) => {
               {/* User Dropdown */}
               {userDropdownOpen && (
                 <div
-                  className="absolute right-0 mt-2 w-52 rounded-2xl bg-white border border-black/[0.08] shadow-xl p-3 space-y-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-black/[0.08] shadow-xl p-3 space-y-2 z-50 animate-in fade-in zoom-in-95 duration-150"
                   onClick={() => setUserDropdownOpen(false)}
                 >
-                  <div className="px-2 py-1.5 border-b border-black/[0.06]">
-                    <p className="text-xs font-bold text-[#18191c] truncate">{user?.name || "User"}</p>
-                    <p className="text-[10px] font-mono text-[#797a82]">
-                      Role: <span className={cn("font-bold uppercase", role === "admin" ? "text-red-600" : "text-emerald-600")}>{role}</span>
-                    </p>
+                  <div className="px-2 py-1.5 border-b border-black/[0.06] flex items-center gap-2.5">
+                    {user?.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt=""
+                        className="w-8 h-8 rounded-full object-cover border border-black/[0.08] shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#18191c] text-white flex items-center justify-center text-xs font-bold uppercase shrink-0">
+                        {displayName?.[0]?.toUpperCase() || "U"}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#18191c] truncate">{displayName || "User"}</p>
+                      <p className="text-[10px] text-[#797a82] truncate">{user?.email}</p>
+                      <p className="text-[10px] font-mono text-[#797a82]">
+                        Role: <span className={cn("font-bold uppercase", role === "admin" ? "text-red-600" : "text-emerald-600")}>{role}</span>
+                      </p>
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -459,7 +472,7 @@ export const Layout = ({ children }: LayoutProps) => {
           {/* User & Logout in Drawer */}
           <div className="clay-card p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-[#18191c]">{user?.name || "User"}</p>
+              <p className="text-xs font-bold text-[#18191c]">{displayName || "User"}</p>
               <p className="text-[10px] font-mono text-[#797a82]">
                 Session: {isRemembered ? "Persistent" : `${minutes}m remaining`}
               </p>

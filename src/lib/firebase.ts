@@ -2,6 +2,7 @@
 // IMPORTS
 // ------------------------------------------------------
 import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import {
   getDatabase,
   ref,
@@ -30,6 +31,9 @@ const firebaseConfig = {
 // INITIALIZE FIREBASE
 // ------------------------------------------------------
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 const database = getDatabase(app);
 const CONTROL_PATH = "home/room1/controls";
 
@@ -50,6 +54,7 @@ const PATHS = {
   STATUS_ROOM3: "home/room3/status",
   STATUS_COMMON: "home/commonarea/status",
   USERS: "users",
+  AUTHORIZED_USERS: "authorized_users",
   ALERTS: "home/alerts/logs",
   AUTOMATIONS: "home/automations",
   SCHEDULES: "home/schedules",
@@ -624,6 +629,8 @@ export const userStore = {
 export const firebaseService = new FirebaseService();
 
 export {
+  auth,
+  googleProvider,
   database,
   PATHS,
 };
