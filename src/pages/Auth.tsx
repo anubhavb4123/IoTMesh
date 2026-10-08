@@ -118,11 +118,8 @@ export default function Auth() {
             </div>
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight text-[#18191c]">
-                IoTMesh Command Center
+                IoTMesh
               </h2>
-              <p className="text-xs text-[#797a82] mt-1">
-                Unified hardware telemetry &amp; node orchestration
-              </p>
             </div>
           </div>
 
@@ -134,7 +131,7 @@ export default function Auth() {
                 <p className="text-xs font-bold">Registration Required</p>
               </div>
               <p className="text-xs text-red-600 leading-relaxed">
-                <span className="font-semibold text-red-800">{unauthorizedEmail}</span> has not been registered by an administrator. Contact an administrator to grant access.
+                <span className="font-semibold text-red-800">{unauthorizedEmail}</span> has not been registered. Contact an administrator to grant access.
               </p>
             </div>
           )}

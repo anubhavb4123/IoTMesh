@@ -3,13 +3,18 @@
   "short_name": "IOTMesh",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#00d4ff",
+  "background_color": "#edece8",
+  "theme_color": "#edece8",
   "description": "Smart home automation dashboard",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-256x256.png",
+      "sizes": "256x256",
       "type": "image/png"
     },
     {
