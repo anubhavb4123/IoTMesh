@@ -19,6 +19,7 @@ import IotMeshA from "./pages/IotMeshA";
 import Security from "./pages/Security";
 import FirmwareUpdate from "./pages/FirmwareUpdate";
 import Schedules from "./pages/Schedules";
+import { MeshLoadingScreen } from "@/components/MeshLoadingScreen";
 
 const queryClient = new QueryClient();
 
@@ -26,11 +27,7 @@ const RootRedirect = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#edece8]">
-        <div className="w-8 h-8 border-2 border-[#18191c]/20 border-t-[#18191c] rounded-full animate-spin" />
-      </div>
-    );
+    return <MeshLoadingScreen />;
   }
 
   return <Navigate to={user ? "/dashboard" : "/auth"} replace />;

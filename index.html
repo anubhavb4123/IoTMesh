@@ -1,67 +1,160 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Primary -->
-    <title>IOTMesh – Smart IoT Dashboard</title>
-    <meta
-      name="description"
-      content="IOTMesh is a futuristic IoT dashboard for real-time monitoring, automation, alerts, and smart device control."
-    />
-    <meta name="author" content="IOTMesh" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Open Graph (LinkedIn, Telegram, WhatsApp) -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="IOTMesh – Smart IoT Dashboard" />
-    <meta
-      property="og:description"
-      content="A high-tech IoT control center with live sensors, automation, alerts, and real-time visualization."
-    />
-    <meta property="og:url" content="https://iotmesh-4123.web.app/auth" />
-    <meta
-      property="og:image"
-      content="https://iotmesh-4123.web.app/og-preview.png"
-    />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+  <!-- Primary -->
+  <title>IOTMesh</title>
+  <meta name="description"
+    content="IOTMesh is a futuristic IoT dashboard for real-time monitoring, automation, alerts, and smart device control." />
+  <meta name="author" content="IOTMesh" />
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="IOTMesh – Smart IoT Dashboard" />
-    <meta
-      name="twitter:description"
-      content="Monitor, automate, and visualize IoT devices in real time."
-    />
-    <meta
-      name="twitter:image"
-      content="https://iotmesh-4123.web.app/og-preview.png"
-    />
+  <!-- Open Graph (LinkedIn, Telegram, WhatsApp) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="IOTMesh" />
+  <meta property="og:description"
+    content="A high-tech IoT control center with live sensors, automation, alerts, and real-time visualization." />
+  <meta property="og:url" content="https://iotmesh-4123.web.app/auth" />
+  <meta property="og:image" content="https://iotmesh-4123.web.app/og-preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
 
-    <!-- Favicon & PWA Icons -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="shortcut icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="IOTMesh" />
+  <meta name="twitter:description" content="Monitor, automate, and visualize IoT devices in real time." />
+  <meta name="twitter:image" content="https://iotmesh-4123.web.app/og-preview.png" />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon & PWA Icons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
 
-    <!-- Mobile & PWA Configuration -->
-    <meta name="theme-color" content="#edece8" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="IoTMesh" />
-  </head>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
 
-  <body class="bg-[#edece8] text-[#16171a] font-sans antialiased selection:bg-[#18191c] selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- Mobile & PWA Configuration -->
+  <meta name="theme-color" content="#edece8" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="IoTMesh" />
+</head>
+
+<body class="bg-[#edece8] text-[#16171a] font-sans antialiased selection:bg-[#18191c] selection:text-white">
+  <div id="root">
+    <div id="mesh-initial-loader" style="min-height: 100vh; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #edece8; color: #18191c; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;">
+      <div style="display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 24rem; margin: 0 auto; padding: 1rem;">
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; padding: 1.25rem 1.5rem;">
+          <svg id="preloader-mesh-svg" viewBox="5 24 154 116" fill="none" xmlns="http://www.w3.org/2000/svg" style="height: 4.5rem; width: auto; color: #18191c; overflow: visible;">
+            <g stroke="currentColor" stroke-width="3.8" stroke-linecap="round">
+              <line id="pre-line-0" x1="33.80" y1="58.26" x2="54.17" y2="70.78" />
+              <line id="pre-line-1" x1="26.49" y1="59.23" x2="68.09" y2="116.67" />
+              <line id="pre-line-2" x1="37.74" y1="104.46" x2="59.12" y2="87.30" />
+              <line id="pre-line-3" x1="39.46" y1="115.52" x2="64.01" y2="123.10" />
+              <line id="pre-line-4" x1="80.12" y1="69.78" x2="106.38" y2="47.03" />
+              <line id="pre-line-5" x1="78.96" y1="86.15" x2="94.05" y2="95.54" />
+              <line id="pre-line-6" x1="83.84" y1="119.32" x2="95.78" y2="109.23" />
+              <line id="pre-line-7" x1="115.11" y1="92.51" x2="133.93" y2="75.84" />
+              <line id="pre-line-8" x1="140.94" y1="62.29" x2="121.59" y2="41.18" />
+              <line id="pre-line-9" x1="112.50" y1="106.82" x2="126.45" y2="115.11" />
+              <line id="pre-line-10" x1="120.28" y1="48.97" x2="132.16" y2="108.08" />
+            </g>
+            <g stroke="currentColor" stroke-width="3.8" fill="none">
+              <circle id="pre-node-TR" cx="117.88" cy="37.12" r="5.8" />
+              <circle id="pre-node-TL" cx="19.35" cy="49.35" r="5.8" />
+              <circle id="pre-node-MR" cx="144.65" cy="66.35" r="5.8" />
+              <circle id="pre-node-C1" cx="68.62" cy="79.69" r="5.8" />
+              <circle id="pre-node-C3" cx="104.39" cy="102.00" r="5.8" />
+              <circle id="pre-node-BL" cx="28.24" cy="112.07" r="5.8" />
+              <circle id="pre-node-BR" cx="134.56" cy="119.93" r="5.8" />
+              <circle id="pre-node-C2" cx="75.23" cy="126.55" r="5.8" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function() {
+        var nodes = [
+          { id: "TR", baseX: 117.88, baseY: 37.12, freqX: 1.1, freqY: 1.4, ampX: 3.8, ampY: 4.2, phaseX: 0.0, phaseY: 1.2 },
+          { id: "TL", baseX: 19.35,  baseY: 49.35, freqX: 1.3, freqY: 1.0, ampX: 4.2, ampY: 3.8, phaseX: 2.1, phaseY: 0.5 },
+          { id: "MR", baseX: 144.65, baseY: 66.35, freqX: 0.9, freqY: 1.2, ampX: 4.0, ampY: 3.5, phaseX: 3.4, phaseY: 2.3 },
+          { id: "C1", baseX: 68.62,  baseY: 79.69, freqX: 1.4, freqY: 1.1, ampX: 4.5, ampY: 4.5, phaseX: 1.5, phaseY: 4.1 },
+          { id: "C3", baseX: 104.39, baseY: 102.00, freqX: 1.2, freqY: 1.3, ampX: 4.0, ampY: 4.2, phaseX: 4.2, phaseY: 1.9 },
+          { id: "BL", baseX: 28.24,  baseY: 112.07, freqX: 1.0, freqY: 1.5, ampX: 3.8, ampY: 4.0, phaseX: 5.0, phaseY: 3.2 },
+          { id: "BR", baseX: 134.56, baseY: 119.93, freqX: 1.5, freqY: 0.9, ampX: 4.2, ampY: 3.8, phaseX: 0.8, phaseY: 5.1 },
+          { id: "C2", baseX: 75.23,  baseY: 126.55, freqX: 1.1, freqY: 1.3, ampX: 4.0, ampY: 4.2, phaseX: 2.7, phaseY: 0.9 }
+        ];
+        var edges = [
+          ["TL", "C1"], ["TL", "C2"], ["BL", "C1"], ["BL", "C2"],
+          ["C1", "TR"], ["C1", "C3"], ["C2", "C3"], ["C3", "MR"],
+          ["MR", "TR"], ["C3", "BR"], ["TR", "BR"]
+        ];
+        var circleEls = {};
+        for (var i = 0; i < nodes.length; i++) {
+          circleEls[nodes[i].id] = document.getElementById("pre-node-" + nodes[i].id);
+        }
+        var lineEls = [];
+        for (var i = 0; i < edges.length; i++) {
+          lineEls.push(document.getElementById("pre-line-" + i));
+        }
+        var start = null;
+        function step(ts) {
+          if (!document.getElementById("preloader-mesh-svg")) return;
+          if (!start) start = ts;
+          var t = ((ts - start) / 1000) * 1.25 * 1.6;
+          var pos = {};
+          for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var dx = (Math.sin(t * n.freqX + n.phaseX) + Math.cos(t * n.freqY * 0.7 + n.phaseY) * 0.3) * n.ampX * 1.35;
+            var dy = (Math.cos(t * n.freqY + n.phaseY) + Math.sin(t * n.freqX * 0.7 + n.phaseX) * 0.3) * n.ampY * 1.35;
+            var x = n.baseX + dx;
+            var y = n.baseY + dy;
+            pos[n.id] = { x: x, y: y };
+            var el = circleEls[n.id];
+            if (el) {
+              el.setAttribute("cx", x.toFixed(2));
+              el.setAttribute("cy", y.toFixed(2));
+            }
+          }
+          for (var i = 0; i < edges.length; i++) {
+            var e = edges[i];
+            var p1 = pos[e[0]];
+            var p2 = pos[e[1]];
+            if (!p1 || !p2) continue;
+            var dx = p2.x - p1.x;
+            var dy = p2.y - p1.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 1) {
+              var ux = dx / dist;
+              var uy = dy / dist;
+              var gap = Math.min(12.2, dist * 0.33);
+              var line = lineEls[i];
+              if (line) {
+                line.setAttribute("x1", (p1.x + ux * gap).toFixed(2));
+                line.setAttribute("y1", (p1.y + uy * gap).toFixed(2));
+                line.setAttribute("x2", (p2.x - ux * gap).toFixed(2));
+                line.setAttribute("y2", (p2.y - uy * gap).toFixed(2));
+              }
+            }
+          }
+          requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      })();
+    </script>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
