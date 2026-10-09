@@ -1,4 +1,5 @@
-import { Github, Instagram, Mail, Globe, Cpu, Heart } from "lucide-react";
+import { Github, Instagram, Mail, Globe, Heart } from "lucide-react";
+import { IoTMeshLogo } from "@/components/IoTMeshLogo";
 
 const socialLinks = [
   { href: "https://anubhavb-tech-hub.web.app/", label: "Website", Icon: Globe },
@@ -13,11 +14,9 @@ export default function Footer() {
       <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#797a82]">
         
         {/* Brand info */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg bg-[#18191c] text-white flex items-center justify-center shadow-sm">
-            <Cpu className="w-3.5 h-3.5" />
-          </div>
-          <span className="font-extrabold text-[#18191c] tracking-tight text-sm">IoTMesh</span>
+        <div className="flex items-center gap-2">
+          <IoTMeshLogo className="h-6 w-auto text-[#18191c]" />
+          <span className="font-extrabold text-[#18191c] tracking-tight text-[15px]">IoTMesh</span>
           <span className="text-[#a9a8a2]">·</span>
           <span className="text-[#797a82] font-mono text-[11px]">v18.4 Pro Suite</span>
         </div>

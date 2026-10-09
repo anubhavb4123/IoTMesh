@@ -312,3 +312,23 @@
 .dot-pulse {
   animation: pulse-dot 1.8s infinite ease-in-out;
 }
+
+/* ═══ Indeterminate Progress Bar for Mesh Loading ═══ */
+@keyframes mesh-indeterminate {
+  0% {
+    transform: translateX(-100%);
+    width: 30%;
+  }
+  50% {
+    transform: translateX(100%);
+    width: 60%;
+  }
+  100% {
+    transform: translateX(250%);
+    width: 30%;
+  }
+}
+
+.animate-mesh-indeterminate {
+  animation: mesh-indeterminate 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}

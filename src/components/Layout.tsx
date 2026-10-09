@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import Footer from "@/components/Footer";
 import { sounds } from "@/lib/sounds";
+import { IoTMeshLogo } from "@/components/IoTMeshLogo";
 import { haptic } from "@/lib/haptic";
 
 interface LayoutProps {
@@ -132,17 +133,15 @@ export const Layout = ({ children }: LayoutProps) => {
           {/* Brand Logo (Left) */}
           <Link
             to="/dashboard"
-            className="flex items-center gap-2 shrink-0 group focus:outline-none"
+            className="flex items-center gap-2.5 shrink-0 group focus:outline-none"
           >
-            <div className="w-8 h-8 rounded-xl bg-[#18191c] text-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105">
-              <Cpu className="w-4 h-4 text-white" />
-            </div>
-            <div className="hidden sm:block">
+            <IoTMeshLogo className="h-8 w-auto text-[#18191c] transition-transform duration-200 group-hover:scale-105" />
+            <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-sm tracking-tight text-[#18191c]">
+                <span className="font-extrabold text-[17px] tracking-tight text-[#18191c]">
                   IoTMesh
                 </span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full font-mono font-bold bg-[#dedcd5] text-[#55565d]">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold bg-[#dedcd5] text-[#55565d]">
                   PRO
                 </span>
               </div>

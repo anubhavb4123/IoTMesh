@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
-import { Cpu, ArrowRight, Sparkles, Loader2, ShieldAlert } from "lucide-react";
+import { ArrowRight, Sparkles, Loader2, ShieldAlert } from "lucide-react";
+import { IoTMeshLogo } from "@/components/IoTMeshLogo";
+import { MeshLoadingScreen } from "@/components/MeshLoadingScreen";
 
 // Official Google "G" SVG Icon
 const GoogleIcon = () => (
@@ -76,18 +78,9 @@ export default function Auth() {
     }
   };
 
-  // Show spinner while resolving initial session state
+  // Show pure kinetic mesh animation while resolving initial session state
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#edece8] text-[#18191c]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-[#18191c]/20 border-t-[#18191c] rounded-full animate-spin" />
-          <p className="text-xs font-mono font-bold tracking-wider text-[#797a82]">
-            Restoring IoTMesh Session...
-          </p>
-        </div>
-      </div>
-    );
+    return <MeshLoadingScreen />;
   }
 
   return (
@@ -113,9 +106,7 @@ export default function Auth() {
 
           {/* Logo & Title */}
           <div className="flex flex-col items-center text-center space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-[#18191c] text-white flex items-center justify-center shadow-lg">
-              <Cpu className="w-7 h-7" />
-            </div>
+            <IoTMeshLogo className="h-14 w-auto text-[#18191c]" />
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight text-[#18191c]">
                 IoTMesh
