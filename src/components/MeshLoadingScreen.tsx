@@ -18,7 +18,7 @@ export function MeshLoadingScreen({
 
   return (
     <div
-      className={`min-h-screen w-full flex items-center justify-center bg-[#edece8] text-[#18191c] px-4 selection:bg-[#18191c] selection:text-white ${className}`}
+      className={`fixed inset-0 z-50 min-h-[100dvh] min-h-screen w-full flex items-center justify-center bg-black text-white px-4 selection:bg-white selection:text-black [color-scheme:dark] ${className}`}
       role="status"
       aria-live="polite"
       aria-label="Loading"
@@ -26,7 +26,8 @@ export function MeshLoadingScreen({
       {/* Pure Kinetic Mesh Animation: Only dynamic lines and moving holes */}
       <div className="relative flex items-center justify-center">
         <IoTMeshLogo
-          className={`${sizeClasses[size]} text-[#18191c] drop-shadow-sm transition-all duration-300`}
+          className={`${sizeClasses[size]} text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.18)] transition-all duration-300`}
+          strokeColor="#ffffff"
           speed={1.25}
           amplitude={1.35}
         />

@@ -6,6 +6,7 @@ export interface IoTMeshLogoProps extends React.SVGProps<SVGSVGElement> {
   animated?: boolean;
   speed?: number; // Base animation speed multiplier (default: 1.0)
   amplitude?: number; // Distance increase/decrease amplitude (default: 1.0)
+  strokeColor?: string; // Optional explicit stroke color override
 }
 
 interface NodeDef {
@@ -69,6 +70,7 @@ export function IoTMeshLogo({
   animated = true,
   speed = 1.0,
   amplitude = 1.0,
+  strokeColor,
   ...props
 }: IoTMeshLogoProps) {
   const linesRef = useRef<(SVGLineElement | null)[]>([]);
@@ -160,7 +162,7 @@ export function IoTMeshLogo({
       {...props}
     >
       {/* Dynamic Connecting Lines (Distances increase & decrease) */}
-      <g stroke="currentColor" strokeWidth="3.8" strokeLinecap="round">
+      <g stroke={strokeColor || "currentColor"} strokeWidth="3.8" strokeLinecap="round">
         {EDGES.map(([u, v], i) => {
           const init = computeInitialLine(u, v);
           return (
@@ -180,7 +182,7 @@ export function IoTMeshLogo({
       </g>
 
       {/* Dynamic Moving Holes (Nodes) */}
-      <g stroke="currentColor" strokeWidth="3.8" fill="none">
+      <g stroke={strokeColor || "currentColor"} strokeWidth="3.8" fill="none">
         {NODES.map((node) => (
           <circle
             key={node.id}
