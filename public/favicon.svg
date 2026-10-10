@@ -1,12 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="5 24 154 116" fill="none">
-  <style>
-    line, circle {
-      stroke: #ffffff;
-      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.45));
-    }
-  </style>
-  <g stroke="#ffffff" stroke-width="3.8" stroke-linecap="round">
-        <line x1="29.57" y1="55.64" x2="58.40" y2="73.40" />
+  <defs>
+    <filter id="mesh-contrast" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="0.75" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.65" />
+    </filter>
+  </defs>
+  <g stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#mesh-contrast)">
+    <line x1="29.57" y1="55.64" x2="58.40" y2="73.40" />
     <line x1="26.39" y1="59.07" x2="68.19" y2="116.83" />
     <line x1="37.60" y1="104.56" x2="59.26" y2="87.20" />
     <line x1="39.71" y1="115.60" x2="63.76" y2="123.02" />
@@ -18,8 +17,8 @@
     <line x1="114.71" y1="108.13" x2="124.24" y2="113.80" />
     <line x1="120.25" y1="48.88" x2="132.19" y2="108.17" />
   </g>
-  <g stroke="#ffffff" stroke-width="3.8" fill="none">
-        <circle cx="117.88" cy="37.12" r="5.8" />
+  <g stroke="#ffffff" stroke-width="4" fill="none" filter="url(#mesh-contrast)">
+    <circle cx="117.88" cy="37.12" r="5.8" />
     <circle cx="19.35" cy="49.35" r="5.8" />
     <circle cx="144.65" cy="66.35" r="5.8" />
     <circle cx="68.62" cy="79.69" r="5.8" />

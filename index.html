@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background-color: #000000;">
 
 <head>
   <meta charset="UTF-8" />
@@ -27,13 +27,13 @@
   <meta name="twitter:description" content="Monitor, automate, and visualize IoT devices in real time." />
   <meta name="twitter:image" content="https://iotmesh-4123.web.app/og-preview.png" />
 
-  <!-- Favicon & PWA Icons -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-  <link rel="shortcut icon" href="/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-  <link rel="manifest" href="/manifest.json" />
+  <!-- Favicon & PWA Icons (Refined white mesh lines & holes, transparent background) -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=7" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=7" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=7" />
+  <link rel="shortcut icon" href="/favicon.ico?v=7" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=7" />
+  <link rel="manifest" href="/manifest.json?v=7" />
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,20 +43,21 @@
     rel="stylesheet">
 
   <!-- Mobile & PWA Configuration -->
-  <meta name="theme-color" content="#edece8" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="color-scheme" content="dark light" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="IoTMesh" />
 </head>
 
-<body class="bg-[#edece8] text-[#16171a] font-sans antialiased selection:bg-[#18191c] selection:text-white">
+<body style="background-color: #000000; margin: 0;" class="font-sans antialiased selection:bg-[#18191c] selection:text-white">
   <div id="root">
-    <div id="mesh-initial-loader" style="min-height: 100vh; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #edece8; color: #18191c; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;">
+    <div id="mesh-initial-loader" style="position: fixed; inset: 0; z-index: 99999; min-height: 100vh; min-height: 100dvh; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #000000; color: #ffffff; color-scheme: dark; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;">
       <div style="display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 24rem; margin: 0 auto; padding: 1rem;">
         <div style="position: relative; display: flex; align-items: center; justify-content: center; padding: 1.25rem 1.5rem;">
-          <svg id="preloader-mesh-svg" viewBox="5 24 154 116" fill="none" xmlns="http://www.w3.org/2000/svg" style="height: 4.5rem; width: auto; color: #18191c; overflow: visible;">
-            <g stroke="currentColor" stroke-width="3.8" stroke-linecap="round">
+          <svg id="preloader-mesh-svg" viewBox="5 24 154 116" fill="none" xmlns="http://www.w3.org/2000/svg" style="height: 4.5rem; width: auto; color: #ffffff; filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.18)); overflow: visible;">
+            <g stroke="#ffffff" stroke-width="3.8" stroke-linecap="round">
               <line id="pre-line-0" x1="33.80" y1="58.26" x2="54.17" y2="70.78" />
               <line id="pre-line-1" x1="26.49" y1="59.23" x2="68.09" y2="116.67" />
               <line id="pre-line-2" x1="37.74" y1="104.46" x2="59.12" y2="87.30" />
@@ -69,7 +70,7 @@
               <line id="pre-line-9" x1="112.50" y1="106.82" x2="126.45" y2="115.11" />
               <line id="pre-line-10" x1="120.28" y1="48.97" x2="132.16" y2="108.08" />
             </g>
-            <g stroke="currentColor" stroke-width="3.8" fill="none">
+            <g stroke="#ffffff" stroke-width="3.8" fill="none">
               <circle id="pre-node-TR" cx="117.88" cy="37.12" r="5.8" />
               <circle id="pre-node-TL" cx="19.35" cy="49.35" r="5.8" />
               <circle id="pre-node-MR" cx="144.65" cy="66.35" r="5.8" />
