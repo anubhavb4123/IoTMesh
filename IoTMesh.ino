@@ -1,959 +1,947 @@
 /*
  * ══════════════════════════════════════════════════════════════════════════════════
- *   IoTMesh Room 1 Node Firmware (Production Release v1.0.0)
+ *   IoTMesh - Common Area Smart Controller (ESP32 WROOM/DevKit)
  * ══════════════════════════════════════════════════════════════════════════════════
- * 
- * Target Controller: ESP32 Dev Module (Classic Dual-Core ESP-WROOM-32)
- * Framework:         Arduino IDE (Arduino-ESP32 Core v2.x / v3.x)
- * 
- * Hardware Subsystems:
- *  1. Microcontroller: ESP32 Dev Module (WiFi + Hardware I2C on GPIO 21/22)
- *  2. Sensors:
- *     - MQ135 Air Quality Gas Sensor (ESP32 ADC1: GPIO 34)
- *     - GY-68 / BMP180 Digital Barometric Pressure Sensor (I2C: 0x77)
- *     - DHT11 Digital Temperature & Humidity Sensor (Single-Wire: GPIO 4)
- *     - Voltage Sensor / Resistor Divider Module (ESP32 ADC1: GPIO 36 / VP)
- *  3. Display:
- *     - 16x2 HD44780 LCD via PCF8574 I2C Backpack (I2C: 0x27 or 0x3F)
- *  4. Actuator Driver:
- *     - PCF8574 8-Bit I/O Expander (I2C: 0x20) -> ULN2003APG Darlington Array -> 5V/12V Relay Coils
- * 
- * Firebase Realtime Database:
- *  - URL: https://iotmesh-4123-default-rtdb.firebaseio.com/
- *  - Controls Monitored: /home/room1/controls/
- *  - Sensor Telemetry:   /home/sensors/ & /home/sensor
- *  - Device Health:      /home/room1/status
- * 
+ *
+ * Target Board: ESP32 (Standard WROOM / DevKit V1)
+ *
+ * Hardware Architecture:
+ *   ESP32 ──[I²C]──► PCF8574 (GPIO Expander, 0x20) ──► ULN2003APG ──► 6 Relays
+ *   ESP32 ──[I²C]──► BMP180 (Pressure + Temp Sensor, 0x77)
+ *   ESP32 ──[GPIO]──► DHT11 (Temperature + Humidity)
+ *   ESP32 ──[ADC]──► MQ135 (Air Quality / Gas Sensor)
+ *
+ * I²C Bus: SDA = GPIO 4, SCL = GPIO 5 (shared by PCF8574 + BMP180)
+ *
+ * PCF8574 Pin → ULN2003APG → Relay Mapping:
+ *   P0 = Fan Speed LOW     ┐
+ *   P1 = Fan Speed MEDIUM  ├─ Mutually exclusive: only ONE active when fan=ON
+ *   P2 = Fan Speed HIGH    ┘  All THREE OFF when fan=OFF
+ *   P3 = Refrigerator      ─── Independent ON/OFF
+ *   P4 = Light             ─── Independent ON/OFF
+ *   P5 = TV / General Switch── Independent ON/OFF
+ *   P6 = (Unused)
+ *   P7 = (Unused)
+ *
+ * Sensor Connections:
+ *   DHT11  → Data Pin: GPIO 15
+ *   MQ135  → Analog Pin: GPIO 34 (ADC1_CH6)
+ *   BMP180 → I²C Bus (SDA=4, SCL=5), Address 0x77
+ *
+ * Firebase RTDB Paths:
+ *   /home/commonarea/controls  → {fan, fanspeed, light, refrigerator, tv}
+ *   /home/commonarea/status    → {online, ip, rssi, uptime, chipTempC, ...}
+ *   /home/sensor               → {temperature, humidity, gas, pressure, temperatureBMP, ...}
+ *   /home/history              → Timestamped sensor snapshots
+ *
+ * Timing:
+ *   - Status heartbeat:   every 1 second
+ *   - Sensor read + push: every 15 seconds
+ *   - History log:        every 1 minute (key = minute-of-day 0-1439)
+ *
  * ══════════════════════════════════════════════════════════════════════════════════
  */
 
 // =================================================================================
-//  1. REQUIRED LIBRARIES & SYSTEM HEADERS
+//  1. REQUIRED LIBRARIES
 // =================================================================================
 #include <WiFi.h>
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h>
-#include <Adafruit_BMP085.h>
-#include <DHT.h>
+#include <Wire.h>                    // I²C for PCF8574 + BMP180
 #include <Firebase_ESP_Client.h>
+#include <ArduinoOTA.h>              // OTA (Over-The-Air) firmware update support
+#include <DHT.h>                     // DHT11 temperature & humidity sensor
+#include <Adafruit_BMP085.h>         // BMP180 pressure sensor (uses BMP085 library)
 
-// Provide Firebase token and RTDB helpers from Mobizt library
+// Token and RTDB helper classes from Mobizt Firebase library
 #include <addons/TokenHelper.h>
 #include <addons/RTDBHelper.h>
 
 // =================================================================================
 //  2. NETWORK & FIREBASE CONFIGURATION
 // =================================================================================
-#define WIFI_SSID               "12345"                       // Your WiFi Network SSID
-#define WIFI_PASSWORD           "88888888"                   // Your WiFi Password
+#define WIFI_SSID               "BAJPAI_2.4Ghz"               // Your WiFi Network SSID
+#define WIFI_PASSWORD           "44444422"                     // Your WiFi Password
 
 // Firebase Project Credentials
 #define FIREBASE_HOST           "https://iotmesh-4123-default-rtdb.firebaseio.com/"
-#define FIREBASE_AUTH_KEY       "AIzaSyCOncUZJrlqdXbRBcHRVwMLfy2nNU6-AGI" // Web API Key
+#define FIREBASE_DB_SECRET      "ItjOcSIaW6GRLAnZLhIi1ouEFFwfCYiQR5cqsmwi"
 
-// Database Paths
-#define FB_PATH_CONTROLS        "/home/room1/controls"
-#define FB_PATH_SENSORS         "/home/sensors"
-#define FB_PATH_ROOM_SENSOR     "/home/sensor"
-#define FB_PATH_STATUS          "/home/room1/status"
+// Realtime Database Paths
+#define FB_PATH_CONTROLS        "/home/commonarea/controls"
+#define FB_PATH_STATUS          "/home/commonarea/status"
+#define FB_PATH_SENSOR          "/home/sensor"
+#define FB_PATH_HISTORY         "/home/history"
 
-// =================================================================================
-//  3. PIN CONFIGURATION (ESP32 GPIO ASSIGNMENTS)
-// =================================================================================
-// I2C Bus Pins (ESP32 Classic default hardware I2C)
-#define I2C_SDA_PIN             21
-#define I2C_SCL_PIN             22
-
-// Digital & Analog Sensor Pins
-// NOTE: On ESP32, ADC1 pins (GPIO 32-39) MUST be used when WiFi is active.
-// ADC2 pins are internally reserved by the ESP32 Wi-Fi subsystem.
-#define DHT_PIN                 4        // DHT11 Data Pin (Digital GPIO)
-#define DHT_TYPE                DHT11    // Sensor Model: DHT11
-
-#define MQ135_PIN               34       // MQ135 Analog Out (ADC1_CH6, Input Only)
-#define VOLTAGE_SENSOR_PIN      36       // Voltage Divider Sensor (ADC1_CH0 / VP, Input Only)
-
-#define STATUS_LED_PIN          2        // ESP32 Onboard Diagnostic Blue LED
+// OTA (Over-The-Air) Update Configuration
+#define OTA_HOSTNAME            "IoTMesh-CommonArea"
+#define OTA_PASSWORD            "commonota123"
 
 // =================================================================================
-//  4. I2C ADDRESSES & EXPANDER PIN DEFINITIONS
-// =================================================================================
-#define LCD_DEFAULT_ADDR        0x27     // Common LCD addresses: 0x27 or 0x3F
-#define BMP180_I2C_ADDR         0x77     // Standard Bosch BMP180/GY-68 address
-#define PCF8574_RELAY_ADDR      0x20     // I2C Expander for ULN2003APG (0x20-0x27 selectable via A0,A1,A2)
-
-#define ENABLE_I2C_DEBUG        true     // Set true to perform active I2C bus scan at boot
-
-// PCF8574 Pin Mapping to ULN2003APG Inputs (Pins 0 to 7)
-// ULN2003APG: Logic HIGH input turns ON internal Darlington transistor (sinks coil to GND)
-#define PCF_RELAY_LOBBY_FAN     0        // PCF8574 P0 -> ULN2003 IN1 -> Relay 1 (Lobby Fan)
-#define PCF_RELAY_LOBBY_LIGHT   1        // PCF8574 P1 -> ULN2003 IN2 -> Relay 2 (Lobby Light)
-#define PCF_RELAY_LOBBY_TV      2        // PCF8574 P2 -> ULN2003 IN3 -> Relay 3 (Lobby TV)
-#define PCF_RELAY_REFRIGERATOR  3        // PCF8574 P3 -> ULN2003 IN4 -> Relay 4 (Refrigerator)
-
-// Relay Driver Logic Level:
-// With PCF8574 driving ULN2003APG input directly:
-//   HIGH on PCF8574 -> HIGH on ULN2003 IN -> ULN2003 OUT pulls LOW (conducts) -> Relay Coil Energized (ON)
-//   LOW on PCF8574  -> LOW on ULN2003 IN  -> ULN2003 OUT Floating (OFF)       -> Relay Coil De-energized (OFF)
-#define RELAY_ACTIVE_STATE      HIGH     // Active HIGH input for ULN2003
-#define RELAY_INACTIVE_STATE    LOW      // Inactive LOW input for ULN2003
-
-// =================================================================================
-//  5. TIMING & SCHEDULING INTERVALS (NON-BLOCKING millis())
-// =================================================================================
-const unsigned long INTERVAL_SENSOR_READ_MS      = 2000;   // Read physical sensors every 2 seconds
-const unsigned long INTERVAL_FIREBASE_UPLOAD_MS  = 5000;   // Push sensor data to RTDB every 5 seconds
-const unsigned long INTERVAL_LCD_ROTATE_MS       = 3000;   // Rotate LCD screen view every 3 seconds
-const unsigned long INTERVAL_WIFI_CHECK_MS       = 5000;   // Verify WiFi connection health every 5s
-const unsigned long INTERVAL_WIFI_RETRY_MS       = 20000;  // When offline, retry WiFi every 20s
-const unsigned long INTERVAL_STATUS_HEARTBEAT_MS = 15000;  // Push online status heartbeat every 15s
-const unsigned long INTERVAL_STREAM_WATCHDOG_MS  = 45000;  // Restart Firebase stream if stalled
-
-// =================================================================================
-//  6. CALIBRATION CONSTANTS
-// =================================================================================
-// Voltage Divider Calibration:
-// Standard 25V voltage divider module: R1 = 30kΩ, R2 = 7.5kΩ (Divider Ratio = (30+7.5)/7.5 = 5.0)
-// ESP32 ADC: 12-bit (0..4095) with 3.3V reference voltage.
-const float VOLTAGE_DIVIDER_RATIO = 5.0f;
-const float ESP32_ADC_VREF        = 3.30f;
-const float VOLTAGE_CALIB_OFFSET  = 0.00f; // Fine-tune voltage offset in Volts if needed
-
-// MQ135 Analog Baseline
-const float MQ135_CLEAN_AIR_ADC   = 400.0f; // Typical clean room baseline
-
-// =================================================================================
-//  7. DATA STRUCTURES & GLOBAL INSTANCES
+//  3. PIN DEFINITIONS & HARDWARE CONFIGURATION
 // =================================================================================
 
-// Telemetry Data Structure
-struct SensorTelemetry {
-  float temperatureDHT;      // °C from DHT11
-  float humidityDHT;         // % from DHT11
-  float temperatureBMP;      // °C from BMP180
-  float pressureHPa;         // hPa from BMP180
-  float altitudeMeters;      // Calculated altitude (m)
-  int   airQualityRaw;       // Raw 12-bit ADC reading from MQ135 (0-4095)
-  float airQualityIndex;     // Normalized air quality metric (0-100%)
-  float busVoltage;          // Measured input voltage (V)
-  bool  dhtValid;            // Validity flag
-  bool  bmpValid;            // Validity flag
-};
+// I²C Bus Pins (shared by PCF8574 + BMP180)
+#define I2C_SDA                 4
+#define I2C_SCL                 5
 
-// Control States Structure (Synchronized with Firebase /home/room1/controls)
-struct NodeControls {
-  bool lobbyFan;             // Fan Relay ON/OFF
-  int  lobbyFanSpeed;        // Stored speed level (0-5 or 0-100)
-  bool lobbyLight;           // Light Relay ON/OFF
-  bool lobbyTV;              // TV Relay ON/OFF
-  bool refrigerator;         // Refrigerator Relay ON/OFF
-  bool motion;               // Security/Motion Control State (Flag)
-};
+// PCF8574 I²C Address (A0=A1=A2=GND)
+#define PCF8574_ADDRESS         0x20
 
-// Global System Objects
-SensorTelemetry telemetry = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, 0.0f, 0.0f, false, false };
-NodeControls    controls  = { false, 0, false, false, false, false };
+// PCF8574 Output Pin Assignments (directly wired to ULN2003APG inputs)
+#define PCF_FAN_LOW             0    // P0 → ULN2003 IN1 → Relay 1 (Fan Low Speed)
+#define PCF_FAN_MED             1    // P1 → ULN2003 IN2 → Relay 2 (Fan Medium Speed)
+#define PCF_FAN_HIGH            2    // P2 → ULN2003 IN3 → Relay 3 (Fan High Speed)
+#define PCF_REFRIGERATOR        3    // P3 → ULN2003 IN4 → Relay 4 (Refrigerator)
+#define PCF_LIGHT               4    // P4 → ULN2003 IN5 → Relay 5 (Light)
+#define PCF_TV                  5    // P5 → ULN2003 IN6 → Relay 6 (TV / General Switch)
 
-// Peripherals Instances
-LiquidCrystal_I2C lcd(LCD_DEFAULT_ADDR, 16, 2);
-Adafruit_BMP085   bmp;
-DHT               dht(DHT_PIN, DHT_TYPE);
-
-// Firebase Data Objects
-FirebaseData      fbdoStream;      // Dedicated stream object for real-time listener
-FirebaseData      fbdoWrite;       // Dedicated object for telemetry writes
-FirebaseAuth      fbAuth;
-FirebaseConfig    fbConfig;
-
-// Operational States
-uint8_t  pcfCurrentPortState       = 0x00;   // Cache of current PCF8574 output pins
-bool     pcf8574Available          = false;  // Flag if dedicated relay PCF8574 is detected
-bool     lcdInitialized            = false;  // Flag if LCD is active
-bool     bmpInitialized            = false;  // Flag if BMP180 is active
-uint8_t  currentLcdScreen          = 0;      // Current active LCD page (0..4)
-bool     isOnlineMode              = false;  // Active network state (true = Online, false = Offline Safe Mode)
-bool     firebaseStreamActive      = false;
-unsigned long lastWifiRetryMs      = 0;
-unsigned int  wifiRetryCount       = 0;
-
-// Task Timers
-unsigned long lastSensorReadMs     = 0;
-unsigned long lastFirebaseUploadMs = 0;
-unsigned long lastLcdRotateMs      = 0;
-unsigned long lastWifiCheckMs      = 0;
-unsigned long lastStatusUpdateMs   = 0;
-unsigned long lastStreamActivityMs = 0;
-unsigned long systemBootTimeMs     = 0;
+// Sensor Pins
+#define DHT_PIN                 15   // DHT11 Data Pin (GPIO 15)
+#define DHT_TYPE                DHT11
+#define MQ135_PIN               34   // MQ135 Analog Output (ADC1_CH6, GPIO 34)
 
 // =================================================================================
-//  8. FORWARD DECLARATIONS
+//  4. TIMING CONSTANTS
 // =================================================================================
-void scanI2CBus();
-void initializePCF8574();
-void initializeLCD();
-void initializeSensors();
-void connectWiFi();
+const unsigned long WIFI_CHECK_INTERVAL_MS   = 5000;   // Check WiFi health every 5s
+const unsigned long WIFI_RETRY_INTERVAL_MS   = 20000;  // When offline, retry WiFi every 20s
+const unsigned long HEARTBEAT_INTERVAL_MS    = 1000;   // Push status heartbeat every 1 second
+const unsigned long SENSOR_READ_INTERVAL_MS  = 15000;  // Read sensors every 15 seconds
+const unsigned long HISTORY_LOG_INTERVAL_MS  = 60000;  // Log history every 1 minute
+
+// =================================================================================
+//  5. GLOBAL OBJECTS & STATE VARIABLES
+// =================================================================================
+
+// Sensor Objects
+DHT dht(DHT_PIN, DHT_TYPE);
+Adafruit_BMP085 bmp;
+
+// Firebase RTDB Client Objects
+FirebaseData fbdoStream;
+FirebaseData fbdoWrite;
+FirebaseData fbdoSensor;             // Dedicated FirebaseData for sensor/history writes
+FirebaseAuth fbAuth;
+FirebaseConfig fbConfig;
+
+// ── Control States (synced with Firebase) ──
+bool controlFan         = false;     // Fan master ON/OFF
+int  controlFanSpeed    = 1;         // Fan speed: 1=Low, 2=Medium, 3=High
+bool controlLight       = false;     // Light ON/OFF
+bool controlRefrigerator = false;    // Refrigerator ON/OFF
+bool controlTV          = false;     // TV / General Switch ON/OFF
+
+// ── PCF8574 Output Register ──
+// PCF8574 uses inverted logic: writing LOW (0) activates the ULN2003 input
+// because ULN2003 is an NPN darlington array (active HIGH input).
+// However, PCF8574 outputs are quasi-bidirectional:
+//   - Writing 1 to a pin = pin goes HIGH (output is weakly pulled up)
+//   - Writing 0 to a pin = pin sinks current → drives ULN2003 input HIGH
+// Since ULN2003APG inputs are active HIGH and PCF8574 drives them:
+//   - To ACTIVATE relay: Write HIGH (1) on PCF8574 pin → ULN2003 input goes HIGH → relay ON
+//   - To DEACTIVATE relay: Write LOW (0) → ULN2003 input goes LOW → relay OFF
+// NOTE: If your relays work inverted, flip RELAY_ACTIVE_LEVEL below.
+#define PCF_RELAY_ON            1    // HIGH = Relay activated via ULN2003
+#define PCF_RELAY_OFF           0    // LOW  = Relay deactivated
+
+uint8_t pcf8574OutputState = 0x00;   // All relays OFF at startup
+
+// ── Sensor Data (latest readings) ──
+float sensorTemperature    = 0.0;    // DHT11 temperature (°C)
+float sensorHumidity       = 0.0;    // DHT11 humidity (%)
+int   sensorGasRaw         = 0;      // MQ135 raw ADC value
+float sensorPressure       = 0.0;    // BMP180 pressure (hPa)
+float sensorTempBMP        = 0.0;    // BMP180 temperature (°C)
+bool  sensorBMPAvailable   = false;  // BMP180 initialized successfully
+
+// ── System State Flags ──
+bool isOnlineMode            = false;
+bool firebaseInitialized     = false;
+bool firebaseStreamActive    = false;
+bool otaInitialized          = false;
+unsigned long lastWifiCheck  = 0;
+unsigned long lastWifiRetry  = 0;
+unsigned int  wifiRetryCount = 0;
+unsigned long lastHeartbeat  = 0;
+unsigned long lastSensorRead = 0;
+unsigned long lastHistoryLog = 0;
+unsigned long bootTime       = 0;
+
+// Function Prototypes
+void pcf8574Write(uint8_t state);
+void updateRelaysFromState();
+void readAllSensors();
+void pushSensorDataToFirebase();
+void pushHistoryToFirebase();
+void connectWiFiNonBlocking();
+void handleNetworkHealth();
 void initializeFirebase();
 void setupFirebaseStream();
-
-void readSensors();
-void readDHT11();
-void readBMP180();
-void readMQ135();
-void readVoltage();
-
-void updateFirebase();
-void updateFirebaseStatus(bool isOnline);
+void updateFirebaseHeartbeat();
 void handleStreamCallback(FirebaseStream data);
 void handleStreamTimeoutCallback(bool matched);
-void applyRelayStates();
-void setRelay(uint8_t relayPin, bool state);
-void writePCF8574(uint8_t data);
-
-void updateLCD();
-void renderScreen0(); // Temp & Humidity
-void renderScreen1(); // Pressure & Air Quality
-void renderScreen2(); // Voltage & Fan
-void renderScreen3(); // Light & TV
-void renderScreen4(); // Refrigerator & WiFi Status
-
-void checkWiFi();
-void handleFirebaseError(FirebaseData &fbdo, const char* context);
-void printSystemStatus();
+void initializeOTA();
 
 // =================================================================================
-//  9. SETUP ROUTINE
+//  6. PCF8574 I²C GPIO EXPANDER DRIVER
 // =================================================================================
-void setup() {
-  // Initialize USB Serial Diagnostic Port
-  Serial.begin(115200);
-  delay(500);
 
-  pinMode(STATUS_LED_PIN, OUTPUT);
-  digitalWrite(STATUS_LED_PIN, LOW);
+/**
+ * Write a full 8-bit state to the PCF8574.
+ * Each bit corresponds to P0-P7. 
+ * Bit = 1 → Output HIGH (ULN2003 input HIGH → relay activates)
+ * Bit = 0 → Output LOW  (ULN2003 input LOW  → relay deactivates)
+ */
+void pcf8574Write(uint8_t state) {
+  Wire.beginTransmission(PCF8574_ADDRESS);
+  Wire.write(state);
+  uint8_t error = Wire.endTransmission();
+  
+  if (error != 0) {
+    Serial.printf("[PCF8574] ❌ I²C write error: %d (Address: 0x%02X)\n", error, PCF8574_ADDRESS);
+  } else {
+    pcf8574OutputState = state;
+  }
+}
 
-  Serial.println();
-  Serial.println(F("=================================================="));
-  Serial.println(F("           IoTMesh Hardware Node v1.0             "));
-  Serial.println(F("      ESP32 Room1 Controller + Telemetry          "));
-  Serial.println(F("=================================================="));
-  Serial.printf("[System] ESP32 Chip Rev: %d | CPU Freq: %d MHz\n", ESP.getChipRevision(), ESP.getCpuFreqMHz());
-  Serial.printf("[System] Free Heap: %d bytes\n", ESP.getFreeHeap());
+/**
+ * Read current state from PCF8574 (for verification).
+ */
+uint8_t pcf8574Read() {
+  Wire.requestFrom((uint8_t)PCF8574_ADDRESS, (uint8_t)1);
+  if (Wire.available()) {
+    return Wire.read();
+  }
+  return 0xFF; // Error
+}
 
-  // 1. Initialize Hardware I2C Bus
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN, 100000); // 100kHz standard I2C clock
-  Serial.printf("[I2C] Initialized on SDA: GPIO %d, SCL: GPIO %d\n", I2C_SDA_PIN, I2C_SCL_PIN);
-
-  // 2. Scan I2C bus if enabled
-  #if ENABLE_I2C_DEBUG
-    scanI2CBus();
-  #endif
-
-  // 3. Initialize PCF8574 Relay Driver (ULN2003APG)
-  initializePCF8574();
-
-  // 4. Initialize LCD Display
-  initializeLCD();
-
-  // 5. Initialize Physical Sensors
-  initializeSensors();
-
-  // 6. Connect to WiFi Network
-  connectWiFi();
-
-  // 7. Initialize Firebase Realtime Database
-  initializeFirebase();
-
-  // 8. Initial Sensor Read & Apply Default Relays (Safe OFF)
-  readSensors();
-  applyRelayStates();
-
-  systemBootTimeMs = millis();
-  printSystemStatus();
-  Serial.println(F("=================================================="));
-  Serial.println(F("[System] Setup Complete — Entering Non-Blocking Loop"));
-  Serial.println(F("=================================================="));
+/**
+ * Set or clear a single bit in the PCF8574 output register, then write.
+ */
+void pcf8574SetPin(uint8_t pin, bool active) {
+  if (pin > 7) return;
+  
+  if (active) {
+    pcf8574OutputState |= (1 << pin);   // Set bit HIGH (relay ON)
+  } else {
+    pcf8574OutputState &= ~(1 << pin);  // Set bit LOW (relay OFF)
+  }
+  pcf8574Write(pcf8574OutputState);
 }
 
 // =================================================================================
-//  10. MAIN EXECUTION LOOP (NON-BLOCKING)
+//  7. RELAY CONTROL LOGIC
+// =================================================================================
+
+/**
+ * Update all 6 relays based on current control states.
+ * Fan relays are mutually exclusive — only one speed relay is active at a time.
+ * When fan is OFF, all 3 fan relays are OFF.
+ */
+void updateRelaysFromState() {
+  uint8_t newState = 0x00;
+  
+  // ── Fan Speed Relays (mutually exclusive) ──
+  if (controlFan) {
+    switch (controlFanSpeed) {
+      case 1:  // Low speed
+        newState |= (PCF_RELAY_ON << PCF_FAN_LOW);
+        break;
+      case 2:  // Medium speed
+        newState |= (PCF_RELAY_ON << PCF_FAN_MED);
+        break;
+      case 3:  // High speed
+        newState |= (PCF_RELAY_ON << PCF_FAN_HIGH);
+        break;
+      default: // Invalid speed → default to Low
+        newState |= (PCF_RELAY_ON << PCF_FAN_LOW);
+        controlFanSpeed = 1;
+        break;
+    }
+  }
+  // If fan is OFF: no fan speed bits are set → all 3 fan relays remain OFF
+  
+  // ── Independent Device Relays ──
+  if (controlRefrigerator) {
+    newState |= (PCF_RELAY_ON << PCF_REFRIGERATOR);
+  }
+  if (controlLight) {
+    newState |= (PCF_RELAY_ON << PCF_LIGHT);
+  }
+  if (controlTV) {
+    newState |= (PCF_RELAY_ON << PCF_TV);
+  }
+  
+  // Only write to I²C if state actually changed (reduces bus traffic)
+  if (newState != pcf8574OutputState) {
+    Serial.printf("[Relay] State change: 0x%02X → 0x%02X | Fan:%s(Spd:%d) Fridge:%s Light:%s TV:%s\n",
+                  pcf8574OutputState, newState,
+                  controlFan ? "ON" : "OFF", controlFanSpeed,
+                  controlRefrigerator ? "ON" : "OFF",
+                  controlLight ? "ON" : "OFF",
+                  controlTV ? "ON" : "OFF");
+    pcf8574Write(newState);
+  }
+}
+
+// =================================================================================
+//  8. SENSOR READING
+// =================================================================================
+
+/**
+ * Read all sensors: DHT11, MQ135, BMP180.
+ * Updates global sensor variables.
+ */
+void readAllSensors() {
+  // ── DHT11: Temperature & Humidity ──
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  
+  if (!isnan(h) && !isnan(t)) {
+    sensorHumidity = h;
+    sensorTemperature = t;
+    Serial.printf("[DHT11] Temp: %.1f°C | Humidity: %.1f%%\n", t, h);
+  } else {
+    Serial.println("[DHT11] ⚠️ Read failed — check wiring or pull-up resistor!");
+  }
+  
+  // ── MQ135: Gas / Air Quality (Raw ADC) ──
+  sensorGasRaw = analogRead(MQ135_PIN);
+  Serial.printf("[MQ135] Gas Raw ADC: %d\n", sensorGasRaw);
+  
+  // ── BMP180: Pressure & Temperature ──
+  if (sensorBMPAvailable) {
+    sensorTempBMP = bmp.readTemperature();
+    sensorPressure = bmp.readPressure() / 100.0;  // Convert Pa → hPa (mbar)
+    Serial.printf("[BMP180] Temp: %.1f°C | Pressure: %.1f hPa\n", sensorTempBMP, sensorPressure);
+  } else {
+    Serial.println("[BMP180] ⚠️ Sensor not available — skipping read.");
+  }
+}
+
+// =================================================================================
+//  9. FIREBASE SENSOR & HISTORY PUSH
+// =================================================================================
+
+/**
+ * Push latest sensor readings to /home/sensor in Firebase RTDB.
+ */
+void pushSensorDataToFirebase() {
+  if (WiFi.status() != WL_CONNECTED || !Firebase.ready()) return;
+  
+  FirebaseJson sensorJson;
+  sensorJson.set("temperature", (float)((int)(sensorTemperature * 10)) / 10.0);
+  sensorJson.set("humidity", (float)((int)(sensorHumidity * 10)) / 10.0);
+  sensorJson.set("gas", sensorGasRaw);
+  sensorJson.set("pressure", (float)((int)(sensorPressure * 10)) / 10.0);
+  sensorJson.set("temperatureBMP", (float)((int)(sensorTempBMP * 10)) / 10.0);
+  
+  // Power indicator (1 = ESP32 powered on)
+  sensorJson.set("power", 1);
+  
+  // Timestamp
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo, 100)) {
+    char lastUpdate[32];
+    strftime(lastUpdate, sizeof(lastUpdate), "%d/%m/%Y %H:%M:%S", &timeinfo);
+    sensorJson.set("last_update", lastUpdate);
+    
+    // Epoch timestamp in milliseconds
+    time_t nowSec = time(nullptr);
+    sensorJson.set("timestamp", (unsigned long)(nowSec) * 1000UL);
+  }
+  
+  // Firebase Server Timestamp
+  FirebaseJson sv;
+  sv.set(".sv", "timestamp");
+  sensorJson.set("serverTimestamp", sv);
+  
+  if (Firebase.RTDB.updateNode(&fbdoSensor, FB_PATH_SENSOR, &sensorJson)) {
+    Serial.println("[Sensor → Firebase] ✅ Sensor data pushed.");
+  } else {
+    Serial.printf("[Sensor → Firebase] ❌ Failed: %s\n", fbdoSensor.errorReason().c_str());
+  }
+}
+
+/**
+ * Push a sensor snapshot to /home/history/{minuteOfDay} in Firebase.
+ * Key = (hour * 60) + minute  →  e.g. 1:32 PM = (13*60)+32 = 812
+ * This creates a rolling 1440-slot daily history (0–1439) that overwrites each day.
+ */
+void pushHistoryToFirebase() {
+  if (WiFi.status() != WL_CONNECTED || !Firebase.ready()) return;
+  
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 100)) {
+    Serial.println("[History] ⚠️ Time not synced yet — skipping history log.");
+    return;
+  }
+  
+  // Key = (hour * 60) + minute  →  e.g. 13:32 = 812
+  int minuteOfDay = (timeinfo.tm_hour * 60) + timeinfo.tm_min;
+  String historyPath = String(FB_PATH_HISTORY) + "/" + String(minuteOfDay);
+  
+  FirebaseJson historyJson;
+  historyJson.set("temperature", (float)((int)(sensorTemperature * 10)) / 10.0);
+  historyJson.set("humidity", (float)((int)(sensorHumidity * 10)) / 10.0);
+  historyJson.set("gas", sensorGasRaw);
+  historyJson.set("pressure", (float)((int)(sensorPressure * 10)) / 10.0);
+  historyJson.set("temperatureBMP", (float)((int)(sensorTempBMP * 10)) / 10.0);
+  
+  time_t nowSec = time(nullptr);
+  historyJson.set("timestamp", (unsigned long)(nowSec) * 1000UL);
+  
+  // Human-readable timestamp
+  char timeStr[32];
+  strftime(timeStr, sizeof(timeStr), "%d/%m/%Y %H:%M:%S", &timeinfo);
+  historyJson.set("datetime", timeStr);
+  
+  if (Firebase.RTDB.setJSON(&fbdoSensor, historyPath, &historyJson)) {
+    Serial.printf("[History → Firebase] ✅ Key: %d (= %02d:%02d)\n", minuteOfDay, timeinfo.tm_hour, timeinfo.tm_min);
+  } else {
+    Serial.printf("[History → Firebase] ❌ Failed: %s\n", fbdoSensor.errorReason().c_str());
+  }
+}
+
+// =================================================================================
+//  10. SETUP ROUTINE
+// =================================================================================
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  
+  Serial.println();
+  Serial.println(F("══════════════════════════════════════════════════════════"));
+  Serial.println(F("   IoTMesh Common Area Controller (ESP32 WROOM)          "));
+  Serial.println(F("   PCF8574 + ULN2003APG → 6 Relay Control               "));
+  Serial.println(F("   Sensors: DHT11 + MQ135 + BMP180                      "));
+  Serial.println(F("══════════════════════════════════════════════════════════"));
+  
+  bootTime = millis();
+  
+  // ── 1. Initialize I²C Bus (PCF8574 + BMP180 share this bus) ──
+  Wire.begin(I2C_SDA, I2C_SCL);
+  Wire.setClock(100000);  // 100kHz standard I²C speed
+  Serial.printf("[I²C] Bus initialized: SDA=%d, SCL=%d @ 100kHz\n", I2C_SDA, I2C_SCL);
+  
+  // ── 2. Initialize PCF8574 (All relays OFF) ──
+  pcf8574Write(0x00);  // All pins LOW → all relays OFF
+  Serial.println(F("[PCF8574] Initialized at address 0x20 — All relays OFF."));
+  
+  // Verify PCF8574 is responding
+  Wire.beginTransmission(PCF8574_ADDRESS);
+  uint8_t pcfError = Wire.endTransmission();
+  if (pcfError == 0) {
+    Serial.println(F("[PCF8574] ✅ Device found and responding on I²C bus."));
+  } else {
+    Serial.printf("[PCF8574] ❌ Device NOT found at 0x%02X! Error: %d. Check wiring!\n", PCF8574_ADDRESS, pcfError);
+  }
+  
+  // ── 3. Initialize DHT11 Sensor ──
+  dht.begin();
+  Serial.printf("[DHT11] Initialized on GPIO %d\n", DHT_PIN);
+  
+  // ── 4. Initialize MQ135 (ADC) ──
+  analogReadResolution(12);      // ESP32 ADC: 12-bit (0-4095)
+  analogSetAttenuation(ADC_11db); // Full range: ~0-3.3V
+  Serial.printf("[MQ135] ADC initialized on GPIO %d (12-bit, 0-3.3V range)\n", MQ135_PIN);
+  
+  // ── 5. Initialize BMP180 Pressure Sensor ──
+  if (bmp.begin()) {
+    sensorBMPAvailable = true;
+    Serial.println(F("[BMP180] ✅ Sensor initialized successfully at address 0x77."));
+  } else {
+    sensorBMPAvailable = false;
+    Serial.println(F("[BMP180] ❌ Sensor NOT found! Check wiring (SDA/SCL) and address."));
+  }
+  
+  Serial.println(F("[System] Hardware initialization complete."));
+  
+  // ── 6. Initial Sensor Reading ──
+  delay(2000);  // DHT11 needs 1-2s warmup after power on
+  readAllSensors();
+  
+  // ── 7. Connect WiFi (12-second attempt) ──
+  connectWiFiNonBlocking();
+  
+  // ── 8. If connected at boot, initialize Firebase + OTA ──
+  if (WiFi.status() == WL_CONNECTED) {
+    isOnlineMode = true;
+    Serial.println(F("[System] Mode: ONLINE (Cloud Connected)"));
+    initializeFirebase();
+    initializeOTA();
+  } else {
+    isOnlineMode = false;
+    lastWifiRetry = millis();
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    Serial.println(F("[System] Mode: OFFLINE (Autonomous Local Control)"));
+    Serial.println(F("[System] Relays controllable via direct Firebase on reconnect."));
+    Serial.printf("[System] Retrying WiFi every %lu seconds in background...\n", WIFI_RETRY_INTERVAL_MS / 1000);
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+  }
+}
+
+// =================================================================================
+//  11. MAIN EXECUTION LOOP
 // =================================================================================
 void loop() {
-  unsigned long currentMs = millis();
-
-  // ── Task 1: Stream Watchdog & Reconnection ─────────────────────────
-  if (Firebase.ready() && (!firebaseStreamActive || (currentMs - lastStreamActivityMs > INTERVAL_STREAM_WATCHDOG_MS))) {
-    setupFirebaseStream();
-    lastStreamActivityMs = currentMs;
+  unsigned long currentMillis = millis();
+  
+  // ── Step 0: OTA update handler ──
+  if (isOnlineMode && otaInitialized) {
+    ArduinoOTA.handle();
   }
-
-  // ── Task 2: Sensor Telemetry Acquisition (Every 2s) ────────────────
-  if (currentMs - lastSensorReadMs >= INTERVAL_SENSOR_READ_MS) {
-    lastSensorReadMs = currentMs;
-    readSensors();
+  
+  // ── Step 1: WiFi Health & Mode Transition Manager ──
+  if (currentMillis - lastWifiCheck >= WIFI_CHECK_INTERVAL_MS) {
+    lastWifiCheck = currentMillis;
+    handleNetworkHealth();
   }
-
-  // ── Task 3: Firebase Telemetry Sync (Every 5s) ─────────────────────
-  if (currentMs - lastFirebaseUploadMs >= INTERVAL_FIREBASE_UPLOAD_MS) {
-    lastFirebaseUploadMs = currentMs;
-    if (WiFi.status() == WL_CONNECTED && Firebase.ready()) {
-      updateFirebase();
+  
+  // ── Step 2: Cloud Operations (ONLY when online) ──
+  if (isOnlineMode && WiFi.status() == WL_CONNECTED) {
+    if (!firebaseInitialized) {
+      initializeFirebase();
+    }
+    
+    if (Firebase.ready()) {
+      // 2A: Start stream if not yet active
+      if (!firebaseStreamActive) {
+        setupFirebaseStream();
+      }
+      
+      // 2B: Process incoming stream events
+      if (firebaseStreamActive) {
+        if (!Firebase.RTDB.readStream(&fbdoStream)) {
+          if (fbdoStream.httpCode() != 0) {
+            Serial.printf("[Firebase Stream] Read dropped: %s (HTTP %d)\n",
+                          fbdoStream.errorReason().c_str(), fbdoStream.httpCode());
+            firebaseStreamActive = false;
+          }
+        }
+      }
+      
+      // 2C: Status Heartbeat — every 1 second
+      if (currentMillis - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+        lastHeartbeat = currentMillis;
+        updateFirebaseHeartbeat();
+      }
+      
+      // 2D: Sensor Reading + Push — every 15 seconds
+      if (currentMillis - lastSensorRead >= SENSOR_READ_INTERVAL_MS) {
+        lastSensorRead = currentMillis;
+        readAllSensors();
+        pushSensorDataToFirebase();
+      }
+      
+      // 2E: History Logging — every 1 minute (aligned with minute-of-day slot)
+      if (currentMillis - lastHistoryLog >= HISTORY_LOG_INTERVAL_MS) {
+        lastHistoryLog = currentMillis;
+        pushHistoryToFirebase();
+      }
+    }
+  } else {
+    // ── Offline: Still read sensors locally (for when we reconnect) ──
+    if (currentMillis - lastSensorRead >= SENSOR_READ_INTERVAL_MS) {
+      lastSensorRead = currentMillis;
+      readAllSensors();
     }
   }
-
-  // ── Task 4: LCD Screen Pagination & Refresh (Every 3s) ─────────────
-  if (currentMs - lastLcdRotateMs >= INTERVAL_LCD_ROTATE_MS) {
-    lastLcdRotateMs = currentMs;
-    currentLcdScreen = (currentLcdScreen + 1) % 5;
-    updateLCD();
-  }
-
-  // ── Task 5: Heartbeat & Online Status Update (Every 15s) ───────────
-  if (currentMs - lastStatusUpdateMs >= INTERVAL_STATUS_HEARTBEAT_MS) {
-    lastStatusUpdateMs = currentMs;
-    if (WiFi.status() == WL_CONNECTED && Firebase.ready()) {
-      updateFirebaseStatus(true);
-    }
-  }
-
-  // ── Task 6: Network Connectivity Health Check (Every 10s) ──────────
-  if (currentMs - lastWifiCheckMs >= INTERVAL_WIFI_CHECK_MS) {
-    lastWifiCheckMs = currentMs;
-    checkWiFi();
-  }
-
-  // Yield to ESP32 RTOS background scheduler
+  
+  // Yield to RTOS background tasks
   yield();
 }
 
 // =================================================================================
-//  11. I2C BUS SCANNER & INITIALIZATION
+//  12. FIREBASE REAL-TIME STREAM LISTENER
 // =================================================================================
-void scanI2CBus() {
-  Serial.println(F("[I2C] Scanning I2C bus for connected devices..."));
-  byte count = 0;
-  for (byte i = 1; i < 127; i++) {
-    Wire.beginTransmission(i);
-    if (Wire.endTransmission() == 0) {
-      Serial.printf(" - Found device at address: 0x%02X", i);
-      if (i == 0x27 || i == 0x3F) Serial.print(F(" (LCD Backpack PCF8574)"));
-      else if (i == 0x77)         Serial.print(F(" (GY-68 / BMP180 Pressure Sensor)"));
-      else if (i >= 0x20 && i <= 0x26) Serial.print(F(" (PCF8574 I/O Expander - Relay Driver)"));
-      else if (i >= 0x38 && i <= 0x3E) Serial.print(F(" (PCF8574A I/O Expander - Relay Driver)"));
-      Serial.println();
-      count++;
-    }
-  }
-  if (count == 0) {
-    Serial.println(F("[I2C] ⚠️ No I2C devices found. Check SDA/SCL wiring and pull-ups!"));
-  } else {
-    Serial.printf("[I2C] Scan complete. Total %d device(s) detected.\n", count);
-  }
-}
-
-// =================================================================================
-//  12. PCF8574 RELAY EXPANDER INITIALIZATION & LOW-LEVEL DRIVER
-// =================================================================================
-void initializePCF8574() {
-  Serial.print(F("[PCF8574] Initializing Relay Driver Expander at 0x"));
-  Serial.println(PCF8574_RELAY_ADDR, HEX);
-
-  Wire.beginTransmission(PCF8574_RELAY_ADDR);
-  byte error = Wire.endTransmission();
-
-  if (error == 0) {
-    pcf8574Available = true;
-    // Set all PCF8574 pins LOW at startup so ULN2003 Darlington base inputs remain OFF
-    pcfCurrentPortState = 0x00;
-    writePCF8574(pcfCurrentPortState);
-    Serial.println(F("[PCF8574] ✅ Driver detected. All relays initialized in safe OFF state."));
-  } else {
-    pcf8574Available = false;
-    Serial.printf("[PCF8574] ⚠️ Expander not found at 0x%02X (Error: %d). Check address jumper A0/A1/A2.\n", PCF8574_RELAY_ADDR, error);
-  }
-}
-
-void writePCF8574(uint8_t data) {
-  Wire.beginTransmission(PCF8574_RELAY_ADDR);
-  Wire.write(data);
-  byte status = Wire.endTransmission();
-  if (status != 0) {
-    Serial.printf("[PCF8574] ❌ Write error: %d\n", status);
-  }
-}
-
-// =================================================================================
-//  13. LCD INITIALIZATION & MULTI-SCREEN PAGINATION
-// =================================================================================
-void initializeLCD() {
-  Serial.print(F("[LCD] Initializing 16x2 I2C Display... "));
-  
-  // Test communication with LCD address
-  Wire.beginTransmission(LCD_DEFAULT_ADDR);
-  if (Wire.endTransmission() == 0) {
-    lcd.init();
-    lcd.backlight();
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(F("IoTMesh Node"));
-    lcd.setCursor(0, 1);
-    lcd.print(F("Booting v1.0..."));
-    lcdInitialized = true;
-    Serial.println(F("✅ OK"));
-  } else {
-    // Try alternate standard address 0x3F
-    Wire.beginTransmission(0x3F);
-    if (Wire.endTransmission() == 0) {
-      lcd = LiquidCrystal_I2C(0x3F, 16, 2);
-      lcd.init();
-      lcd.backlight();
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print(F("IoTMesh Node"));
-      lcdInitialized = true;
-      Serial.println(F("✅ OK (Detected at 0x3F)"));
-    } else {
-      lcdInitialized = false;
-      Serial.println(F("⚠️ Failed to detect LCD at 0x27 or 0x3F"));
-    }
-  }
-}
-
-// =================================================================================
-//  14. PHYSICAL SENSOR INITIALIZATION
-// =================================================================================
-void initializeSensors() {
-  Serial.println(F("[Sensors] Initializing Subsystems..."));
-
-  // 1. DHT11
-  dht.begin();
-  Serial.printf(" - DHT11 Data Pin: GPIO %d ✅\n", DHT_PIN);
-
-  // 2. BMP180 Barometer
-  if (bmp.begin()) {
-    bmpInitialized = true;
-    Serial.println(F(" - BMP180 / GY-68 Barometer: Detected at 0x77 ✅"));
-  } else {
-    bmpInitialized = false;
-    Serial.println(F(" - BMP180 / GY-68: ⚠️ Sensor NOT detected at 0x77. Verify VCC/GND/SDA/SCL."));
-  }
-
-  // 3. MQ135 ADC Configuration
-  pinMode(MQ135_PIN, INPUT);
-  analogSetPinAttenuation(MQ135_PIN, ADC_11db); // Full-scale 0-3.3V
-  Serial.printf(" - MQ135 Analog In: GPIO %d (ADC1_CH6) ✅\n", MQ135_PIN);
-
-  // 4. Voltage Divider Sensor Configuration
-  pinMode(VOLTAGE_SENSOR_PIN, INPUT);
-  analogSetPinAttenuation(VOLTAGE_SENSOR_PIN, ADC_11db); // Full-scale 0-3.3V
-  Serial.printf(" - Voltage Sensor: GPIO %d (ADC1_CH0) ✅\n", VOLTAGE_SENSOR_PIN);
-}
-
-// =================================================================================
-//  15. SENSOR READ ROUTINES (ROBUST, NON-BLOCKING, MULTI-SAMPLED)
-// =================================================================================
-void readSensors() {
-  readDHT11();
-  readBMP180();
-  readMQ135();
-  readVoltage();
-}
-
-void readDHT11() {
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-
-  if (isnan(h) || isnan(t) || h <= 0.0f || h > 100.0f || t < -40.0f || t > 80.0f) {
-    telemetry.dhtValid = false;
-    // Retain previous valid reading if available rather than setting NaN
-  } else {
-    telemetry.humidityDHT    = h;
-    telemetry.temperatureDHT = t;
-    telemetry.dhtValid       = true;
-  }
-}
-
-void readBMP180() {
-  if (!bmpInitialized) {
-    telemetry.bmpValid = false;
-    return;
-  }
-
-  float t = bmp.readTemperature();
-  float p = bmp.readPressure() / 100.0F; // Convert Pa to hPa
-
-  if (isnan(t) || isnan(p) || p < 300.0f || p > 1200.0f) {
-    telemetry.bmpValid = false;
-  } else {
-    telemetry.temperatureBMP = t;
-    telemetry.pressureHPa    = p;
-    telemetry.altitudeMeters = bmp.readAltitude(101325); // Standard sea level pressure 1013.25 hPa
-    telemetry.bmpValid       = true;
-  }
-}
-
-void readMQ135() {
-  // Take 8-sample moving average to dampen 50Hz/60Hz AC noise and ADC ripple
-  long sum = 0;
-  for (int i = 0; i < 8; i++) {
-    sum += analogRead(MQ135_PIN);
-    delayMicroseconds(200);
-  }
-  int rawAdc = (int)(sum / 8);
-  telemetry.airQualityRaw = rawAdc;
-
-  // Normalized relative air quality index (0.0 to 100.0%)
-  // Note: Raw ADC is not direct ppm without heated pre-burn & calibration formula
-  float index = ((float)rawAdc / 4095.0f) * 100.0f;
-  if (index < 0.0f) index = 0.0f;
-  if (index > 100.0f) index = 100.0f;
-  telemetry.airQualityIndex = index;
-}
-
-void readVoltage() {
-  // Take 16-sample moving average for stable DC bus voltage measurement
-  long sum = 0;
-  for (int i = 0; i < 16; i++) {
-    sum += analogRead(VOLTAGE_SENSOR_PIN);
-    delayMicroseconds(100);
-  }
-  float avgAdc = (float)sum / 16.0f;
-
-  // Calculate pin voltage based on 12-bit ESP32 ADC (3.3V reference)
-  float pinVoltage = (avgAdc / 4095.0f) * ESP32_ADC_VREF;
-
-  // Multiply by hardware divider ratio and add calibration offset
-  float measuredBusVoltage = (pinVoltage * VOLTAGE_DIVIDER_RATIO) + VOLTAGE_CALIB_OFFSET;
-
-  if (measuredBusVoltage < 0.05f) measuredBusVoltage = 0.0f; // Zero floor threshold
-  telemetry.busVoltage = measuredBusVoltage;
-}
-
-// =================================================================================
-//  16. WIFI MANAGEMENT & AUTO-RECOVERY
-// =================================================================================
-void connectWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return;
-
-  Serial.printf("[WiFi] Connecting to SSID: '%s' ...\n", WIFI_SSID);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  unsigned long startMs = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - startMs < 12000)) {
-    delay(400);
-    Serial.print(F("."));
-    digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    isOnlineMode = true;
-    digitalWrite(STATUS_LED_PIN, HIGH);
-    Serial.println(F("[WiFi] ✅ Connected Successfully!"));
-    Serial.printf("[WiFi] IP Assigned: %s | RSSI: %d dBm | MAC: %s\n",
-                  WiFi.localIP().toString().c_str(),
-                  WiFi.RSSI(),
-                  WiFi.macAddress().c_str());
-  } else {
-    isOnlineMode = false;
-    lastWifiRetryMs = millis();
-    digitalWrite(STATUS_LED_PIN, LOW);
-    Serial.println(F("[WiFi] ⚠️ Failed to connect. Operating in Offline Safe Mode."));
-  }
-}
-
-void checkWiFi() {
-  unsigned long currentMs = millis();
-  bool wifiConnected = (WiFi.status() == WL_CONNECTED);
-
-  // Case 1: Was Online -> Now Disconnected
-  if (isOnlineMode && !wifiConnected) {
-    isOnlineMode = false;
-    firebaseStreamActive = false;
-    wifiRetryCount = 0;
-    lastWifiRetryMs = currentMs;
-    digitalWrite(STATUS_LED_PIN, LOW);
-
-    fbdoStream.clear();
-
-    Serial.println();
-    Serial.println(F("══════════════════════════════════════════════════"));
-    Serial.println(F("[WiFi] ⚠️ Connection dropped! Switching to OFFLINE MODE."));
-    Serial.printf(F("[System] Will retry WiFi connection every %lu seconds in background.\n"), INTERVAL_WIFI_RETRY_MS / 1000);
-    Serial.println(F("══════════════════════════════════════════════════"));
-    return;
-  }
-
-  // Case 2: Offline Mode -> Periodic Background Retry
-  if (!isOnlineMode) {
-    if (!wifiConnected) {
-      if (currentMs - lastWifiRetryMs >= INTERVAL_WIFI_RETRY_MS) {
-        lastWifiRetryMs = currentMs;
-        wifiRetryCount++;
-        Serial.printf("[Offline Mode] Retrying WiFi connection to '%s' (Attempt #%u in background)...\n",
-                      WIFI_SSID, wifiRetryCount);
-
-        WiFi.disconnect();
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-      }
-      return;
-    }
-
-    // Case 3: Reconnected!
-    isOnlineMode = true;
-    wifiRetryCount = 0;
-    digitalWrite(STATUS_LED_PIN, HIGH);
-
-    Serial.println();
-    Serial.println(F("══════════════════════════════════════════════════"));
-    Serial.println(F("[WiFi] ✅ Reconnected Successfully! Switching to ONLINE MODE."));
-    Serial.printf(F("[WiFi] IP Assigned: %s | Signal: %d dBm\n"), WiFi.localIP().toString().c_str(), WiFi.RSSI());
-    Serial.println(F("══════════════════════════════════════════════════"));
-
-    firebaseStreamActive = false;
-    setupFirebaseStream();
-    lastStatusUpdateMs = 0; // Trigger immediate heartbeat
-  }
-}
-
-// =================================================================================
-//  17. FIREBASE INITIALIZATION & REAL-TIME STREAM LISTENER
-// =================================================================================
-void initializeFirebase() {
-  Serial.println(F("[Firebase] Configuring Realtime Database Client..."));
-
-  // Assign Firebase Host and API Key
-  fbConfig.host = FIREBASE_HOST;
-  fbConfig.api_key = FIREBASE_AUTH_KEY;
-  fbConfig.signer.tokens.legacy_token = ""; // Leave blank for anonymous / API key auth
-
-  // Configure connection & response timeouts
-  fbConfig.timeout.wifiReconnect = 10000;
-  fbConfig.timeout.socketConnection = 10000;
-  fbConfig.timeout.sslHandshake = 15000;
-  fbConfig.timeout.rtdbKeepAlive = 45000;
-  fbConfig.timeout.rtdbStreamReconnect = 10000;
-  fbConfig.timeout.rtdbStreamError = 3000;
-
-  // Initialize Firebase Client
-  Firebase.begin(&fbConfig, &fbAuth);
-  Firebase.reconnectWiFi(false);
-
-  // Set buffer sizes for robust streaming
-  fbdoStream.setResponseSize(2048);
-  fbdoWrite.setResponseSize(1024);
-
-  Serial.println(F("[Firebase] Initialization done. Preparing stream..."));
-}
 
 void setupFirebaseStream() {
   if (WiFi.status() != WL_CONNECTED || !Firebase.ready()) return;
-
-  Serial.printf("[Firebase] Subscribing to Stream on path: %s ...\n", FB_PATH_CONTROLS);
-
+  
+  Serial.printf("[Firebase] Starting Real-time Stream on: %s ...\n", FB_PATH_CONTROLS);
+  
   if (!Firebase.RTDB.beginStream(&fbdoStream, FB_PATH_CONTROLS)) {
-    Serial.printf("[Firebase] ❌ Stream start failed: %s\n", fbdoStream.errorReason().c_str());
+    Serial.printf("[Firebase] ❌ Stream start failed: %s (HTTP %d)\n",
+                  fbdoStream.errorReason().c_str(), fbdoStream.httpCode());
     firebaseStreamActive = false;
     return;
   }
-
-  // Attach event callbacks
+  
   Firebase.RTDB.setStreamCallback(&fbdoStream, handleStreamCallback, handleStreamTimeoutCallback);
   firebaseStreamActive = true;
-  lastStreamActivityMs = millis();
-  Serial.println(F("[Firebase] ✅ Stream active. Real-time control listener operational."));
+  Serial.println(F("[Firebase] ✅ Stream active. Listening for Common Area commands..."));
 }
 
-// =================================================================================
-//  18. FIREBASE STREAM & CONTROL EVENT HANDLERS
-// =================================================================================
 void handleStreamCallback(FirebaseStream data) {
-  lastStreamActivityMs = millis();
   Serial.println();
   Serial.println(F("──────────────────────────────────────────────────"));
-  Serial.printf("[Firebase Stream] Event Path: %s | Data Type: %s\n", data.dataPath().c_str(), data.dataType().c_str());
-
+  Serial.printf("[Firebase Stream] Path: %s | Type: %s | Value: %s\n",
+                data.dataPath().c_str(), data.dataType().c_str(), data.stringData().c_str());
+  
   String path = data.dataPath();
-
-  // Case A: Root JSON object received (e.g. on initial connection)
-  if (data.dataType() == "json" || path == "/") {
+  String dataType = data.dataType();
+  
+  bool stateChanged = false;
+  
+  // ══════════════════════════════════════════════════════════════════
+  //  Case A: Root JSON (initial stream connection or multi-update)
+  // ══════════════════════════════════════════════════════════════════
+  if (dataType == "json" || path == "/") {
     FirebaseJson *json = data.to<FirebaseJson *>();
-    FirebaseJsonData jsonData;
-
-    // 1. lobbyFan
-    if (json->get(jsonData, "lobbyFan")) {
-      controls.lobbyFan = jsonData.to<bool>();
-      Serial.printf(" - lobbyFan: %s\n", controls.lobbyFan ? "ON" : "OFF");
-    }
-
-    // 2. lobbyFanSpeed
-    if (json->get(jsonData, "lobbyFanSpeed")) {
-      controls.lobbyFanSpeed = jsonData.to<int>();
-      Serial.printf(" - lobbyFanSpeed: %d\n", controls.lobbyFanSpeed);
-    }
-
-    // 3. lobbyLight
-    if (json->get(jsonData, "lobbyLight")) {
-      controls.lobbyLight = jsonData.to<bool>();
-      Serial.printf(" - lobbyLight: %s\n", controls.lobbyLight ? "ON" : "OFF");
-    }
-
-    // 4. lobbyTV
-    if (json->get(jsonData, "lobbyTV")) {
-      controls.lobbyTV = jsonData.to<bool>();
-      Serial.printf(" - lobbyTV: %s\n", controls.lobbyTV ? "ON" : "OFF");
-    }
-
-    // 5. refrigerator
-    if (json->get(jsonData, "refrigerator")) {
-      controls.refrigerator = jsonData.to<bool>();
-      Serial.printf(" - refrigerator: %s\n", controls.refrigerator ? "ON" : "OFF");
-    }
-
-    // 6. motion
-    if (json->get(jsonData, "motion")) {
-      controls.motion = jsonData.to<bool>();
-      Serial.printf(" - motion (flag): %s\n", controls.motion ? "ACTIVE" : "IDLE");
+    if (json != nullptr) {
+      FirebaseJsonData jsonData;
+      
+      // Fan master switch
+      if (json->get(jsonData, "fan")) {
+        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
+        if (controlFan != val) {
+          controlFan = val;
+          stateChanged = true;
+          Serial.printf("[Cloud] Fan → %s\n", val ? "ON" : "OFF");
+        }
+      }
+      
+      // Fan speed
+      if (json->get(jsonData, "fanspeed")) {
+        int newSpeed = jsonData.intValue;
+        if (newSpeed >= 1 && newSpeed <= 3 && controlFanSpeed != newSpeed) {
+          controlFanSpeed = newSpeed;
+          stateChanged = true;
+          Serial.printf("[Cloud] Fan Speed → %d\n", newSpeed);
+        }
+      }
+      
+      // Light
+      if (json->get(jsonData, "light")) {
+        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
+        if (controlLight != val) {
+          controlLight = val;
+          stateChanged = true;
+          Serial.printf("[Cloud] Light → %s\n", val ? "ON" : "OFF");
+        }
+      }
+      
+      // Refrigerator
+      if (json->get(jsonData, "refrigerator")) {
+        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
+        if (controlRefrigerator != val) {
+          controlRefrigerator = val;
+          stateChanged = true;
+          Serial.printf("[Cloud] Refrigerator → %s\n", val ? "ON" : "OFF");
+        }
+      }
+      
+      // TV / General Switch
+      if (json->get(jsonData, "tv")) {
+        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
+        if (controlTV != val) {
+          controlTV = val;
+          stateChanged = true;
+          Serial.printf("[Cloud] TV → %s\n", val ? "ON" : "OFF");
+        }
+      }
     }
   }
-  // Case B: Individual child node updated
+  // ══════════════════════════════════════════════════════════════════
+  //  Case B: Individual child node update (/fan, /light, etc.)
+  // ══════════════════════════════════════════════════════════════════
   else {
-    if (path == "/lobbyFan") {
-      controls.lobbyFan = data.boolData();
-      Serial.printf(" - [UPDATE] lobbyFan: %s\n", controls.lobbyFan ? "ON" : "OFF");
-    } else if (path == "/lobbyFanSpeed") {
-      controls.lobbyFanSpeed = data.intData();
-      Serial.printf(" - [UPDATE] lobbyFanSpeed: %d\n", controls.lobbyFanSpeed);
-    } else if (path == "/lobbyLight") {
-      controls.lobbyLight = data.boolData();
-      Serial.printf(" - [UPDATE] lobbyLight: %s\n", controls.lobbyLight ? "ON" : "OFF");
-    } else if (path == "/lobbyTV") {
-      controls.lobbyTV = data.boolData();
-      Serial.printf(" - [UPDATE] lobbyTV: %s\n", controls.lobbyTV ? "ON" : "OFF");
-    } else if (path == "/refrigerator") {
-      controls.refrigerator = data.boolData();
-      Serial.printf(" - [UPDATE] refrigerator: %s\n", controls.refrigerator ? "ON" : "OFF");
-    } else if (path == "/motion") {
-      controls.motion = data.boolData();
-      Serial.printf(" - [UPDATE] motion: %s\n", controls.motion ? "ACTIVE" : "IDLE");
+    if (path == "/fan" || path == "fan") {
+      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
+      if (controlFan != val) {
+        controlFan = val;
+        stateChanged = true;
+        Serial.printf("[Cloud] Fan → %s\n", val ? "ON" : "OFF");
+      }
+    }
+    else if (path == "/fanspeed" || path == "fanspeed") {
+      int newSpeed = (dataType == "integer" || dataType == "int") ? data.intData() : atoi(data.stringData().c_str());
+      if (newSpeed >= 1 && newSpeed <= 3 && controlFanSpeed != newSpeed) {
+        controlFanSpeed = newSpeed;
+        if (controlFan) stateChanged = true;  // Only update relays if fan is ON
+        Serial.printf("[Cloud] Fan Speed → %d\n", newSpeed);
+      }
+    }
+    else if (path == "/light" || path == "light") {
+      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
+      if (controlLight != val) {
+        controlLight = val;
+        stateChanged = true;
+        Serial.printf("[Cloud] Light → %s\n", val ? "ON" : "OFF");
+      }
+    }
+    else if (path == "/refrigerator" || path == "refrigerator") {
+      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
+      if (controlRefrigerator != val) {
+        controlRefrigerator = val;
+        stateChanged = true;
+        Serial.printf("[Cloud] Refrigerator → %s\n", val ? "ON" : "OFF");
+      }
+    }
+    else if (path == "/tv" || path == "tv") {
+      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
+      if (controlTV != val) {
+        controlTV = val;
+        stateChanged = true;
+        Serial.printf("[Cloud] TV → %s\n", val ? "ON" : "OFF");
+      }
     }
   }
-
-  // Immediately apply new hardware relay outputs
-  applyRelayStates();
+  
+  // Apply relay changes through PCF8574 → ULN2003APG → Relays
+  if (stateChanged) {
+    updateRelaysFromState();
+  }
+  
   Serial.println(F("──────────────────────────────────────────────────"));
 }
 
 void handleStreamTimeoutCallback(bool matched) {
   if (matched) {
-    Serial.println(F("[Firebase Stream] ⚠️ Stream timeout detected. Will auto-resume."));
+    Serial.println(F("[Firebase Stream] Stream timeout detected. Will auto-resume."));
+    firebaseStreamActive = false;
   }
 }
 
 // =================================================================================
-//  19. RELAY & ULN2003 DRIVER LOGIC
+//  13. STATUS HEARTBEAT (Every 1 Second)
 // =================================================================================
-void applyRelayStates() {
-  setRelay(PCF_RELAY_LOBBY_FAN,    controls.lobbyFan);
-  setRelay(PCF_RELAY_LOBBY_LIGHT,  controls.lobbyLight);
-  setRelay(PCF_RELAY_LOBBY_TV,     controls.lobbyTV);
-  setRelay(PCF_RELAY_REFRIGERATOR, controls.refrigerator);
 
-  if (pcf8574Available) {
-    writePCF8574(pcfCurrentPortState);
-  }
-}
-
-void setRelay(uint8_t pinBit, bool turnOn) {
-  // When turnOn is true, set the PCF8574 bit to HIGH (sends 5V to ULN2003 input).
-  // ULN2003 in turn grounds the relay coil, energizing the relay.
-  if (turnOn) {
-    pcfCurrentPortState |= (1 << pinBit);
-  } else {
-    pcfCurrentPortState &= ~(1 << pinBit);
-  }
-}
-
-// =================================================================================
-//  20. FIREBASE TELEMETRY UPLOAD (ROBUST JSON PAYLOAD)
-// =================================================================================
-void updateFirebase() {
-  FirebaseJson jsonSensors;
-  FirebaseJson jsonRoomSensor;
-
-  // Use primary temperature (prefer DHT11 if valid, else BMP180)
-  float effectiveTemp = telemetry.dhtValid ? telemetry.temperatureDHT : (telemetry.bmpValid ? telemetry.temperatureBMP : 0.0f);
-  float effectiveHum  = telemetry.dhtValid ? telemetry.humidityDHT : 0.0f;
-  float effectivePres = telemetry.bmpValid ? telemetry.pressureHPa : 1013.25f;
-
-  unsigned long uptimeSec = (millis() - systemBootTimeMs) / 1000;
-
-  // 1. Build Payload for /home/sensors/
-  jsonSensors.set("temperature", effectiveTemp);
-  jsonSensors.set("humidity", effectiveHum);
-  jsonSensors.set("pressure", effectivePres);
-  jsonSensors.set("altitude", telemetry.altitudeMeters);
-  jsonSensors.set("airQualityRaw", telemetry.airQualityRaw);
-  jsonSensors.set("airQualityIndex", telemetry.airQualityIndex);
-  jsonSensors.set("voltage", telemetry.busVoltage);
-  jsonSensors.set("wifiRssi", WiFi.RSSI());
-  jsonSensors.set("uptime", uptimeSec);
-  jsonSensors.set("timestamp", (double)millis());
-
-  // 2. Build Payload for /home/sensor (Web App format compatibility)
-  jsonRoomSensor.set("temperature", effectiveTemp);
-  jsonRoomSensor.set("temperatureBMP", telemetry.temperatureBMP);
-  jsonRoomSensor.set("humidity", effectiveHum);
-  jsonRoomSensor.set("pressure", effectivePres);
-  jsonRoomSensor.set("gas", telemetry.airQualityRaw);
-  jsonRoomSensor.set("batteryVolt", telemetry.busVoltage);
-  jsonRoomSensor.set("motion", controls.motion);
-  jsonRoomSensor.set("timestamp", (double)millis());
-
-  // Perform non-blocking writes using dedicated write object
-  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_SENSORS, &jsonSensors)) {
-    // Also push to web app schema
-    Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_ROOM_SENSOR, &jsonRoomSensor);
-    Serial.printf("[Firebase] 📤 Telemetry Pushed: T=%.1f°C | H=%.1f%% | P=%.1fhPa | AQ=%d | V=%.2fV\n",
-                  effectiveTemp, effectiveHum, effectivePres, telemetry.airQualityRaw, telemetry.busVoltage);
-  } else {
-    handleFirebaseError(fbdoWrite, "Telemetry Upload");
-  }
-}
-
-void updateFirebaseStatus(bool isOnline) {
+void updateFirebaseHeartbeat() {
   FirebaseJson jsonStatus;
-  jsonStatus.set("online", isOnline);
-  jsonStatus.set("lastSeen", (double)millis());
-  jsonStatus.set("rssi", WiFi.RSSI());
+  jsonStatus.set("online", true);
   jsonStatus.set("ip", WiFi.localIP().toString());
+  jsonStatus.set("rssi", WiFi.RSSI());
+  jsonStatus.set("uptime", (int)(millis() / 1000));
   jsonStatus.set("freeHeap", (int)ESP.getFreeHeap());
-
-  Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_STATUS, &jsonStatus);
-}
-
-void handleFirebaseError(FirebaseData &fbdo, const char* context) {
-  Serial.printf("[Firebase Error] %s failed! Reason: %s (Code: %d)\n",
-                context,
-                fbdo.errorReason().c_str(),
-                fbdo.httpCode());
-}
-
-// =================================================================================
-//  21. LCD DISPLAY RENDERING (FLICKER-FREE REFRESH)
-// =================================================================================
-void updateLCD() {
-  if (!lcdInitialized) return;
-
-  switch (currentLcdScreen) {
-    case 0: renderScreen0(); break;
-    case 1: renderScreen1(); break;
-    case 2: renderScreen2(); break;
-    case 3: renderScreen3(); break;
-    case 4: renderScreen4(); break;
-    default: currentLcdScreen = 0; renderScreen0(); break;
+  
+  // ESP32 internal chip temperature (available on standard ESP32)
+  // Note: temperatureRead() returns chip die temperature, typically 10-20°C above ambient
+  float chipTemp = temperatureRead();
+  jsonStatus.set("chipTempC", (float)((int)(chipTemp * 10)) / 10.0);
+  
+  // Firebase RTDB Server Timestamp
+  FirebaseJson sv;
+  sv.set(".sv", "timestamp");
+  jsonStatus.set("serverTimestamp", sv);
+  jsonStatus.set("timestamp", sv);
+  
+  // Last Seen timestamp — formatted using NTP-synced IST clock
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo, 100)) {
+    char lastSeen[32];
+    strftime(lastSeen, sizeof(lastSeen), "%d/%m/%Y %H:%M:%S", &timeinfo);
+    jsonStatus.set("lastSeen", lastSeen);
+    time_t nowSec = time(nullptr);
+    jsonStatus.set("lastSeenEpoch", (unsigned long)nowSec);
   }
-}
-
-// Screen 0: Temperature & Humidity
-void renderScreen0() {
-  char line1[17];
-  char line2[17];
-  float t = telemetry.dhtValid ? telemetry.temperatureDHT : (telemetry.bmpValid ? telemetry.temperatureBMP : 0.0f);
-  float h = telemetry.dhtValid ? telemetry.humidityDHT : 0.0f;
-
-  snprintf(line1, sizeof(line1), "Temp: %4.1f%cC   ", t, 223); // 223 is degree symbol in HD44780
-  snprintf(line2, sizeof(line2), "Hum : %4.1f%%   ", h);
-
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
-}
-
-// Screen 1: Barometric Pressure & Air Quality
-void renderScreen1() {
-  char line1[17];
-  char line2[17];
-  float p = telemetry.bmpValid ? telemetry.pressureHPa : 0.0f;
-  int   aq = telemetry.airQualityRaw;
-
-  snprintf(line1, sizeof(line1), "Press:%5.0fhPa ", p);
-  snprintf(line2, sizeof(line2), "AirQ : %-4d ADC ", aq);
-
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
-}
-
-// Screen 2: DC Bus Voltage & Fan Status
-void renderScreen2() {
-  char line1[17];
-  char line2[17];
-  const char* fanStr = controls.lobbyFan ? "ON " : "OFF";
-
-  snprintf(line1, sizeof(line1), "Volt: %4.1fV    ", telemetry.busVoltage);
-  snprintf(line2, sizeof(line2), "Fan : %-3s [Spd:%d]", fanStr, controls.lobbyFanSpeed);
-
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
-}
-
-// Screen 3: Lobby Light & TV Relays
-void renderScreen3() {
-  char line1[17];
-  char line2[17];
-  const char* lightStr = controls.lobbyLight ? "ON " : "OFF";
-  const char* tvStr    = controls.lobbyTV    ? "ON " : "OFF";
-
-  snprintf(line1, sizeof(line1), "Light: %-3s      ", lightStr);
-  snprintf(line2, sizeof(line2), "TV   : %-3s      ", tvStr);
-
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
-}
-
-// Screen 4: Refrigerator & WiFi Status
-void renderScreen4() {
-  char line1[17];
-  char line2[17];
-  const char* fridgeStr = controls.refrigerator ? "ON " : "OFF";
-  bool wifiOk = (WiFi.status() == WL_CONNECTED);
-
-  snprintf(line1, sizeof(line1), "Fridge: %-3s     ", fridgeStr);
-  if (wifiOk) {
-    snprintf(line2, sizeof(line2), "WiFi  : OK %3ddB", WiFi.RSSI());
+  
+  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_STATUS, &jsonStatus)) {
+    // Silent success for heartbeat (every 1s is too noisy to log each time)
+    static unsigned long lastHeartbeatLog = 0;
+    if (millis() - lastHeartbeatLog >= 15000) {  // Log confirmation every 15s
+      Serial.println(F("[Heartbeat] ✅ Status pushing to Firebase (1s interval)."));
+      lastHeartbeatLog = millis();
+    }
   } else {
-    snprintf(line2, sizeof(line2), "WiFi  : OFFLINE ");
+    Serial.printf("[Heartbeat] ❌ Failed: %s\n", fbdoWrite.errorReason().c_str());
   }
-
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
 }
 
 // =================================================================================
-//  22. SYSTEM DIAGNOSTIC PRINTER
+//  14. NETWORK CONNECTION & MANAGEMENT
 // =================================================================================
-void printSystemStatus() {
+
+void connectWiFiNonBlocking() {
+  Serial.printf("[WiFi] Connecting to SSID: '%s' ...\n", WIFI_SSID);
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  
+  unsigned long startAttemptTime = millis();
+  
+  // Wait up to 12 seconds for connection
+  while (WiFi.status() != WL_CONNECTED && (millis() - startAttemptTime < 12000)) {
+    delay(200);
+    Serial.print(".");
+  }
   Serial.println();
-  Serial.println(F("================================"));
-  Serial.println(F("       IoTMesh Node Status      "));
-  Serial.println(F("================================"));
-  Serial.printf("WiFi Status    : %s\n", (WiFi.status() == WL_CONNECTED) ? "CONNECTED" : "OFFLINE");
-  Serial.printf("Firebase Stream: %s\n", firebaseStreamActive ? "ACTIVE" : "INACTIVE");
-  Serial.printf("LCD 16x2 Display: %s\n", lcdInitialized ? "ONLINE (0x27)" : "NOT FOUND");
-  Serial.printf("BMP180 Barometer: %s\n", bmpInitialized ? "ONLINE (0x77)" : "NOT FOUND");
-  Serial.printf("DHT11 Sensor   : %s\n", telemetry.dhtValid ? "VALID" : "PENDING");
-  Serial.printf("MQ135 Gas Raw  : %d ADC\n", telemetry.airQualityRaw);
-  Serial.printf("DC Voltage In  : %.2f V\n", telemetry.busVoltage);
-  Serial.printf("Relay Driver   : %s\n", pcf8574Available ? "PCF8574 @ 0x20" : "OFFLINE");
-  Serial.println(F("================================"));
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(F("[WiFi] ✅ Connected successfully!"));
+    Serial.printf("[WiFi] IP: %s | Signal: %d dBm\n",
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  } else {
+    Serial.printf("[WiFi] ⚠️ Not connected yet (Status code: %d). Continuing...\n", WiFi.status());
+  }
+}
+
+void handleNetworkHealth() {
+  unsigned long currentMillis = millis();
+  bool wifiConnected = (WiFi.status() == WL_CONNECTED);
+  
+  // ── CASE 1: WAS ONLINE → NOW DISCONNECTED ──
+  if (isOnlineMode && !wifiConnected) {
+    isOnlineMode = false;
+    firebaseStreamActive = false;
+    wifiRetryCount = 0;
+    lastWifiRetry = currentMillis;
+    
+    fbdoStream.clear();
+    
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    Serial.println(F("[Network] ⚠️  WiFi connection lost!"));
+    Serial.println(F("[System]  Switching to OFFLINE MODE."));
+    Serial.printf("[System]  Retrying every %lu seconds...\n", WIFI_RETRY_INTERVAL_MS / 1000);
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    
+    // Set all relays to safe state (optional — remove if you want relays to hold state)
+    // pcf8574Write(0x00);
+    return;
+  }
+  
+  // ── CASE 2: OFFLINE → PERIODIC BACKGROUND RETRY ──
+  if (!isOnlineMode) {
+    if (!wifiConnected) {
+      if (currentMillis - lastWifiRetry >= WIFI_RETRY_INTERVAL_MS) {
+        lastWifiRetry = currentMillis;
+        wifiRetryCount++;
+        Serial.printf("[Offline] Retrying WiFi '%s' (Attempt #%u)...\n", WIFI_SSID, wifiRetryCount);
+        WiFi.disconnect();
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      }
+      return;
+    }
+    
+    // ── CASE 3: WAS OFFLINE → WIFI RECONNECTED ──
+    isOnlineMode = true;
+    wifiRetryCount = 0;
+    
+    Serial.println();
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    Serial.println(F("[Network] ✅ WiFi Reconnected!"));
+    Serial.printf("[Network] IP: %s | Signal: %d dBm\n",
+                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    Serial.println(F("[System]  OFFLINE → ONLINE MODE. Resuming cloud services..."));
+    Serial.println(F("══════════════════════════════════════════════════════════"));
+    
+    if (!firebaseInitialized) {
+      initializeFirebase();
+    } else {
+      firebaseStreamActive = false;
+      setupFirebaseStream();
+    }
+    
+    if (!otaInitialized) {
+      initializeOTA();
+    }
+    
+    // Force immediate heartbeat + sensor push on reconnection
+    lastHeartbeat = currentMillis;
+    updateFirebaseHeartbeat();
+    
+    readAllSensors();
+    pushSensorDataToFirebase();
+    pushHistoryToFirebase();
+  }
+}
+
+// =================================================================================
+//  15. FIREBASE CLIENT INITIALIZATION
+// =================================================================================
+
+void initializeFirebase() {
+  if (firebaseInitialized) return;
+  
+  Serial.println(F("[Firebase] Initializing client..."));
+  
+  // ── NTP Time Sync (CRITICAL for SSL certificate validation) ──
+  // IST = UTC + 5h 30m = 19800 seconds offset
+  static bool ntpSynced = false;
+  if (!ntpSynced) {
+    configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.windows.com");
+    Serial.print(F("[Firebase] Syncing time via NTP (IST)..."));
+    struct tm timeinfo;
+    unsigned long ntpStart = millis();
+    while (!getLocalTime(&timeinfo) && (millis() - ntpStart < 8000)) {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+    if (getLocalTime(&timeinfo)) {
+      ntpSynced = true;
+      Serial.printf("[Firebase] ✅ Time synced: %02d:%02d:%02d IST\n",
+                    timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    } else {
+      Serial.println(F("[Firebase] ⚠️  NTP sync timed out — SSL errors may occur."));
+    }
+  }
+  
+  fbConfig.database_url = FIREBASE_HOST;
+  fbConfig.signer.tokens.legacy_token = FIREBASE_DB_SECRET;
+  
+  // Connection timeouts
+  fbConfig.timeout.wifiReconnect       = 5000;
+  fbConfig.timeout.socketConnection    = 5000;
+  fbConfig.timeout.sslHandshake        = 6000;
+  fbConfig.timeout.rtdbKeepAlive       = 45000;
+  fbConfig.timeout.rtdbStreamReconnect = 5000;
+  
+  Firebase.begin(&fbConfig, &fbAuth);
+  Firebase.reconnectWiFi(false);  // We manage WiFi ourselves
+  
+  // SSL buffer sizes (optimized for ESP32 with more RAM than ESP32-C3)
+  fbdoStream.setResponseSize(4096);
+  fbdoStream.setBSSLBufferSize(4096, 1024);
+  
+  fbdoWrite.setResponseSize(2048);
+  fbdoWrite.setBSSLBufferSize(4096, 1024);
+  
+  fbdoSensor.setResponseSize(2048);
+  fbdoSensor.setBSSLBufferSize(4096, 1024);
+  
+  firebaseInitialized = true;
+  Serial.println(F("[Firebase] ✅ Client initialized. Waiting for authentication..."));
+}
+
+// =================================================================================
+//  16. OTA (OVER-THE-AIR) UPDATE
+// =================================================================================
+
+void initializeOTA() {
+  if (otaInitialized) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+  
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  ArduinoOTA.setPassword(OTA_PASSWORD);
+  
+  ArduinoOTA.onStart([]() {
+    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "firmware" : "filesystem";
+    Serial.println("\n[OTA] ⬆️  Update started: " + type);
+  });
+  
+  ArduinoOTA.onEnd([]() {
+    Serial.println(F("\n[OTA] ✅ Update complete! Rebooting..."));
+  });
+  
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("[OTA] Progress: %u%%\r", (progress / (total / 100)));
+  });
+  
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("\n[OTA] ❌ Error [%u]: ", error);
+    if      (error == OTA_AUTH_ERROR)    Serial.println(F("Authentication failed"));
+    else if (error == OTA_BEGIN_ERROR)   Serial.println(F("Begin failed"));
+    else if (error == OTA_CONNECT_ERROR) Serial.println(F("Connect failed"));
+    else if (error == OTA_RECEIVE_ERROR) Serial.println(F("Receive failed"));
+    else if (error == OTA_END_ERROR)     Serial.println(F("End failed"));
+  });
+  
+  ArduinoOTA.begin();
+  otaInitialized = true;
+  Serial.printf("[OTA] ✅ Ready! Hostname: '%s'\n", OTA_HOSTNAME);
 }
