@@ -60,7 +60,7 @@ const PATHS = {
   SCHEDULES: "home/schedules",
   IGNITION: "special/ignition",
   WEATHER: "home/weather",
-  HISTORY: "home/history/h24",
+  HISTORY: "home/history",
 } as const;
 
 export type ScheduleType = "timer" | "schedule";

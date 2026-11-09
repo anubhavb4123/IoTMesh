@@ -118,6 +118,14 @@
         "status": {
           ".read": true,
           ".write": true
+        },
+        "sensor": {
+          ".read": true,
+          ".write": true
+        },
+        "history": {
+          ".read": true,
+          ".write": true
         }
       },
       "relay": {

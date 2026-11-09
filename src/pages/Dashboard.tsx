@@ -111,7 +111,7 @@ export default function Dashboard() {
 
   // Listen to Timeseries History from Firebase with physical range sanitization & sliding time window
   useEffect(() => {
-    const histPath = chartNode === "home" ? "home/history/h24" : `home/${chartNode}/history/h24`;
+    const histPath = chartNode === "home" ? "home/history" : `home/${chartNode}/history`;
     const histRef = ref(database, histPath);
     const unsub = onValue(histRef, (snapshot) => {
       if (!snapshot.exists()) {

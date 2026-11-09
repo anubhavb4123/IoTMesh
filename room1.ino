@@ -1,40 +1,19 @@
 /*
- * ══════════════════════════════════════════════════════════════════════════════════
- *   IoTMesh - Room 1 Hybrid Smart Controller (ESP32-C3 Super Mini)
- * ══════════════════════════════════════════════════════════════════════════════════
- * 
- * Target Board: ESP32-C3 Super Mini
- * 
- * Devices & Hardware Mapping:
- *   - Device 1: Ceiling Light  --> Switch: GPIO 1 | Relay: GPIO 21 | Firebase: "/home/room1/controls/light"
- *   - Device 2: Wall Switch    --> Switch: GPIO 4 | Relay: GPIO 20 | Firebase: "/home/room1/controls/switch"
- *   - Device 3: Ceiling Fan    --> Switch: GPIO 3 | Relay: GPIO 5  | Firebase: "/home/room1/controls/fan" & "fanspeed"
- * 
- * Key Features:
- *   1. 100% Autonomous Offline Operation:
- *      Physical switches control the relays instantly with ZERO lag even if WiFi
- *      is disconnected, router is off, or Firebase is unreachable.
- *   2. Real-Time Cloud Synchronization:
- *      Controls synchronize bidirectionally with Firebase Realtime Database
- *      (`/home/room1/controls`) and the IoTMesh Web Dashboard.
- *   3. Smart Two-Way Switching:
- *      Flipping a physical switch always changes device state, even if previously
- *      toggled from the web or smartphone.
- * ══════════════════════════════════════════════════════════════════════════════════
+ * IoTMesh - Room 1 Hybrid Smart Controller (ESP32-C3 Super Mini)
+ *
+ * Local switches run in a small, independent task so a slow TLS connection,
+ * Firebase outage, NTP failure, or OTA handler cannot stop switch scanning.
+ * Firebase is accessed only from loop(), using one manually polled stream.
+ * Pin mapping, switch modes, RTDB keys, fan speed semantics and OTA are retained.
  */
-
-// =================================================================================
-//  1. REQUIRED LIBRARIES
-// =================================================================================
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
-#include <ArduinoOTA.h>              // OTA (Over-The-Air) firmware update support
-
-// Token and RTDB helper classes from Mobizt Firebase library
-#include <addons/TokenHelper.h>
-#include <addons/RTDBHelper.h>
-#include "driver/temp_sensor.h"     // ESP32-C3 built-in chip temperature sensor
-#include "esp_bt.h"                 // Bluetooth control & power management
+#include <ArduinoOTA.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <time.h>
+#include "driver/temp_sensor.h"
+#include "esp_bt.h"
 
 // =================================================================================
 //  2. NETWORK & FIREBASE CONFIGURATION
@@ -118,665 +97,468 @@ const unsigned long WIFI_CHECK_INTERVAL_MS   = 5000;  // Check WiFi health every
 const unsigned long WIFI_RETRY_INTERVAL_MS   = 20000; // When offline, retry WiFi every 20s
 const unsigned long HEARTBEAT_INTERVAL_MS    = 15000; // Push online status every 15s
 
-// =================================================================================
-//  4. DATA STRUCTURES & GLOBAL OBJECTS
-// =================================================================================
+// Shared relay state is protected only for short GPIO/state operations.
+// Never hold stateMux while allocating, logging, or calling network APIs.
 struct Channel {
-  const char*   name;
-  const char*   firebaseKey;
-  uint8_t       switchPin;
-  uint8_t       relayPin;
-  bool          relayState;          // Current relay state (true = ON, false = OFF)
-  bool          pendingSync;         // True if local state changed and needs cloud push
-  int           lastReading;         // Immediate digital reading
-  int           stableState;         // Debounced stable state
-  unsigned long lastDebounceTime;    // Last transition timestamp
+  const char* firebaseKey;
+  uint8_t switchPin;
+  uint8_t relayPin;
+  bool relayState;
+  bool pendingSync;
+  uint8_t lastReading;
+  uint8_t stableState;
+  unsigned long lastDebounceTime;
+  uint32_t revision;
 };
 
-// Map each device channel
 Channel channels[] = {
-  { "Ceiling Light", "light",  SWITCH1_PIN, RELAY1_PIN, false, false, SWITCH_INACTIVE_LEVEL, SWITCH_INACTIVE_LEVEL, 0 },
-  { "Wall Switch",   "switch", SWITCH2_PIN, RELAY2_PIN, false, false, SWITCH_INACTIVE_LEVEL, SWITCH_INACTIVE_LEVEL, 0 },
-  { "Ceiling Fan",   "fan",    SWITCH3_PIN, RELAY3_PIN, false, false, SWITCH_INACTIVE_LEVEL, SWITCH_INACTIVE_LEVEL, 0 }
+  { "light",  SWITCH1_PIN, RELAY1_PIN, false, false, SWITCH_INACTIVE_LEVEL, SWITCH_INACTIVE_LEVEL, 0, 0 },
+  { "switch", SWITCH2_PIN, RELAY2_PIN, false, false, SWITCH_INACTIVE_LEVEL, SWITCH_INACTIVE_LEVEL, 0, 0 },
+  { "fan",    SWITCH3_PIN, RELAY3_PIN, false, false, SWITCH_INACTIVE_LEVEL, SWITCH_INACTIVE_LEVEL, 0, 0 }
+};
+const uint8_t NUM_CHANNELS = sizeof(channels) / sizeof(channels[0]);
+const uint8_t FAN_CHANNEL = 2;
+const unsigned long SWITCH_POLL_MS = 5;
+const unsigned long CLOUD_RETRY_MIN_MS = 5000;
+const unsigned long CLOUD_RETRY_MAX_MS = 60000;
+const unsigned long NTP_GRACE_MS = 8000;
+const unsigned long CLOCK_VALID_AFTER = 1609459200UL; // 2021-01-01 UTC
+
+portMUX_TYPE stateMux = portMUX_INITIALIZER_UNLOCKED;
+int currentFanSpeed = 0;
+bool switchTaskStarted = false;
+
+// Unsigned elapsed-time arithmetic also works across the millis() rollover.
+struct RetryTimer {
+  unsigned long lastFailure = 0;
+  unsigned long waitMs = 0;
+  bool ready(unsigned long now) const {
+    return waitMs == 0 || now - lastFailure >= waitMs;
+  }
+  void failed() {
+    lastFailure = millis(); // Backoff starts AFTER the blocking request finishes.
+    waitMs = waitMs == 0 ? CLOUD_RETRY_MIN_MS :
+             (waitMs >= CLOUD_RETRY_MAX_MS / 2 ? CLOUD_RETRY_MAX_MS : waitMs * 2);
+  }
+  void reset() { waitMs = 0; }
 };
 
-const uint8_t NUM_CHANNELS = sizeof(channels) / sizeof(channels[0]);
-
-// Fan speed state
-int currentFanSpeed           = 0;     // Fan speed (0-5) from /home/room1/controls/fanspeed
-
-// Firebase RTDB Client Objects
 FirebaseData fbdoStream;
 FirebaseData fbdoWrite;
 FirebaseAuth fbAuth;
 FirebaseConfig fbConfig;
+FirebaseJson writeJson; // Reused for control batches and status, never simultaneously.
+RetryTimer streamRetry;
+RetryTimer writeRetry;
+bool firebaseInitialized = false;
+bool firebaseStreamActive = false;
+bool isOnlineMode = false;
+bool otaInitialized = false;
+bool clockStarted = false;
+bool temperatureSensorReady = false;
+unsigned long lastWifiCheck = 0;
+unsigned long lastWifiRetry = 0;
+unsigned long lastHeartbeat = 0;
+unsigned long clockStartedAt = 0;
+String localIp;
 
-bool isOnlineMode            = false;  // True = Connected to WiFi & Cloud; False = Standalone Offline Mode
-bool firebaseInitialized     = false;
-bool firebaseStreamActive    = false;
-bool otaInitialized          = false;  // OTA ready flag
-unsigned long lastWifiCheck  = 0;
-unsigned long lastWifiRetry  = 0;      // Timestamp of last WiFi reconnect attempt while offline
-unsigned int  wifiRetryCount = 0;      // Number of reconnect attempts made while offline
-unsigned long lastHeartbeat  = 0;
-
-// Function Prototypes
 void applyRelayState(Channel &ch);
 void handlePhysicalSwitches();
 void toggleRelayFromSwitch(uint8_t index);
+void switchTask(void *parameter);
 void setRelayFromCloud(uint8_t index, bool targetState);
+void setFanSpeedFromCloud(int speed);
 void connectWiFiNonBlocking();
 void handleNetworkHealth();
 void initializeFirebase();
 void setupFirebaseStream();
-void syncPendingStatesToFirebase();
+bool syncPendingStatesToFirebase();
 void updateFirebaseHeartbeat();
-void handleStreamCallback(FirebaseStream data);
-void handleStreamTimeoutCallback(bool matched);
+void handleStreamEvent();
 void initializeOTA();
 
-// =================================================================================
-//  5. SETUP ROUTINE
-// =================================================================================
 void setup() {
   Serial.begin(115200);
-  delay(500);
 
-  Serial.println();
-  Serial.println(F("=================================================="));
-  Serial.println(F("   IoTMesh Room 1 Controller (ESP32-C3)           "));
-  Serial.println(F("   Hybrid Cloud + Offline Switchboard Control     "));
-  Serial.println(F("=================================================="));
+  // Set safe relay levels before enabling outputs; no startup delay.
+  for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
+    Channel &ch = channels[i];
+    digitalWrite(ch.relayPin, RELAY_OFF);
+    pinMode(ch.relayPin, OUTPUT);
+    pinMode(ch.switchPin, SWITCH_PIN_MODE);
+    ch.lastReading = ch.stableState = digitalRead(ch.switchPin);
+    ch.lastDebounceTime = millis();
+#if !SMART_TOGGLE_MODE
+    ch.relayState = ch.stableState == SWITCH_ACTIVE_LEVEL;
+#endif
+    applyRelayState(ch);
+  }
 
-  // 0. Disable Bluetooth immediately (saves ~10-15mA power, frees RAM, prevents RF brownouts)
+  // No TLS, JSON, Strings or Serial calls in this 2 KiB task. It replaces the
+  // Firebase callback task (8 KiB by default) rather than adding another one.
+  switchTaskStarted = xTaskCreate(switchTask, "Room1Switches", 2048, nullptr,
+                                 2, nullptr) == pdPASS;
+  if (!switchTaskStarted) {
+    Serial.println(F("[System] Switch task unavailable; staying in local-only mode."));
+    return;
+  }
+
   btStop();
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32S3)
   esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
-#else
-  #if defined(ESP_BT_MODE_BTDM)
-    esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
-  #elif defined(ESP_BT_MODE_BLE)
-    esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
-  #endif
 #endif
-  Serial.println(F("[Hardware] Bluetooth disabled (RF & power optimization applied)."));
 
-  // 1. Initialize Hardware Pins FIRST (Offline switches immediately operational)
-  for (uint8_t i = 0; i < NUM_CHANNELS; i++) {
-    pinMode(channels[i].relayPin, OUTPUT);
-    channels[i].relayState = false;
-    applyRelayState(channels[i]);
-
-    pinMode(channels[i].switchPin, SWITCH_PIN_MODE);
-
-    int initialReading = digitalRead(channels[i].switchPin);
-    channels[i].lastReading = initialReading;
-    channels[i].stableState = initialReading;
-    channels[i].lastDebounceTime = millis();
-
-    #if !SMART_TOGGLE_MODE
-      channels[i].relayState = (initialReading == SWITCH_ACTIVE_LEVEL);
-      applyRelayState(channels[i]);
-    #endif
-
-    Serial.printf("[Hardware] %s configured: Switch Pin %d -> Relay Pin %d\n",
-                  channels[i].name, channels[i].switchPin, channels[i].relayPin);
-  }
-
-  Serial.println(F("[System] Hardware Ready. Local switches operational."));
-
-  // 1b. Initialize built-in chip temperature sensor
   temp_sensor_config_t tempConfig = TSENS_CONFIG_DEFAULT();
-  temp_sensor_set_config(tempConfig);
-  temp_sensor_start();
-  Serial.println(F("[Hardware] Chip temperature sensor initialized."));
+  temperatureSensorReady = temp_sensor_set_config(tempConfig) == ESP_OK;
+  if (temperatureSensorReady) temperatureSensorReady = temp_sensor_start() == ESP_OK;
 
-  // 2. Connect WiFi (12-second attempt with active switches)
+  localIp.reserve(16);
+  Serial.println(F("[System] IoTMesh Room 1 ready. Local switches active."));
   connectWiFiNonBlocking();
-
-  // 3. If connected at boot, initialize Firebase + OTA
-  if (WiFi.status() == WL_CONNECTED) {
-    isOnlineMode = true;
-    Serial.println(F("[System] Mode: ONLINE (Cloud Connected)"));
-    initializeFirebase();
-    initializeOTA();
-  } else {
-    isOnlineMode = false;
-    lastWifiRetry = millis();
-    Serial.println();
-    Serial.println(F("══════════════════════════════════════════════════"));
-    Serial.println(F("[System] Mode: OFFLINE (Autonomous Local Switchboard)"));
-    Serial.println(F("[System] Physical switches are 100% active with ZERO lag."));
-    Serial.printf("[System] Retrying WiFi every %lu seconds in background...\n", WIFI_RETRY_INTERVAL_MS / 1000);
-    Serial.println(F("══════════════════════════════════════════════════"));
-  }
+  handleNetworkHealth();
 }
 
-// =================================================================================
-//  6. MAIN EXECUTION LOOP (ZERO BLOCKING)
-// =================================================================================
 void loop() {
-  unsigned long currentMillis = millis();
-
-  // ── Step 0: OTA update handler (runs only when online & initialized) ──
-  if (isOnlineMode && otaInitialized) {
-    ArduinoOTA.handle();
+  if (!switchTaskStarted) {
+    handlePhysicalSwitches();
+    delay(SWITCH_POLL_MS);
+    return;
   }
 
-  // ── Step 1: ALWAYS handle physical switches (runs continuously with zero lag) ──
-  handlePhysicalSwitches();
-
-  // ── Step 2: WiFi Health & Mode Transition Manager ──
-  if (currentMillis - lastWifiCheck >= WIFI_CHECK_INTERVAL_MS) {
-    lastWifiCheck = currentMillis;
+  if (millis() - lastWifiCheck >= WIFI_CHECK_INTERVAL_MS) {
+    lastWifiCheck = millis();
     handleNetworkHealth();
   }
 
-  // ── Step 3: Cloud Operations (Executed ONLY when in Online Mode) ──
-  if (isOnlineMode && WiFi.status() == WL_CONNECTED) {
-    // If connected later via background reconnect, ensure Firebase is initialized
-    if (!firebaseInitialized) {
-      initializeFirebase();
-    }
-
-    // Once Firebase security token is authenticated
-    if (Firebase.ready()) {
-      // 3A: Start stream if not yet active
-      if (!firebaseStreamActive) {
-        setupFirebaseStream();
-      }
-
-      // 3B: Process incoming stream events (Essential for ESP32-C3 real-time execution)
+  if (WiFi.status() == WL_CONNECTED && isOnlineMode) {
+    if (otaInitialized) ArduinoOTA.handle();
+    if (!firebaseInitialized) initializeFirebase();
+    if (firebaseInitialized && Firebase.ready()) {
+      if (!firebaseStreamActive && streamRetry.ready(millis())) setupFirebaseStream();
       if (firebaseStreamActive) {
         if (!Firebase.RTDB.readStream(&fbdoStream)) {
-          if (fbdoStream.httpCode() != 0) {
-            Serial.printf("[Firebase Stream] Read dropped: %s (HTTP %d)\n",
-                          fbdoStream.errorReason().c_str(), fbdoStream.httpCode());
-            firebaseStreamActive = false;
-          }
+          Serial.printf("[Firebase] Stream read failed (HTTP %d). Retrying later.\n",
+                        fbdoStream.httpCode());
+          Firebase.RTDB.endStream(&fbdoStream);
+          firebaseStreamActive = false;
+          streamRetry.failed();
+        } else if (fbdoStream.streamAvailable()) {
+          handleStreamEvent();
         }
       }
 
-      // 3C: Synchronize any pending physical switch toggles to Firebase RTDB
-      syncPendingStatesToFirebase();
-
-      // 3D: Send Online Status Heartbeat every 15 seconds
-      if (currentMillis - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
-        lastHeartbeat = currentMillis;
+      // At most one write per pass. A failed write backs off both controls and
+      // heartbeats, while stream reads and OTA remain enabled between attempts.
+      if (writeRetry.ready(millis()) && !syncPendingStatesToFirebase() &&
+          millis() - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
         updateFirebaseHeartbeat();
       }
     }
   }
 
-  // Yield to RTOS background tasks
-  yield();
+  // yield() alone does not let the idle task run on a busy single-core C3.
+  delay(5);
 }
 
-// =================================================================================
-//  7. PHYSICAL SWITCH DEBOUNCING & RELAY CONTROL
-// =================================================================================
+void switchTask(void *parameter) {
+  (void)parameter;
+  for (;;) {
+    handlePhysicalSwitches();
+    vTaskDelay(pdMS_TO_TICKS(SWITCH_POLL_MS) > 0 ? pdMS_TO_TICKS(SWITCH_POLL_MS) : 1);
+  }
+}
+
 void handlePhysicalSwitches() {
-  unsigned long currentMillis = millis();
-
-  for (uint8_t i = 0; i < NUM_CHANNELS; i++) {
-    int reading = digitalRead(channels[i].switchPin);
-
-    // If signal changed (contact bounce or flip), reset debounce timer
-    if (reading != channels[i].lastReading) {
-      channels[i].lastDebounceTime = currentMillis;
+  const unsigned long now = millis();
+  for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
+    Channel &ch = channels[i];
+    const uint8_t reading = digitalRead(ch.switchPin);
+    if (reading != ch.lastReading) ch.lastDebounceTime = now;
+    if (now - ch.lastDebounceTime > DEBOUNCE_DELAY_MS && reading != ch.stableState) {
+      ch.stableState = reading;
+      toggleRelayFromSwitch(i);
     }
-
-    // After debounce delay, verify if the stable state genuinely flipped
-    if ((currentMillis - channels[i].lastDebounceTime) > DEBOUNCE_DELAY_MS) {
-      if (reading != channels[i].stableState) {
-        channels[i].stableState = reading;
-        toggleRelayFromSwitch(i);
-      }
-    }
-
-    channels[i].lastReading = reading;
+    ch.lastReading = reading;
   }
 }
 
 void toggleRelayFromSwitch(uint8_t index) {
-  #if SMART_TOGGLE_MODE
-    // In Smart Toggle Mode, any physical flip of the switch toggles the device
-    channels[index].relayState = !channels[index].relayState;
-  #else
-    // In Direct Follow Mode, relay matches switch position (3.3V = ON, LOW = OFF)
-    channels[index].relayState = (channels[index].stableState == SWITCH_ACTIVE_LEVEL);
-  #endif
-
-  applyRelayState(channels[index]);
-  channels[index].pendingSync = true; // Queue sync to Firebase
-
-  Serial.printf("[Physical Switch] %s toggled -> State: %s\n",
-                channels[index].name, channels[index].relayState ? "ON" : "OFF");
+  portENTER_CRITICAL(&stateMux);
+  Channel &ch = channels[index];
+#if SMART_TOGGLE_MODE
+  ch.relayState = !ch.relayState;
+#else
+  ch.relayState = ch.stableState == SWITCH_ACTIVE_LEVEL;
+#endif
+  if (index == FAN_CHANNEL) {
+    currentFanSpeed = ch.relayState ? (currentFanSpeed > 0 ? currentFanSpeed : 3) : 0;
+  }
+  applyRelayState(ch);
+  ch.pendingSync = true;
+  ++ch.revision;
+  portEXIT_CRITICAL(&stateMux);
 }
 
+// Called at startup or with stateMux held. Keep this allocation/logging-free.
 void applyRelayState(Channel &ch) {
-  uint8_t pinLevel = ch.relayState ? RELAY_ON : RELAY_OFF;
-  digitalWrite(ch.relayPin, pinLevel);
-  Serial.printf("[Relay Action] %s (GPIO %d) -> Output %s | State is %s\n",
-                ch.name, ch.relayPin, (pinLevel == HIGH) ? "HIGH" : "LOW", ch.relayState ? "ON" : "OFF");
+  digitalWrite(ch.relayPin, ch.relayState ? RELAY_ON : RELAY_OFF);
 }
 
-// =================================================================================
-//  8. CLOUD (FIREBASE) TO RELAY CONTROL
-// =================================================================================
 void setRelayFromCloud(uint8_t index, bool targetState) {
   if (index >= NUM_CHANNELS) return;
-
-  // IMPORTANT: If this channel was just toggled locally and is waiting to sync to cloud,
-  // do NOT let an echoed or delayed cloud message revert the user's physical toggle!
-  if (channels[index].pendingSync) {
-    Serial.printf("[Cloud Command] Ignored for %s: local physical switch sync pending\n", channels[index].name);
-    return;
-  }
-
-  // If the relay is already in the requested state, avoid redundant actions
-  if (channels[index].relayState == targetState) return;
-
-  Serial.printf("[Cloud Command] Channel %d (%s) -> Target: %s (Was: %s)\n",
-                index, channels[index].name, targetState ? "ON" : "OFF", channels[index].relayState ? "ON" : "OFF");
-
-  channels[index].relayState = targetState;
-  applyRelayState(channels[index]);
-}
-
-// =================================================================================
-//  9. RELAY STATE TO CLOUD SYNCHRONIZATION
-// =================================================================================
-void syncPendingStatesToFirebase() {
-  if (WiFi.status() != WL_CONNECTED || !Firebase.ready()) return;
-
-  for (uint8_t i = 0; i < NUM_CHANNELS; i++) {
-    if (channels[i].pendingSync) {
-      bool success = false;
-
-      // Special handling for Fan (Channel index 2):
-      // Update both 'fan' state and 'fanspeed' in a SINGLE atomic Firebase update!
-      // This prevents double HTTPS round-trips and eliminates the race condition where
-      // fanspeed=0 echoed back and forced the fan relay back OFF.
-      if (i == 2) {
-        FirebaseJson fanJson;
-        fanJson.set("fan", channels[2].relayState);
-        int speedToSync = channels[2].relayState ? (currentFanSpeed > 0 ? currentFanSpeed : 3) : 0;
-        currentFanSpeed = speedToSync;
-        fanJson.set("fanspeed", speedToSync);
-
-        if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_CONTROLS, &fanJson)) {
-          success = true;
-        } else {
-          Serial.printf("[Relay -> Firebase] ❌ Fan sync failed: %s (HTTP %d)\n",
-                        fbdoWrite.errorReason().c_str(), fbdoWrite.httpCode());
-        }
-      } else {
-        // Light (0) or Wall Switch (1): Direct boolean set
-        String fullPath = String(FB_PATH_CONTROLS) + "/" + channels[i].firebaseKey;
-        if (Firebase.RTDB.setBool(&fbdoWrite, fullPath, channels[i].relayState)) {
-          success = true;
-        } else {
-          Serial.printf("[Relay -> Firebase] ❌ %s sync failed: %s (HTTP %d)\n",
-                        channels[i].firebaseKey, fbdoWrite.errorReason().c_str(), fbdoWrite.httpCode());
-        }
-      }
-
-      if (success) {
-        channels[i].pendingSync = false;
-        Serial.printf("[Relay -> Firebase] ✅ %s synced to RTDB: %s\n",
-                      channels[i].firebaseKey, channels[i].relayState ? "true" : "false");
-      }
+  portENTER_CRITICAL(&stateMux);
+  Channel &ch = channels[index];
+  if (!ch.pendingSync) {
+    if (index == FAN_CHANNEL && !targetState) currentFanSpeed = 0;
+    if (ch.relayState != targetState) {
+      ch.relayState = targetState;
+      applyRelayState(ch);
     }
   }
+  portEXIT_CRITICAL(&stateMux);
 }
 
-// =================================================================================
-//  10. FIREBASE REAL-TIME STREAM LISTENER
-// =================================================================================
+void setFanSpeedFromCloud(int speed) {
+  speed = constrain(speed, 0, 5);
+  portENTER_CRITICAL(&stateMux);
+  Channel &fan = channels[FAN_CHANNEL];
+  if (!fan.pendingSync) {
+    currentFanSpeed = speed;
+    const bool on = speed > 0;
+    if (fan.relayState != on) {
+      fan.relayState = on;
+      applyRelayState(fan);
+    }
+  }
+  portEXIT_CRITICAL(&stateMux);
+}
+
+bool syncPendingStatesToFirebase() {
+  bool pending[NUM_CHANNELS];
+  bool states[NUM_CHANNELS];
+  uint32_t revisions[NUM_CHANNELS];
+  int fanSpeed;
+  bool anyPending = false;
+
+  // Snapshot first. Physical switches remain free to change during HTTPS.
+  portENTER_CRITICAL(&stateMux);
+  for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
+    pending[i] = channels[i].pendingSync;
+    states[i] = channels[i].relayState;
+    revisions[i] = channels[i].revision;
+    anyPending |= pending[i];
+  }
+  fanSpeed = currentFanSpeed;
+  portEXIT_CRITICAL(&stateMux);
+  if (!anyPending) return false;
+
+  writeJson.clear();
+  for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
+    if (pending[i]) writeJson.set(channels[i].firebaseKey, states[i]);
+  }
+  if (pending[FAN_CHANNEL]) writeJson.set("fanspeed", fanSpeed);
+
+  // One atomic PATCH for every dirty channel, including fan + fanspeed.
+  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_CONTROLS, &writeJson)) {
+    portENTER_CRITICAL(&stateMux);
+    for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
+      if (pending[i] && channels[i].revision == revisions[i]) channels[i].pendingSync = false;
+    }
+    portEXIT_CRITICAL(&stateMux);
+    writeRetry.reset();
+  } else {
+    writeRetry.failed();
+    Serial.printf("[Firebase] Control sync failed (HTTP %d); retry in %lu ms.\n",
+                  fbdoWrite.httpCode(), writeRetry.waitMs);
+  }
+  return true;
+}
+
 void setupFirebaseStream() {
-  if (WiFi.status() != WL_CONNECTED || !Firebase.ready()) return;
+  if (Firebase.RTDB.beginStream(&fbdoStream, FB_PATH_CONTROLS)) {
+    // Manual polling ONLY: setStreamCallback would create a second reader/task.
+    firebaseStreamActive = true;
+    streamRetry.reset();
+    Serial.println(F("[Firebase] Controls stream connected."));
+  } else {
+    streamRetry.failed();
+    Serial.printf("[Firebase] Stream start failed (HTTP %d); retry in %lu ms.\n",
+                  fbdoStream.httpCode(), streamRetry.waitMs);
+  }
+}
 
-  Serial.printf("[Firebase] Starting Real-time Stream on: %s ...\n", FB_PATH_CONTROLS);
-
-  if (!Firebase.RTDB.beginStream(&fbdoStream, FB_PATH_CONTROLS)) {
-    Serial.printf("[Firebase] ❌ Stream start failed: %s (HTTP %d)\n",
-                  fbdoStream.errorReason().c_str(), fbdoStream.httpCode());
-    firebaseStreamActive = false;
+void handleStreamEvent() {
+  const String path = fbdoStream.dataPath();
+  const String type = fbdoStream.dataType();
+  if (type == "json" && path == "/") {
+    FirebaseJson *json = fbdoStream.jsonObjectPtr();
+    if (json == nullptr) return;
+    FirebaseJsonData value;
+    for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
+      if (json->get(value, channels[i].firebaseKey)) {
+        const bool on = value.typeNum == FirebaseJson::JSON_BOOL ? value.boolValue :
+                        (value.intValue == 1 || value.stringValue == "true");
+        setRelayFromCloud(i, on);
+      }
+    }
+    if (json->get(value, "fanspeed")) {
+      setFanSpeedFromCloud(value.typeNum == FirebaseJson::JSON_STRING ?
+                          atoi(value.stringValue.c_str()) : value.intValue);
+    }
     return;
   }
 
-  Firebase.RTDB.setStreamCallback(&fbdoStream, handleStreamCallback, handleStreamTimeoutCallback);
-  firebaseStreamActive = true;
-  Serial.println(F("[Firebase] ✅ Stream active. Listening for website commands..."));
-}
-
-void handleStreamCallback(FirebaseStream data) {
-  Serial.println();
-  Serial.println(F("──────────────────────────────────────────────────"));
-  Serial.printf("[Firebase Stream Event] Path: %s | Type: %s | Value: %s\n",
-                data.dataPath().c_str(), data.dataType().c_str(), data.stringData().c_str());
-
-  String path = data.dataPath();
-  String dataType = data.dataType();
-
-  // Case A: Root JSON received (on initial stream connection or multi-device update)
-  if (dataType == "json" || path == "/") {
-    FirebaseJson *json = data.to<FirebaseJson *>();
-    if (json != nullptr) {
-      FirebaseJsonData jsonData;
-
-      if (json->get(jsonData, "light")) {
-        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
-        setRelayFromCloud(0, val);
-      }
-      if (json->get(jsonData, "switch")) {
-        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
-        setRelayFromCloud(1, val);
-      }
-      if (json->get(jsonData, "fan")) {
-        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
-        setRelayFromCloud(2, val);
-      }
-      if (json->get(jsonData, "fanspeed")) {
-        int newSpeed = jsonData.intValue;
-        Serial.printf("[Cloud Command] Fan Speed -> %d\n", newSpeed);
-        currentFanSpeed = newSpeed;
-        if (!channels[2].pendingSync) {
-          if (newSpeed == 0 && channels[2].relayState) {
-            setRelayFromCloud(2, false);
-          } else if (newSpeed > 0 && !channels[2].relayState) {
-            setRelayFromCloud(2, true);
-          }
-        }
-      }
+  if (path == "/fanspeed" || path == "fanspeed") {
+    setFanSpeedFromCloud(type == "string" ? atoi(fbdoStream.stringData().c_str()) :
+                        fbdoStream.intData());
+    return;
+  }
+  const bool on = type == "boolean" ? fbdoStream.boolData() :
+                  (fbdoStream.intData() == 1 || fbdoStream.stringData() == "true");
+  for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
+    // Compare without creating a temporary "/" + key String for every event.
+    if (path == channels[i].firebaseKey ||
+        (path.startsWith("/") && strcmp(path.c_str() + 1, channels[i].firebaseKey) == 0)) {
+      setRelayFromCloud(i, on);
+      break;
     }
   }
-  // Case B: Individual child node updated from Web Dashboard (/light, /switch, /fan, /fanspeed)
-  else {
-    bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
-
-    if (path == "/light" || path == "light") {
-      setRelayFromCloud(0, val);
-    } else if (path == "/switch" || path == "switch") {
-      setRelayFromCloud(1, val);
-    } else if (path == "/fan" || path == "fan") {
-      setRelayFromCloud(2, val);
-      if (!val) {
-        currentFanSpeed = 0;
-      }
-    } else if (path == "/fanspeed" || path == "fanspeed") {
-      int newSpeed = (dataType == "integer" || dataType == "int") ? data.intData() : atoi(data.stringData().c_str());
-      Serial.printf("[Cloud Command] Fan Speed -> %d\n", newSpeed);
-      currentFanSpeed = newSpeed;
-      if (!channels[2].pendingSync) {
-        if (newSpeed == 0 && channels[2].relayState) {
-          setRelayFromCloud(2, false);
-        } else if (newSpeed > 0 && !channels[2].relayState) {
-          setRelayFromCloud(2, true);
-        }
-      }
-    }
-  }
-  Serial.println(F("──────────────────────────────────────────────────"));
 }
 
-void handleStreamTimeoutCallback(bool matched) {
-  if (matched) {
-    Serial.println(F("[Firebase Stream] Stream timeout detected. Will auto-resume."));
-    firebaseStreamActive = false;
-  }
-}
-
-// =================================================================================
-//  11. STATUS HEARTBEAT
-// =================================================================================
 void updateFirebaseHeartbeat() {
-  FirebaseJson jsonStatus;
-  jsonStatus.set("online", true);
-  jsonStatus.set("ip", WiFi.localIP().toString());
-  jsonStatus.set("rssi", WiFi.RSSI());
-  jsonStatus.set("uptime", (int)(millis() / 1000));
-  jsonStatus.set("freeHeap", (int)ESP.getFreeHeap());
+  writeJson.clear();
+  writeJson.set("online", true);
+  writeJson.set("ip", localIp);
+  writeJson.set("rssi", WiFi.RSSI());
+  writeJson.set("uptime", (unsigned long)(millis() / 1000));
+  writeJson.set("freeHeap", (unsigned long)ESP.getFreeHeap());
 
-  // Chip temperature from ESP32-C3 internal sensor
-  // Note: Reads ~10-15°C above ambient — this is the chip temp, not room temp.
-  float chipTemp = 0.0;
-  temp_sensor_read_celsius(&chipTemp);
-  jsonStatus.set("chipTempC", (float)((int)(chipTemp * 10)) / 10.0); // 1 decimal place
+  float chipTemp = 0.0f;
+  if (temperatureSensorReady && temp_sensor_read_celsius(&chipTemp) == ESP_OK) {
+    writeJson.set("chipTempC", (float)((int)(chipTemp * 10)) / 10.0f);
+  }
+  // Nested path avoids allocating a second JSON object for the timestamp.
+  writeJson.set("serverTimestamp/.sv", "timestamp");
 
-  // Firebase RTDB Server Timestamp (guaranteed to update every heartbeat on Google servers!)
-  FirebaseJson sv;
-  sv.set(".sv", "timestamp");
-  jsonStatus.set("serverTimestamp", sv);
-
-  // Last Seen timestamp — formatted using NTP-synced IST clock
+  const time_t now = time(nullptr);
   struct tm timeinfo;
-  if (getLocalTime(&timeinfo, 100)) {
+  if (now >= CLOCK_VALID_AFTER && localtime_r(&now, &timeinfo) != nullptr) {
     char lastSeen[32];
     strftime(lastSeen, sizeof(lastSeen), "%d/%m/%Y %H:%M:%S IST", &timeinfo);
-    jsonStatus.set("lastSeen", lastSeen);  // e.g. "16/09/2026 17:44:33 IST"
-    time_t nowSec = time(nullptr);
-    jsonStatus.set("lastSeenEpoch", (unsigned long)nowSec);
+    writeJson.set("lastSeen", lastSeen);
+    writeJson.set("lastSeenEpoch", (unsigned long)now);
   }
 
-  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_STATUS, &jsonStatus)) {
-    Serial.println(F("[Heartbeat] ✅ Status pushed to Firebase."));
+  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_STATUS, &writeJson)) {
+    lastHeartbeat = millis();
+    writeRetry.reset();
   } else {
-    Serial.printf("[Heartbeat] ❌ Failed: %s\n", fbdoWrite.errorReason().c_str());
+    writeRetry.failed();
+    Serial.printf("[Firebase] Heartbeat failed (HTTP %d); retry in %lu ms.\n",
+                  fbdoWrite.httpCode(), writeRetry.waitMs);
   }
 }
 
-// =================================================================================
-//  12. NETWORK CONNECTION & MANAGEMENT
-// =================================================================================
 void connectWiFiNonBlocking() {
-  Serial.printf("[WiFi] Connecting to SSID: '%s' ...\n", WIFI_SSID);
+  WiFi.persistent(false); // Avoid rewriting credentials to flash on every retry.
   WiFi.mode(WIFI_STA);
-
-  // Set Wi-Fi TX Power to 8.5 dBm to eliminate ESP32-C3 Super Mini RF brownouts
-  WiFi.setTxPower(WIFI_TX_POWER);
-  Serial.println(F("[WiFi] TX Power set to 8.5 dBm (stability & brownout prevention)."));
-
   WiFi.setAutoReconnect(true);
-  WiFi.persistent(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  unsigned long startAttemptTime = millis();
-
-  // Wait up to 12 seconds for router negotiation, but keep physical switches active!
-  while (WiFi.status() != WL_CONNECTED && (millis() - startAttemptTime < 12000)) {
-    delay(200);
-    Serial.print(".");
-    handlePhysicalSwitches(); // Physical switches respond instantly even during boot connection!
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println(F("[WiFi] ✅ Connected successfully!"));
-    Serial.printf("[WiFi] IP Assigned: %s | Signal: %d dBm\n",
-                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
-  } else {
-    Serial.printf("[WiFi] ⚠️ Not connected yet (Status code: %d). Continuing in background.\n", WiFi.status());
-  }
+  WiFi.setTxPower(WIFI_TX_POWER);
+  lastWifiRetry = millis();
+  Serial.println(F("[WiFi] Connecting in background (8.5 dBm TX power)."));
 }
 
 void handleNetworkHealth() {
-  unsigned long currentMillis = millis();
-  bool wifiConnected = (WiFi.status() == WL_CONNECTED);
-
-  // ══════════════════════════════════════════════════════════════════
-  //  CASE 1: WAS ONLINE -> NOW DISCONNECTED (Router off / signal lost)
-  // ══════════════════════════════════════════════════════════════════
-  if (isOnlineMode && !wifiConnected) {
-    isOnlineMode = false;
-    firebaseStreamActive = false;
-    wifiRetryCount = 0;
-    lastWifiRetry = currentMillis; // Start retry timer from now
-
-    // Cleanly close stream to release socket and prevent hanging Firebase calls
-    fbdoStream.clear();
-
-    Serial.println();
-    Serial.println(F("══════════════════════════════════════════════════════════"));
-    Serial.println(F("[Network] ⚠️  WiFi connection lost / router disconnected!"));
-    Serial.println(F("[System]  Switching to Autonomous OFFLINE MODE."));
-    Serial.println(F("[System]  Physical switches remain 100% operational with ZERO lag."));
-    Serial.printf("[System]  Will retry WiFi connection every %lu seconds in background.\n", WIFI_RETRY_INTERVAL_MS / 1000);
-    Serial.println(F("══════════════════════════════════════════════════════════"));
+  const unsigned long now = millis();
+  if (WiFi.status() != WL_CONNECTED) {
+    if (isOnlineMode) {
+      isOnlineMode = false;
+      if (firebaseInitialized) {
+        Firebase.RTDB.endStream(&fbdoStream);
+        fbdoStream.clear();
+        fbdoWrite.clear();
+      }
+      firebaseStreamActive = false;
+      lastWifiRetry = now;
+      Serial.println(F("[WiFi] Offline. Local switches remain active."));
+    }
+    if (now - lastWifiRetry >= WIFI_RETRY_INTERVAL_MS) {
+      lastWifiRetry = now;
+      WiFi.reconnect(); // No disconnect/begin loop while auto-reconnect is active.
+    }
     return;
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  //  CASE 2: IN OFFLINE MODE -> PERIODIC BACKGROUND RETRY
-  // ══════════════════════════════════════════════════════════════════
   if (!isOnlineMode) {
-    if (!wifiConnected) {
-      if (currentMillis - lastWifiRetry >= WIFI_RETRY_INTERVAL_MS) {
-        lastWifiRetry = currentMillis;
-        wifiRetryCount++;
-        Serial.println();
-        Serial.printf("[Offline Mode] Retrying WiFi connection to '%s' (Attempt #%u in background)...\n",
-                      WIFI_SSID, wifiRetryCount);
-
-        // Completely non-blocking reconnect initiation
-        WiFi.disconnect();
-        WiFi.setTxPower(WIFI_TX_POWER);
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-      }
-      return;
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    //  CASE 3: WAS OFFLINE -> WIFI RECONNECTED!
-    // ══════════════════════════════════════════════════════════════════
     isOnlineMode = true;
-    wifiRetryCount = 0;
-
-    Serial.println();
-    Serial.println(F("══════════════════════════════════════════════════════════"));
-    Serial.println(F("[Network] ✅ WiFi Reconnected successfully!"));
-    Serial.printf("[Network] IP Assigned: %s | Signal: %d dBm\n",
-                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
-    Serial.println(F("[System]  Switching from OFFLINE MODE -> ONLINE MODE."));
-    Serial.println(F("[System]  Resuming Firebase synchronization and cloud services..."));
-    Serial.println(F("══════════════════════════════════════════════════════════"));
-
-    if (!firebaseInitialized) {
-      initializeFirebase();
-    } else {
-      // Re-arm stream so it cleanly reconnects to Firebase RTDB
-      firebaseStreamActive = false;
-      setupFirebaseStream();
+    localIp = WiFi.localIP().toString();
+    streamRetry.reset();
+    writeRetry.reset();
+    lastHeartbeat = now - HEARTBEAT_INTERVAL_MS; // Heartbeat due as soon as ready.
+    Serial.printf("[WiFi] Online: %s\n", localIp.c_str());
+    if (!clockStarted) {
+      configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.windows.com");
+      clockStartedAt = now;
+      clockStarted = true;
     }
-
-    if (!otaInitialized) {
-      initializeOTA();
-    }
-
-    // Force an immediate heartbeat push now that we are online
-    lastHeartbeat = currentMillis;
-    updateFirebaseHeartbeat();
-
-    // Immediately push any local switch states that were changed while offline
-    syncPendingStatesToFirebase();
+    initializeOTA(); // OTA remains available even when NTP/Firebase is unreachable.
   }
 }
 
-// =================================================================================
-//  13. FIREBASE CLIENT INITIALIZATION
-// =================================================================================
 void initializeFirebase() {
+  // configTime() syncs asynchronously. Never wait in getLocalTime() at startup.
   if (firebaseInitialized) return;
-
-  Serial.println(F("[Firebase] Initializing client..."));
-
-  // ── NTP Time Sync (CRITICAL for SSL on ESP32-C3) ──────────────────────────
-  // ESP32-C3 boots with time = Jan 1 1970. Firebase SSL certificates appear
-  // "expired" to the chip, causing: "ERROR.mConnectSSL: Failed to initialize
-  // the SSL layer". NTP sync fixes this before any SSL connection is made.
-  // IST = UTC + 5h 30m = 19800 seconds offset
-  static bool ntpSynced = false;
-  if (!ntpSynced) {
-    configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.windows.com");
-    Serial.print(F("[Firebase] Syncing time via NTP (IST)..."));
-    struct tm timeinfo;
-    unsigned long ntpStart = millis();
-    while (!getLocalTime(&timeinfo) && (millis() - ntpStart < 8000)) {
-      delay(500);
-      Serial.print(".");
-      handlePhysicalSwitches(); // Keep switches responsive during NTP sync
-    }
-    Serial.println();
-    if (getLocalTime(&timeinfo)) {
-      ntpSynced = true;
-      Serial.printf("[Firebase] ✅ Time synced: %02d:%02d:%02d IST\n",
-                    timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-    } else {
-      Serial.println(F("[Firebase] ⚠️  NTP sync timed out — SSL errors may occur. Check internet access."));
-    }
+  if (time(nullptr) < CLOCK_VALID_AFTER) {
+    if (!clockStarted || millis() - clockStartedAt < NTP_GRACE_MS) return;
+    // Preserve cloud connection attempts when a router blocks NTP. SNTP keeps
+    // retrying in the background; serverTimestamp still reports device liveness.
+    Serial.println(F("[Firebase] NTP pending; attempting cloud connection."));
   }
-  // ──────────────────────────────────────────────────────────────────────────
-
-  fbConfig.database_url = FIREBASE_HOST;                      // Correct field (host is deprecated)
-  fbConfig.signer.tokens.legacy_token = FIREBASE_DB_SECRET;  // Legacy Database Secret for auth
-
-  // Robust connection timeouts (optimized for fast response without long freezes)
-  fbConfig.timeout.wifiReconnect    = 5000;
-  fbConfig.timeout.socketConnection = 5000;  // 5s: prevents freezing the loop if socket stalls
-  fbConfig.timeout.sslHandshake     = 6000;  // 6s: fast recovery
-  fbConfig.timeout.rtdbKeepAlive    = 45000;
+  fbConfig.database_url = FIREBASE_HOST;
+  fbConfig.signer.tokens.legacy_token = FIREBASE_DB_SECRET;
+  fbConfig.timeout.wifiReconnect = 5000;
+  fbConfig.timeout.socketConnection = 3000;
+  fbConfig.timeout.sslHandshake = 6000;
+  fbConfig.timeout.serverResponse = 3000; // Previously left at the 10-second default.
+  fbConfig.timeout.rtdbKeepAlive = 45000;
   fbConfig.timeout.rtdbStreamReconnect = 5000;
 
+  fbdoStream.setResponseSize(2048);
+  fbdoStream.setBSSLBufferSize(2048, 1024);
+  fbdoWrite.setResponseSize(1024);
+  fbdoWrite.setBSSLBufferSize(2048, 1024);
   Firebase.begin(&fbConfig, &fbAuth);
-  Firebase.reconnectWiFi(false); // Managed by handleNetworkHealth(); do NOT let library block switch operations
-
-  // ── Memory-efficient SSL buffers (Optimized for ESP32-C3) ──
-  // 2048 RX buffer ensures Google Firebase HTTPS headers & TLS frames don't overflow,
-  // preventing dropped writes and 10-15s timeouts.
-  fbdoStream.setResponseSize(2048);          // Stream: receives JSON payloads
-  fbdoStream.setBSSLBufferSize(2048, 1024);  // Stream SSL: 3KB total
-
-  fbdoWrite.setResponseSize(1024);           // Write: small ACK responses only
-  fbdoWrite.setBSSLBufferSize(2048, 1024);  // Write SSL: 3KB total (prevents buffer overflow)
-
+  Firebase.reconnectWiFi(false);
   firebaseInitialized = true;
-  Serial.println(F("[Firebase] Client initialized. Waiting for authentication ready..."));
+  Serial.println(F("[Firebase] Client initialized."));
 }
 
-// =================================================================================
-//  14. OTA (OVER-THE-AIR) UPDATE
-// =================================================================================
 void initializeOTA() {
-  if (otaInitialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
-
+  if (otaInitialized || WiFi.status() != WL_CONNECTED) return;
   ArduinoOTA.setHostname(OTA_HOSTNAME);
   ArduinoOTA.setPassword(OTA_PASSWORD);
-
   ArduinoOTA.onStart([]() {
-    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "firmware" : "filesystem";
-    Serial.println("\n[OTA] ⬆️  Update started: " + type);
+    Serial.printf("[OTA] Updating %s...\n",
+                  ArduinoOTA.getCommand() == U_FLASH ? "firmware" : "filesystem");
   });
-
-  ArduinoOTA.onEnd([]() {
-    Serial.println(F("\n[OTA] ✅ Update complete! Rebooting..."));
-  });
-
+  ArduinoOTA.onEnd([]() { Serial.println(F("[OTA] Complete. Rebooting...")); });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("[OTA] Progress: %u%%\r", (progress / (total / 100)));
+    static unsigned int lastPercent = 101;
+    const unsigned int percent = total == 0 ? 0 : (unsigned int)((uint64_t)progress * 100 / total);
+    if (percent != lastPercent) {
+      lastPercent = percent;
+      Serial.printf("[OTA] %u%%\r", percent);
+    }
   });
-
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("\n[OTA] ❌ Error [%u]: ", error);
-    if      (error == OTA_AUTH_ERROR)    Serial.println(F("Authentication failed — check OTA_PASSWORD"));
-    else if (error == OTA_BEGIN_ERROR)   Serial.println(F("Begin failed"));
-    else if (error == OTA_CONNECT_ERROR) Serial.println(F("Connect failed"));
-    else if (error == OTA_RECEIVE_ERROR) Serial.println(F("Receive failed"));
-    else if (error == OTA_END_ERROR)     Serial.println(F("End failed"));
+    Serial.printf("[OTA] Error %u: %s\n", error,
+                  error == OTA_AUTH_ERROR ? "Authentication failed" :
+                  error == OTA_BEGIN_ERROR ? "Begin failed" :
+                  error == OTA_CONNECT_ERROR ? "Connect failed" :
+                  error == OTA_RECEIVE_ERROR ? "Receive failed" : "End failed");
   });
-
   ArduinoOTA.begin();
   otaInitialized = true;
-  Serial.printf("[OTA] ✅ Ready! Hostname: '%s' | Upload via Arduino IDE -> Tools -> Port\n", OTA_HOSTNAME);
+  Serial.printf("[OTA] Ready: %s\n", OTA_HOSTNAME);
 }

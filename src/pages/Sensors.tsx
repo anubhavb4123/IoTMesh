@@ -98,7 +98,7 @@ export default function Sensors() {
 
   // Listen to 24h Timeseries History from Firebase
   useEffect(() => {
-    const hPath = selectedNode === "home" ? "home/history/h24" : `home/${selectedNode}/history/h24`;
+    const hPath = selectedNode === "home" ? "home/history" : `home/${selectedNode}/history`;
     const histRef = ref(database, hPath);
     const unsub = onValue(histRef, (snapshot) => {
       if (!snapshot.exists()) {
