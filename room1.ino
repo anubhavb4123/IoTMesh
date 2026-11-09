@@ -15,6 +15,7 @@
 #include <time.h>
 #include "driver/temp_sensor.h"
 #include "esp_bt.h"
+#include "esp_system.h"
 
 // =================================================================================
 //  2. NETWORK & FIREBASE CONFIGURATION
@@ -124,6 +125,7 @@ Channel channels[] = {
 const uint8_t NUM_CHANNELS = sizeof(channels) / sizeof(channels[0]);
 const uint8_t FAN_CHANNEL = 2;
 const unsigned long SWITCH_POLL_MS = 5;
+const unsigned long REPORT_BATCH_MS = 100;
 const unsigned long CLOUD_RETRY_MIN_MS = 5000;
 const unsigned long CLOUD_RETRY_MAX_MS = 60000;
 const unsigned long NTP_GRACE_MS = 8000;
@@ -201,6 +203,7 @@ void setup() {
 #endif
     applyRelayState(ch);
   }
+  Serial.printf("[System] Reset reason: %d\n", static_cast<int>(esp_reset_reason()));
 
   // No TLS, JSON, Strings or Serial calls in this 2 KiB task. It replaces the
   // Firebase callback task (8 KiB by default) rather than adding another one.
@@ -313,6 +316,8 @@ void applyRelayState(Channel &ch) {
 }
 
 bool syncPendingStatesToFirebase() {
+  static bool batching = false;
+  static unsigned long batchStartedAt = 0;
   bool pending[NUM_CHANNELS];
   bool states[NUM_CHANNELS];
   uint32_t revisions[NUM_CHANNELS];
@@ -329,9 +334,21 @@ bool syncPendingStatesToFirebase() {
   }
   fanSpeed = currentFanSpeed;
   portEXIT_CRITICAL(&stateMux);
-  if (!anyPending && millis() - lastReportHeartbeat < HEARTBEAT_INTERVAL_MS) return false;
 
-  writeJson.clear();
+  const unsigned long now = millis();
+  if (anyPending) {
+    // Give the relay time to settle after the first change and share the write
+    // with any other changes in this window. A pending report takes precedence
+    // over telemetry, even while its batch window is still open.
+    if (!batching) {
+      batching = true;
+      batchStartedAt = now;
+    }
+    if (now - batchStartedAt < REPORT_BATCH_MS) return true;
+  } else if (now - lastReportHeartbeat < HEARTBEAT_INTERVAL_MS) {
+    return false;
+  }
+
   writeJson.set("heartbeatAt/.sv", "timestamp");
   for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
     if (!pending[i]) continue;
@@ -339,7 +356,10 @@ bool syncPendingStatesToFirebase() {
                               i == FAN_CHANNEL ? fanSpeed : -1, commandIds[i], commandApplied[i]);
   }
 
-  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_REPORTS, &writeJson)) {
+  const bool synced = Firebase.RTDB.updateNodeSilent(&fbdoWrite, FB_PATH_REPORTS, &writeJson);
+  writeJson.clear();
+  if (synced) {
+    batching = false;
     lastReportHeartbeat = millis();
     portENTER_CRITICAL(&stateMux);
     for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
@@ -399,10 +419,10 @@ void handleStreamEvent() {
     commandIssuedAt[i] = command.issuedAt;
     commandApplied[i] = valid;
   }
+  json->clear(); // The stream keeps its raw event. Release the parsed tree now.
 }
 
 void updateFirebaseHeartbeat() {
-  writeJson.clear();
   writeJson.set("online", true);
   writeJson.set("ip", localIp);
   writeJson.set("rssi", WiFi.RSSI());
@@ -425,7 +445,9 @@ void updateFirebaseHeartbeat() {
     writeJson.set("lastSeenEpoch", (unsigned long)now);
   }
 
-  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_STATUS, &writeJson)) {
+  const bool synced = Firebase.RTDB.updateNodeSilent(&fbdoWrite, FB_PATH_STATUS, &writeJson);
+  writeJson.clear();
+  if (synced) {
     lastHeartbeat = millis();
     writeRetry.reset();
   } else {
