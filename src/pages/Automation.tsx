@@ -10,8 +10,7 @@ import {
 import { toast } from "sonner";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
-import { useSensorData } from "@/hooks/useSensorData";
-import { firebaseService, ControlData, database, PATHS } from "@/lib/firebase";
+import { database, PATHS } from "@/lib/firebase";
 import { ref, onValue, set } from "firebase/database";
 import { cn } from "@/lib/utils";
 
@@ -132,7 +131,6 @@ export default function Automation() {
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const { sensorData } = useSensorData();
 
   useEffect(() => {
     const unsub = onValue(ref(database, AUTOMATION_PATH), (snap) => {
@@ -156,39 +154,6 @@ export default function Automation() {
     updated.forEach((r) => { obj[r.id] = r; });
     await set(ref(database, AUTOMATION_PATH), obj);
   };
-
-  useEffect(() => {
-    if (!sensorData || rules.length === 0) return;
-
-    rules.forEach(async (rule) => {
-      if (!rule.enabled) return;
-      if (rule.conditions.length === 0 || rule.actions.length === 0) return;
-
-      const allMet = rule.conditions.every((c) => {
-        const raw = (sensorData as any)[c.sensor];
-        if (raw === undefined || raw === null) return false;
-        const sensorVal = typeof raw === "boolean" ? raw : Number(raw);
-        const targetVal = c.value === "true" ? true : c.value === "false" ? false : Number(c.value);
-
-        switch (c.operator) {
-          case ">": return sensorVal > targetVal;
-          case "<": return sensorVal < targetVal;
-          case ">=": return sensorVal >= targetVal;
-          case "<=": return sensorVal <= targetVal;
-          case "==": return sensorVal == targetVal;
-          case "!=": return sensorVal != targetVal;
-          default: return false;
-        }
-      });
-
-      if (allMet) {
-        for (const a of rule.actions) {
-          const val = a.action === "on";
-          await firebaseService.updateSwitchState(a.device as keyof ControlData, val);
-        }
-      }
-    });
-  }, [sensorData, rules]);
 
   const startCreating = () => {
     setEditingRule({

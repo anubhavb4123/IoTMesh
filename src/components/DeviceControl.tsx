@@ -18,6 +18,7 @@ interface DeviceControlProps {
   onToggle: (active: boolean) => void;
   type?: "switch" | "button";
   disabled?: boolean;
+  confirmation?: { text?: string; pending: boolean; known: boolean };
   timerBadge?: DeviceTimerBadge | null;
 }
 
@@ -29,22 +30,16 @@ export const DeviceControl = ({
   onToggle,
   type = "switch",
   disabled = false,
+  confirmation,
   timerBadge,
 }: DeviceControlProps) => {
-  const handleClick = () => {
-    if (disabled) return;
-    onToggle(!isActive);
-  };
-
-  const statusText = subtitle ?? (isActive ? "Energized" : "Turned Off");
+  const unavailable = disabled || confirmation?.pending || confirmation?.known === false;
+  const statusText = confirmation?.text ?? subtitle ?? (isActive ? "Energized" : "Turned Off");
 
   return (
     <div
-      onClick={handleClick}
-      role="button"
-      tabIndex={0}
       className={cn(
-        "relative flex flex-col justify-between p-4 rounded-2xl border cursor-pointer select-none transition-all duration-200 shadow-sm overflow-hidden group",
+        "relative flex flex-col justify-between p-4 rounded-2xl border select-none transition-all duration-200 shadow-sm overflow-hidden group",
         isActive
           ? "bg-[#18191c] text-white border-[#18191c] shadow-md"
           : "bg-white/80 border-black/[0.06] text-[#2c2d33] hover:bg-white hover:border-black/[0.12] hover:shadow-md",
@@ -52,7 +47,13 @@ export const DeviceControl = ({
       )}
     >
       {/* Top Row: Icon + Label + Switch */}
-      <div className="flex items-center justify-between gap-3 w-full">
+      <button
+        type="button"
+        onClick={() => onToggle(!isActive)}
+        disabled={unavailable}
+        aria-pressed={confirmation?.known === false ? undefined : isActive}
+        className="flex items-center justify-between gap-3 w-full text-left cursor-pointer disabled:cursor-default"
+      >
         {/* Icon + Label */}
         <div className="flex items-center gap-3.5 min-w-0 pr-2">
           <div
@@ -76,6 +77,7 @@ export const DeviceControl = ({
               {title}
             </p>
             <p
+              aria-live="polite"
               className={cn(
                 "text-[10px] mt-0.5",
                 isActive ? "text-neutral-300 font-medium" : "text-[#797a82]"
@@ -88,11 +90,8 @@ export const DeviceControl = ({
 
         {/* Smooth Clay Switch Indicator */}
         {type === "switch" && (
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!disabled) onToggle(!isActive);
-            }}
+          <span
+            aria-hidden="true"
             className={cn(
               "clay-switch shrink-0",
               isActive && "!bg-white"
@@ -104,9 +103,9 @@ export const DeviceControl = ({
                 isActive && "translate-x-5 !bg-[#18191c]"
               )}
             />
-          </div>
+          </span>
         )}
-      </div>
+      </button>
 
       {/* Timer / Schedule Active Chip on the Button */}
       {timerBadge && (

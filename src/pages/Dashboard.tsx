@@ -1,3 +1,4 @@
+import { useDeviceControls } from "@/hooks/useDeviceControls";
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { cn, parseNodeTimestampToMs } from "@/lib/utils";
@@ -68,7 +69,7 @@ export default function Dashboard() {
   const { role } = useAuth();
   const { sensorData: live, loading, error } = useSensorData();
   const { getDeviceScheduleInfo } = useSchedules();
-  const [controls, setControls] = useState<ControlData>({} as ControlData);
+  const { controlData: controls, status: switchStatus } = useDeviceControls();
   const [sensorOnline, setSensorOnline] = useState(false);
   const [syncAge, setSyncAge] = useState("—");
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -87,12 +88,6 @@ export default function Dashboard() {
   // Real Alerts from Firebase
   const [alerts, setAlerts] = useState<RealAlertItem[]>([]);
   const [alertFilter, setAlertFilter] = useState<string>("ALL");
-
-  // Listen to Controls
-  useEffect(() => {
-    const unsub = firebaseService.listenToControlStates(setControls);
-    return () => unsub();
-  }, []);
 
   // Listen to Weather
   useEffect(() => firebaseService.listenToWeather(setWeather), []);
@@ -280,28 +275,28 @@ export default function Dashboard() {
     }
     haptic.tick();
     sounds.click();
-    const currentVal = !!controls[key];
-    const nextVal = !currentVal;
-    await firebaseService.updateSwitchState(key, nextVal);
-    if (key === "lock") {
-      toast.success(nextVal ? "Door Locked 🔒" : "Door Unlocked 🔓");
-    } else {
-      toast.success(`${key} ${nextVal ? "turned ON" : "turned OFF"}`);
+    const nextVal = !controls[key];
+    try {
+      await firebaseService.updateSwitchState(key, nextVal);
+      if (key === "lock") {
+        toast.success(nextVal ? "Door Locked" : "Door Unlocked");
+      } else {
+        toast.success(`${key} ${nextVal ? "turned ON" : "turned OFF"}`);
+      }
+    } catch (error) {
+      toast.error("Switch action unconfirmed", { description: error instanceof Error ? error.message : undefined });
     }
   };
 
-  // Toggle night mode
   const toggleNightMode = async () => {
     haptic.medium();
-    const isNight = !!controls.nightMode;
-    if (isNight) {
-      await firebaseService.updateMultipleSwitches({ nightMode: false, lock: false, motion: false });
+    const enabled = !controls.nightMode;
+    try {
+      await firebaseService.updateMultipleSwitches({ nightMode: enabled, lock: enabled, motion: enabled });
       sounds.success();
-      toast.success("Day Mode Active ☀️");
-    } else {
-      await firebaseService.updateMultipleSwitches({ nightMode: true, lock: true, motion: true });
-      sounds.success();
-      toast.success("Night Mode Armed 🌙", { description: "Perimeter locked & motion sensors armed" });
+      toast.success(enabled ? "Night Mode Armed" : "Day Mode Active");
+    } catch (error) {
+      toast.error("Security action unconfirmed", { description: error instanceof Error ? error.message : undefined });
     }
   };
 
@@ -422,6 +417,7 @@ export default function Dashboard() {
 
             <button
               onClick={toggleNightMode}
+              disabled={switchStatus("nightMode").pending}
               className={cn(
                 "flex items-center gap-2 text-xs transition-all",
                 controls.nightMode ? "clay-btn-dark font-bold" : "clay-btn font-medium"
@@ -430,12 +426,12 @@ export default function Dashboard() {
               {controls.nightMode ? (
                 <>
                   <Moon className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Night Mode (Active)</span>
+                  <span aria-live="polite">{switchStatus("nightMode").text ?? "Night Mode (Active)"}</span>
                 </>
               ) : (
                 <>
                   <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Day Mode</span>
+                  <span aria-live="polite">{switchStatus("nightMode").text ?? "Day Mode"}</span>
                 </>
               )}
             </button>
@@ -1117,13 +1113,16 @@ export default function Dashboard() {
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-[#797a82]">{controls.room1Light ? "Energized (ON)" : "Turned OFF"}</p>
+                    <p className="text-[11px] text-[#797a82]" aria-live="polite">{switchStatus("room1Light").text ?? (controls.room1Light ? "Energized (ON)" : "Turned OFF")}</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleToggle("room1Light")}
+                  aria-label="Room 1 ceiling light"
+                  aria-pressed={switchStatus("room1Light").known ? !!controls.room1Light : undefined}
+                  disabled={!switchStatus("room1Light").known || switchStatus("room1Light").pending}
                   className={cn("clay-switch", controls.room1Light && "checked")}
                 >
                   <span className="clay-switch-thumb" />
@@ -1141,13 +1140,16 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[#18191c]">Room 1 Ceiling Fan</p>
-                    <p className="text-[11px] text-[#797a82]">{controls.room1Fan ? `Speed ${(controls.room1FanSpeed as number) || 1} (Running)` : "Turned OFF"}</p>
+                    <p className="text-[11px] text-[#797a82]" aria-live="polite">{switchStatus("room1Fan").text ?? (controls.room1Fan ? `Speed ${(controls.room1FanSpeed as number) || 1} (Running)` : "Turned OFF")}</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleToggle("room1Fan")}
+                  aria-label="Room 1 ceiling fan"
+                  aria-pressed={switchStatus("room1Fan").known ? !!controls.room1Fan : undefined}
+                  disabled={!switchStatus("room1Fan").known || switchStatus("room1Fan").pending}
                   className={cn("clay-switch", controls.room1Fan && "checked")}
                 >
                   <span className="clay-switch-thumb" />
@@ -1175,13 +1177,16 @@ export default function Dashboard() {
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-[#797a82]">{controls.lobbyLight ? "Energized (ON)" : "Turned OFF"}</p>
+                    <p className="text-[11px] text-[#797a82]" aria-live="polite">{switchStatus("lobbyLight").text ?? (controls.lobbyLight ? "Energized (ON)" : "Turned OFF")}</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleToggle("lobbyLight")}
+                  aria-label="Lobby light"
+                  aria-pressed={switchStatus("lobbyLight").known ? !!controls.lobbyLight : undefined}
+                  disabled={!switchStatus("lobbyLight").known || switchStatus("lobbyLight").pending}
                   className={cn("clay-switch", controls.lobbyLight && "checked")}
                 >
                   <span className="clay-switch-thumb" />
@@ -1199,7 +1204,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[#18191c]">Main Perimeter Lock</p>
-                    <p className="text-[11px] text-[#797a82]">{controls.lock ? "Locked 🔒" : "Unlocked 🔓"}</p>
+                    <p className="text-[11px] text-[#797a82]" aria-live="polite">{switchStatus("lock").text ?? (controls.lock ? "Locked 🔒" : "Unlocked 🔓")}</p>
                   </div>
                 </div>
 
@@ -1213,6 +1218,9 @@ export default function Dashboard() {
                       navigate("/devices");
                     }
                   }}
+                  aria-label="Main perimeter lock"
+                  aria-pressed={switchStatus("lock").known ? !!controls.lock : undefined}
+                  disabled={!switchStatus("lock").known || switchStatus("lock").pending}
                   className={cn("clay-switch", controls.lock && "checked")}
                 >
                   <span className="clay-switch-thumb" />

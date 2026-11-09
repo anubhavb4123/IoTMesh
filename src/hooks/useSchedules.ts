@@ -164,12 +164,15 @@ export function useSchedules() {
       };
 
       try {
-        // If autoTurnOnFirst is true, energize the switch right now!
-        if (params.autoTurnOnFirst) {
-          await firebaseService.updateSwitchState(params.device as keyof ControlData, true);
-        }
-
         await firebaseService.saveSchedule(item);
+        if (params.autoTurnOnFirst) {
+          try {
+            await firebaseService.updateSwitchState(params.device as keyof ControlData, true);
+          } catch {
+            toast.warning("Timer set. The device did not confirm the initial ON command.");
+            return id;
+          }
+        }
         sounds.success();
         haptic.medium();
         toast.success("Countdown Timer Set ⏱️", {
@@ -302,6 +305,11 @@ export function useSchedules() {
   // Manually trigger a schedule or timer right now (Execute Now)
   const executeNow = useCallback(async (item: ScheduleItem) => {
     try {
+      if (item.type === "timer") {
+        await firebaseService.requestTimerExecution(item.id);
+        toast.info("Timer action requested. Waiting for device confirmation.");
+        return;
+      }
       const targetState = item.action === "on";
       await firebaseService.updateSwitchState(item.device as keyof ControlData, targetState);
       haptic.heavy();
@@ -309,13 +317,6 @@ export function useSchedules() {
       const devMeta = getDeviceMeta(item.device);
       toast.success(`Action Executed: ${devMeta.name} → ${targetState ? "ON" : "OFF"}`);
 
-      if (item.type === "timer") {
-        await firebaseService.updateSchedule(item.id, {
-          status: "completed",
-          completedAt: Date.now(),
-          enabled: false,
-        });
-      }
     } catch (err: any) {
       toast.error("Failed to execute action", { description: err.message });
     }

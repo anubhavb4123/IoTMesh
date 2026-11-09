@@ -6,6 +6,7 @@
  * Firebase is accessed only from loop(), using one manually polled stream.
  * Pin mapping, switch modes, RTDB keys, fan speed semantics and OTA are retained.
  */
+#include "SwitchCommands.h"
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
 #include <ArduinoOTA.h>
@@ -34,11 +35,15 @@
 #define FIREBASE_DB_SECRET      "ItjOcSIaW6GRLAnZLhIi1ouEFFwfCYiQR5cqsmwi"  // Firebase Console -> Project Settings -> Service Accounts -> Database secrets
 
 // Realtime Database Paths
-#define FB_PATH_CONTROLS        "/home/room1/controls"
-#define FB_PATH_STATUS          "/home/room1/status"
+#ifndef IOTMESH_ROOM_NODE
+#define IOTMESH_ROOM_NODE "room1"
+#endif
+#define FB_PATH_COMMANDS        "/switchControl/" IOTMESH_ROOM_NODE "/commands"
+#define FB_PATH_REPORTS         "/switchControl/" IOTMESH_ROOM_NODE "/reports"
+#define FB_PATH_STATUS          "/home/" IOTMESH_ROOM_NODE "/status"
 
 // OTA (Over-The-Air) Update Configuration
-#define OTA_HOSTNAME            "IoTMesh-Room1"   // Device name visible in Arduino IDE -> Tools -> Port
+#define OTA_HOSTNAME            "IoTMesh-" IOTMESH_ROOM_NODE
 #define OTA_PASSWORD            "room1ota123"     // Password required to push OTA update (change this!)
 
 // =================================================================================
@@ -126,6 +131,10 @@ const unsigned long CLOCK_VALID_AFTER = 1609459200UL; // 2021-01-01 UTC
 
 portMUX_TYPE stateMux = portMUX_INITIALIZER_UNLOCKED;
 int currentFanSpeed = 0;
+char commandIds[NUM_CHANNELS][SwitchCommands::IdLength + 1] = {};
+uint64_t commandIssuedAt[NUM_CHANNELS] = {};
+bool commandApplied[NUM_CHANNELS] = {};
+unsigned long lastReportHeartbeat = 0;
 bool switchTaskStarted = false;
 
 // Unsigned elapsed-time arithmetic also works across the millis() rollover.
@@ -166,8 +175,6 @@ void applyRelayState(Channel &ch);
 void handlePhysicalSwitches();
 void toggleRelayFromSwitch(uint8_t index);
 void switchTask(void *parameter);
-void setRelayFromCloud(uint8_t index, bool targetState);
-void setFanSpeedFromCloud(int speed);
 void connectWiFiNonBlocking();
 void handleNetworkHealth();
 void initializeFirebase();
@@ -184,6 +191,7 @@ void setup() {
   for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
     Channel &ch = channels[i];
     digitalWrite(ch.relayPin, RELAY_OFF);
+    ch.pendingSync = true;
     pinMode(ch.relayPin, OUTPUT);
     pinMode(ch.switchPin, SWITCH_PIN_MODE);
     ch.lastReading = ch.stableState = digitalRead(ch.switchPin);
@@ -213,7 +221,7 @@ void setup() {
   if (temperatureSensorReady) temperatureSensorReady = temp_sensor_start() == ESP_OK;
 
   localIp.reserve(16);
-  Serial.println(F("[System] IoTMesh Room 1 ready. Local switches active."));
+  Serial.println(F("[System] IoTMesh " IOTMESH_ROOM_NODE " ready. Local switches active."));
   connectWiFiNonBlocking();
   handleNetworkHealth();
 }
@@ -234,7 +242,7 @@ void loop() {
     if (otaInitialized) ArduinoOTA.handle();
     if (!firebaseInitialized) initializeFirebase();
     if (firebaseInitialized && Firebase.ready()) {
-      if (!firebaseStreamActive && streamRetry.ready(millis())) setupFirebaseStream();
+      if (!firebaseStreamActive && streamRetry.ready(millis()) && SwitchCommands::nowMs()) setupFirebaseStream();
       if (firebaseStreamActive) {
         if (!Firebase.RTDB.readStream(&fbdoStream)) {
           Serial.printf("[Firebase] Stream read failed (HTTP %d). Retrying later.\n",
@@ -304,35 +312,6 @@ void applyRelayState(Channel &ch) {
   digitalWrite(ch.relayPin, ch.relayState ? RELAY_ON : RELAY_OFF);
 }
 
-void setRelayFromCloud(uint8_t index, bool targetState) {
-  if (index >= NUM_CHANNELS) return;
-  portENTER_CRITICAL(&stateMux);
-  Channel &ch = channels[index];
-  if (!ch.pendingSync) {
-    if (index == FAN_CHANNEL && !targetState) currentFanSpeed = 0;
-    if (ch.relayState != targetState) {
-      ch.relayState = targetState;
-      applyRelayState(ch);
-    }
-  }
-  portEXIT_CRITICAL(&stateMux);
-}
-
-void setFanSpeedFromCloud(int speed) {
-  speed = constrain(speed, 0, 5);
-  portENTER_CRITICAL(&stateMux);
-  Channel &fan = channels[FAN_CHANNEL];
-  if (!fan.pendingSync) {
-    currentFanSpeed = speed;
-    const bool on = speed > 0;
-    if (fan.relayState != on) {
-      fan.relayState = on;
-      applyRelayState(fan);
-    }
-  }
-  portEXIT_CRITICAL(&stateMux);
-}
-
 bool syncPendingStatesToFirebase() {
   bool pending[NUM_CHANNELS];
   bool states[NUM_CHANNELS];
@@ -350,16 +329,18 @@ bool syncPendingStatesToFirebase() {
   }
   fanSpeed = currentFanSpeed;
   portEXIT_CRITICAL(&stateMux);
-  if (!anyPending) return false;
+  if (!anyPending && millis() - lastReportHeartbeat < HEARTBEAT_INTERVAL_MS) return false;
 
   writeJson.clear();
+  writeJson.set("heartbeatAt/.sv", "timestamp");
   for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
-    if (pending[i]) writeJson.set(channels[i].firebaseKey, states[i]);
+    if (!pending[i]) continue;
+    SwitchCommands::addReport(writeJson, channels[i].firebaseKey, states[i],
+                              i == FAN_CHANNEL ? fanSpeed : -1, commandIds[i], commandApplied[i]);
   }
-  if (pending[FAN_CHANNEL]) writeJson.set("fanspeed", fanSpeed);
 
-  // One atomic PATCH for every dirty channel, including fan + fanspeed.
-  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_CONTROLS, &writeJson)) {
+  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_REPORTS, &writeJson)) {
+    lastReportHeartbeat = millis();
     portENTER_CRITICAL(&stateMux);
     for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
       if (pending[i] && channels[i].revision == revisions[i]) channels[i].pendingSync = false;
@@ -375,7 +356,7 @@ bool syncPendingStatesToFirebase() {
 }
 
 void setupFirebaseStream() {
-  if (Firebase.RTDB.beginStream(&fbdoStream, FB_PATH_CONTROLS)) {
+  if (Firebase.RTDB.beginStream(&fbdoStream, FB_PATH_COMMANDS)) {
     // Manual polling ONLY: setStreamCallback would create a second reader/task.
     firebaseStreamActive = true;
     streamRetry.reset();
@@ -388,40 +369,35 @@ void setupFirebaseStream() {
 }
 
 void handleStreamEvent() {
+  if (fbdoStream.dataType() != "json") return;
+  FirebaseJson *json = fbdoStream.jsonObjectPtr();
+  if (!json) return;
   const String path = fbdoStream.dataPath();
-  const String type = fbdoStream.dataType();
-  if (type == "json" && path == "/") {
-    FirebaseJson *json = fbdoStream.jsonObjectPtr();
-    if (json == nullptr) return;
-    FirebaseJsonData value;
-    for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
-      if (json->get(value, channels[i].firebaseKey)) {
-        const bool on = value.typeNum == FirebaseJson::JSON_BOOL ? value.boolValue :
-                        (value.intValue == 1 || value.stringValue == "true");
-        setRelayFromCloud(i, on);
-      }
-    }
-    if (json->get(value, "fanspeed")) {
-      setFanSpeedFromCloud(value.typeNum == FirebaseJson::JSON_STRING ?
-                          atoi(value.stringValue.c_str()) : value.intValue);
-    }
-    return;
-  }
 
-  if (path == "/fanspeed" || path == "fanspeed") {
-    setFanSpeedFromCloud(type == "string" ? atoi(fbdoStream.stringData().c_str()) :
-                        fbdoStream.intData());
-    return;
-  }
-  const bool on = type == "boolean" ? fbdoStream.boolData() :
-                  (fbdoStream.intData() == 1 || fbdoStream.stringData() == "true");
   for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
-    // Compare without creating a temporary "/" + key String for every event.
-    if (path == channels[i].firebaseKey ||
-        (path.startsWith("/") && strcmp(path.c_str() + 1, channels[i].firebaseKey) == 0)) {
-      setRelayFromCloud(i, on);
-      break;
+    Channel &channel = channels[i];
+    SwitchCommands::Command command;
+    if (!SwitchCommands::read(*json, path, channel.firebaseKey, commandIds[i], commandIssuedAt[i], command)) continue;
+
+    const bool valid = command.speed < 0 ||
+                       (i == FAN_CHANNEL && command.value == (command.speed > 0));
+    portENTER_CRITICAL(&stateMux);
+    if (valid) {
+      channel.relayState = command.value;
+      if (i == FAN_CHANNEL) {
+        if (!command.value) currentFanSpeed = 0;
+        else if (command.speed > 0) currentFanSpeed = command.speed;
+        else if (currentFanSpeed == 0) currentFanSpeed = 3;
+      }
+      applyRelayState(channel);
     }
+    channel.pendingSync = true;
+    ++channel.revision;
+    portEXIT_CRITICAL(&stateMux);
+
+    memcpy(commandIds[i], command.id, sizeof(command.id));
+    commandIssuedAt[i] = command.issuedAt;
+    commandApplied[i] = valid;
   }
 }
 
@@ -496,6 +472,7 @@ void handleNetworkHealth() {
     streamRetry.reset();
     writeRetry.reset();
     lastHeartbeat = now - HEARTBEAT_INTERVAL_MS; // Heartbeat due as soon as ready.
+    lastReportHeartbeat = now - HEARTBEAT_INTERVAL_MS;
     Serial.printf("[WiFi] Online: %s\n", localIp.c_str());
     if (!clockStarted) {
       configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.windows.com");

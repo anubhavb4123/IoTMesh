@@ -1,5 +1,25 @@
 {
   "rules": {
+    "switchControl": {
+      "$node": {
+        ".read": "auth != null",
+        "commands": {
+          "$channel": {
+            ".write": "auth != null && auth.token.email_verified == true && newData.exists() && (($node.matches(/^room[123]$/) && $channel.matches(/^(light|switch|fan)$/)) || ($node == 'commonarea' && $channel.matches(/^(light|fan|refrigerator|tv)$/)) || ($node == 'relay' && $channel.matches(/^relay[1-4]$/)) || ($node == 'security' && $channel.matches(/^(lock|motion|nightMode)$/)))",
+            ".validate": "newData.hasChildren(['id', 'value', 'issuedAt', 'expiresAt']) && (!data.exists() || newData.child('issuedAt').val() >= data.child('issuedAt').val()) && newData.child('issuedAt').val() <= now + 1000 && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + 15000 && newData.child('expiresAt').val() > newData.child('issuedAt').val() && newData.child('expiresAt').val() - newData.child('issuedAt').val() <= 15000",
+            "id": { ".validate": "newData.isString() && newData.val().matches(/^[-_0-9A-Za-z]{20}$/)" },
+            "value": { ".validate": "newData.isBoolean()" },
+            "issuedAt": { ".validate": "newData.isNumber()" },
+            "expiresAt": { ".validate": "newData.isNumber()" },
+            "speed": { ".validate": "$channel == 'fan' && newData.isNumber() && newData.val() >= 0 && newData.val() <= 5 && newData.val() % 1 == 0 && newData.parent().child('value').val() == (newData.val() > 0)" },
+            "$other": { ".validate": false }
+          }
+        },
+        "reports": {
+          ".write": "auth != null && auth.token.iotmeshNode == $node"
+        }
+      }
+    },
     "home": {
       ".read": true,
       "sensor": {

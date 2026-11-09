@@ -1,3 +1,4 @@
+import { useDeviceControls } from "@/hooks/useDeviceControls";
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceControl } from "@/components/DeviceControl";
@@ -23,11 +24,13 @@ const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD;
 // ── Segmented Fan Speed Selector ────────────────────
 interface FanSegmentedControlProps {
   fanOn: boolean;
+  known: boolean;
+  pending: boolean;
   speed: number; // 0–3
   onSelect: (value: number) => void;
 }
 
-function FanSegmentedControl({ fanOn, speed, onSelect }: FanSegmentedControlProps) {
+function FanSegmentedControl({ fanOn, known, pending, speed, onSelect }: FanSegmentedControlProps) {
   const steps = [
     { label: "Off", value: 0 },
     { label: "1 · Low", value: 1 },
@@ -38,13 +41,13 @@ function FanSegmentedControl({ fanOn, speed, onSelect }: FanSegmentedControlProp
   return (
     <div className="p-1 rounded-xl bg-[#edece8] border border-black/[0.06] flex items-center gap-1 shadow-inner">
       {steps.map((step) => {
-        const isSelected = !fanOn
-          ? step.value === 0
-          : (speed === 0 ? step.value === 1 : speed === step.value);
+        const isSelected = known && (fanOn ? speed === step.value : step.value === 0);
 
         return (
           <button
             key={step.value}
+            disabled={pending}
+            aria-pressed={isSelected}
             onClick={() => {
               haptic.tick();
               sounds.click();
@@ -155,7 +158,7 @@ function NodeStatusPanel({ title, status }: NodeStatusPanelProps) {
 
 export default function Devices() {
   const navigate = useNavigate();
-  const [controls, setControls] = useState<ControlData>({} as ControlData);
+  const { controlData: controls, status: switchStatus } = useDeviceControls();
   const { role } = useAuth();
   const { getDeviceScheduleInfo, cancelTimer } = useSchedules();
 
@@ -212,10 +215,6 @@ export default function Devices() {
     import.meta.env.VITE_SECURITY_PASSWORD || ""
   );
 
-  useEffect(() => {
-    const unsub = firebaseService.listenToControlStates(setControls);
-    return () => unsub();
-  }, []);
 
   // Sync active security password from RTDB if configured
   useEffect(() => {
@@ -228,16 +227,34 @@ export default function Devices() {
   }, []);
 
   const nightMode = !!controls.nightMode;
+  const lobbyFanStatus = switchStatus("lobbyFan", controls.lobbyFan ? `speed ${controls.lobbyFanSpeed}` : "OFF");
   const dayMode = !nightMode;
 
-  const update = async (key: keyof ControlData, value: boolean) => {
+  const runSwitchAction = async (action: () => Promise<void>, success?: string) => {
+    try {
+      await action();
+      if (success) {
+        sounds.success();
+        haptic.success();
+        toast.success(success);
+      }
+    } catch (error) {
+      sounds.error();
+      haptic.error();
+      toast.error("Switch action unconfirmed", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  };
+
+  const update = (key: keyof ControlData, value: boolean, success?: string) => {
     if (nightMode && (key === "lock" || key === "motion")) {
       sounds.error();
       haptic.error();
       toast.error("Perimeter Locked", { description: "Security controls cannot be modified in Night Mode." });
       return;
     }
-    await firebaseService.updateSwitchState(key, value);
+    return runSwitchAction(() => firebaseService.updateSwitchState(key, value), success);
   };
 
   const handleLockToggle = (value: boolean) => {
@@ -249,18 +266,12 @@ export default function Devices() {
     }
     // Any user can lock the door without entering a password
     if (value) {
-      update("lock", true);
-      sounds.success();
-      haptic.success();
-      toast.success("Door Locked 🔒");
+      void update("lock", true, "Door Locked");
       return;
     }
     // Admin can unlock without entering a password
     if (role === "admin") {
-      update("lock", false);
-      sounds.success();
-      haptic.success();
-      toast.success("Door Unlocked 🔓");
+      void update("lock", false, "Door Unlocked");
       return;
     }
     // Non-admin users must enter security password to unlock
@@ -273,10 +284,7 @@ export default function Devices() {
     if (securityInput === validPassword) {
       setShowSecurityModal(false);
       setSecurityInput("");
-      sounds.success();
-      haptic.success();
-      toast.success("Door Unlocked 🔓");
-      firebaseService.updateSwitchState("lock", false);
+      void update("lock", false, "Door Unlocked");
     } else {
       setSecurityInput("");
       sounds.wrongPass();
@@ -290,19 +298,8 @@ export default function Devices() {
     setSecurityInput("");
   };
 
-  const handleFanChange = async (fanKey: keyof ControlData, speedKey: keyof ControlData, stepValue: number) => {
-    if (stepValue === 0) {
-      await firebaseService.updateMultipleSwitches({
-        [fanKey]: false,
-        [speedKey]: 0,
-      });
-    } else {
-      await firebaseService.updateMultipleSwitches({
-        [fanKey]: true,
-        [speedKey]: stepValue,
-      });
-    }
-  };
+  const handleFanChange = (speedKey: keyof ControlData, speed: number) =>
+    runSwitchAction(() => firebaseService.updateFanSpeed(speedKey, speed));
 
   const ALL_NON_SECURITY: (keyof ControlData)[] = [
     "room1Light", "room1Switch", "room1Fan",
@@ -312,27 +309,16 @@ export default function Devices() {
     "relay1", "relay2", "relay3", "relay4",
   ];
 
-  const allOffExceptSecurity = async () => {
-    const updates = Object.fromEntries(ALL_NON_SECURITY.map((k) => [k, false]));
-    await firebaseService.updateMultipleSwitches(updates as Partial<ControlData>);
-    sounds.success();
-    haptic.heavy();
-    toast.success("All appliances turned OFF (Security intact)");
+  const allOffExceptSecurity = () => {
+    const updates = Object.fromEntries(ALL_NON_SECURITY.map((key) => [key, false]));
+    return runSwitchAction(() => firebaseService.updateMultipleSwitches(updates), "All appliances confirmed off");
   };
 
-  const enableNightMode = async () => {
-    await firebaseService.updateMultipleSwitches({ nightMode: true, lock: true, motion: true });
-    sounds.success();
-    haptic.medium();
-    toast.success("Night Mode Active 🌙", { description: "Perimeter locked and motion detection armed." });
-  };
-
-  const disableNightMode = async () => {
-    await firebaseService.updateMultipleSwitches({ nightMode: false, lock: false, motion: false });
-    sounds.success();
-    haptic.medium();
-    toast.success("Day Mode Active ☀️", { description: "Night mode disarmed." });
-  };
+  const setNightMode = (enabled: boolean) =>
+    runSwitchAction(
+      () => firebaseService.updateMultipleSwitches({ nightMode: enabled, lock: enabled, motion: enabled }),
+      enabled ? "Night Mode Active" : "Day Mode Active",
+    );
 
   const activateDayMode = async () => {
     if (nightMode) {
@@ -370,14 +356,15 @@ export default function Devices() {
             </button>
 
             <button
-              onClick={() => nightMode ? disableNightMode() : enableNightMode()}
+              onClick={() => setNightMode(!nightMode)}
+              disabled={switchStatus("nightMode").pending}
               className={cn(
                 "flex items-center gap-2 text-xs transition-all",
                 nightMode ? "clay-btn-dark font-bold" : "clay-btn font-medium"
               )}
             >
               <Moon className="w-3.5 h-3.5" />
-              <span>{nightMode ? "Night Mode (Active)" : "Activate Night Mode"}</span>
+              <span aria-live="polite">{switchStatus("nightMode").text ?? (nightMode ? "Night Mode (Active)" : "Activate Night Mode")}</span>
             </button>
 
             <button
@@ -399,6 +386,7 @@ export default function Devices() {
             const speedKey = `${prefix}FanSpeed` as keyof ControlData;
             const fanOn = !!(controls[fanKey]);
             const fanSpeed = (controls[speedKey] as number) ?? 0;
+            const fanStatus = switchStatus(fanKey, fanOn ? `speed ${fanSpeed}` : "OFF");
 
             return (
               <div key={room} className="clay-card p-5 space-y-4">
@@ -422,6 +410,7 @@ export default function Devices() {
                     title="Ceiling Light"
                     icon={Lightbulb}
                     isActive={!!(controls[`${prefix}Light`])}
+                    confirmation={switchStatus(`${prefix}Light`)}
                     onToggle={(v) => update(`${prefix}Light`, v)}
                     timerBadge={getBadge(`${prefix}Light`)}
                   />
@@ -429,6 +418,7 @@ export default function Devices() {
                     title="Wall Switch"
                     icon={ToggleLeft}
                     isActive={!!(controls[`${prefix}Switch`])}
+                    confirmation={switchStatus(`${prefix}Switch`)}
                     onToggle={(v) => update(`${prefix}Switch`, v)}
                     timerBadge={getBadge(`${prefix}Switch`)}
                   />
@@ -445,8 +435,8 @@ export default function Devices() {
                         </div>
                         <div>
                           <p className="text-xs font-bold text-[#18191c]">Ceiling Fan</p>
-                          <p className="text-[10px] text-[#797a82] font-medium">
-                            {fanOn ? `Speed ${fanSpeed || 1}` : "Turned Off"}
+                          <p className="text-[10px] text-[#797a82] font-medium" aria-live="polite">
+                            {fanStatus.text ?? (fanOn ? `Speed ${fanSpeed}` : "Turned Off")}
                           </p>
                         </div>
                       </div>
@@ -463,8 +453,10 @@ export default function Devices() {
 
                     <FanSegmentedControl
                       fanOn={fanOn}
+                      known={fanStatus.known}
+                      pending={fanStatus.pending}
                       speed={fanSpeed}
-                      onSelect={(val) => handleFanChange(fanKey, speedKey, val)}
+                      onSelect={(val) => handleFanChange(speedKey, val)}
                     />
                   </div>
                 </div>
@@ -494,6 +486,7 @@ export default function Devices() {
               title="Lobby Light"
               icon={Lightbulb}
               isActive={!!controls.lobbyLight}
+              confirmation={switchStatus("lobbyLight")}
               onToggle={(v) => update("lobbyLight", v)}
               timerBadge={getBadge("lobbyLight")}
             />
@@ -501,6 +494,7 @@ export default function Devices() {
               title="Living Room TV"
               icon={Tv}
               isActive={!!controls.lobbyTV}
+              confirmation={switchStatus("lobbyTV")}
               onToggle={(v) => update("lobbyTV", v)}
               timerBadge={getBadge("lobbyTV")}
             />
@@ -508,6 +502,7 @@ export default function Devices() {
               title="Refrigerator"
               icon={Refrigerator}
               isActive={!!controls.refrigerator}
+              confirmation={switchStatus("refrigerator")}
               onToggle={(v) => update("refrigerator", v)}
               timerBadge={getBadge("refrigerator")}
             />
@@ -524,8 +519,9 @@ export default function Devices() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-[#18191c]">Lobby Fan</p>
-                    <p className="text-[10px] text-[#797a82]">
-                      {controls.lobbyFan ? `Speed ${(controls.lobbyFanSpeed as number) || 1}` : "Turned Off"}
+                    <p className="text-[10px] text-[#797a82]" aria-live="polite">
+                      {lobbyFanStatus.text ??
+                        (controls.lobbyFan ? `Speed ${controls.lobbyFanSpeed}` : "Turned Off")}
                     </p>
                   </div>
                 </div>
@@ -541,8 +537,10 @@ export default function Devices() {
               </div>
               <FanSegmentedControl
                 fanOn={!!controls.lobbyFan}
-                speed={(controls.lobbyFanSpeed as number) ?? 0}
-                onSelect={(val) => handleFanChange("lobbyFan", "lobbyFanSpeed", val)}
+                known={lobbyFanStatus.known}
+                pending={lobbyFanStatus.pending}
+                speed={controls.lobbyFanSpeed ?? 0}
+                onSelect={(val) => handleFanChange("lobbyFanSpeed", val)}
               />
             </div>
           </div>
@@ -565,6 +563,7 @@ export default function Devices() {
                 subtitle={controls[r] ? "Energized (Closed)" : "De-energized (Open)"}
                 icon={Zap}
                 isActive={!!controls[r]}
+                confirmation={switchStatus(r)}
                 onToggle={(v) => update(r, v)}
                 timerBadge={getBadge(r)}
               />
@@ -587,6 +586,7 @@ export default function Devices() {
               subtitle={controls.lock ? "Locked 🔒" : "Unlocked 🔓"}
               icon={controls.lock ? Lock : LockOpen}
               isActive={!!controls.lock}
+              confirmation={switchStatus("lock")}
               onToggle={handleLockToggle}
               timerBadge={getBadge("lock")}
             />
@@ -595,6 +595,7 @@ export default function Devices() {
               subtitle={controls.motion ? "Armed 🛡️" : "Disarmed"}
               icon={Activity}
               isActive={!!controls.motion}
+              confirmation={switchStatus("motion")}
               onToggle={(v) => update("motion", v)}
               timerBadge={getBadge("motion")}
             />

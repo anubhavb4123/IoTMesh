@@ -1,9 +1,9 @@
+import { useDeviceControls } from "@/hooks/useDeviceControls";
 import { useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { useSchedules, formatRemainingSeconds, formatTime12H, formatDaysSummary } from "@/hooks/useSchedules";
 import { ALL_DEVICES, getDeviceMeta, DeviceMeta } from "@/lib/devices";
 import { firebaseService, ControlData, ScheduleItem, ScheduleAction, RepeatType } from "@/lib/firebase";
-import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { sounds } from "@/lib/sounds";
 import { haptic } from "@/lib/haptic";
@@ -52,13 +52,7 @@ export default function Schedules() {
     getDeviceScheduleInfo,
   } = useSchedules();
 
-  const [controls, setControls] = useState<ControlData>({} as ControlData);
-
-  // Realtime controls state
-  useEffect(() => {
-    const unsub = firebaseService.listenToControlStates(setControls);
-    return () => unsub();
-  }, []);
+  const { controlData: controls, status: switchStatus } = useDeviceControls();
 
   // Filter & Search states
   const [roomFilter, setRoomFilter] = useState<string>("all");
@@ -327,6 +321,16 @@ export default function Schedules() {
           </div>
         </div>
 
+        {timers.some((timer) => timer.status === "unconfirmed" || timer.pendingRun) && (
+          <section className="clay-card p-4 space-y-2" aria-label="Timer confirmations" aria-live="polite">
+            {timers.filter((timer) => timer.status === "unconfirmed" || timer.pendingRun).map((timer) => (
+              <p key={timer.id} className="text-xs text-[#55565d]">
+                <strong>{timer.name}</strong> · {timer.pendingRun ? "Waiting for device confirmation" : "No device confirmation"}
+              </p>
+            ))}
+          </section>
+        )}
+
         {/* ── ACTIVE COUNTDOWN TIMERS DECK (LIVE) ── */}
         {activeTimers.length > 0 && (
           <div className="clay-card p-5 sm:p-6 space-y-4 border-amber-500/30 bg-amber-500/[0.02]">
@@ -518,6 +522,7 @@ export default function Schedules() {
             {filteredDevices.map((dev) => {
               const DevIcon = dev.icon;
               const isActive = !!controls[dev.key];
+              const confirmation = switchStatus(dev.key);
               const schedInfo = getDeviceScheduleInfo(dev.key);
 
               return (
@@ -561,11 +566,16 @@ export default function Schedules() {
                         >
                           {dev.room}
                         </span>
+                        <p className="text-[10px]" aria-live="polite">{confirmation.text ?? (isActive ? "ON" : "OFF")}</p>
                       </div>
                     </div>
 
                     {/* Smooth Switch */}
-                    <div
+                    <button
+                      type="button"
+                      aria-label={dev.name}
+                      aria-pressed={confirmation.known ? isActive : undefined}
+                      disabled={!confirmation.known || confirmation.pending}
                       onClick={() => handleSwitchToggle(dev.key, isActive)}
                       className={cn(
                         "clay-switch shrink-0 cursor-pointer",
@@ -578,7 +588,7 @@ export default function Schedules() {
                           isActive && "translate-x-5 !bg-[#18191c]"
                         )}
                       />
-                    </div>
+                    </button>
                   </div>
 
                   {/* Active Timer / Schedule Badge if present */}
@@ -785,6 +795,12 @@ export default function Schedules() {
                         />
                       </div>
                     </div>
+
+                    {(routine.pendingRun || routine.lastRunResult === "unconfirmed") && (
+                      <p className="text-xs text-[#55565d]" aria-live="polite">
+                        {routine.pendingRun ? "Waiting for device confirmation" : "Last run unconfirmed"}
+                      </p>
+                    )}
 
                     {/* Device + Action Badge */}
                     <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[#edece8] border border-black/[0.04]">

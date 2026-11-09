@@ -10,8 +10,10 @@ import {
   onValue,
   set,
   update,
-  push
+  push,
+  runTransaction
 } from "firebase/database";
+import { COMMAND_TTL_MS, SWITCH_NODES, type SwitchCommand, type SwitchNodeSnapshot } from "./switchControl";
 
 // ------------------------------------------------------
 // FIREBASE CONFIG (.env)
@@ -35,6 +37,11 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 const database = getDatabase(app);
+let switchClockOffset = 0;
+
+export function getSwitchTime() {
+  return Date.now() + switchClockOffset;
+}
 const CONTROL_PATH = "home/room1/controls";
 
 // ------------------------------------------------------
@@ -80,7 +87,7 @@ export interface ScheduleItem {
   durationMinutes?: number;    // original duration in minutes
   targetTimestamp?: number;    // epoch in ms when timer triggers
   autoTurnOnFirst?: boolean;   // turn switch ON immediately, then OFF at targetTimestamp
-  status?: "active" | "completed" | "cancelled";
+  status?: "active" | "completed" | "cancelled" | "unconfirmed";
   completedAt?: number;
 
   // Recurring / Specific Schedule properties
@@ -90,6 +97,8 @@ export interface ScheduleItem {
   specificDate?: string;       // "YYYY-MM-DD" for one-off scheduled date
   lastRun?: number;            // epoch in ms when last fired
   lastRunKey?: string;
+  lastRunResult?: "confirmed" | "unconfirmed";
+  pendingRun?: { key: string; device: string; command: SwitchCommand };
   notification?: boolean;      // send Telegram alert when executed
 }
 
@@ -225,6 +234,43 @@ export function getNodeControlsPath(key: keyof ControlData): string {
   return getFirebaseControlTarget(key).path;
 }
 
+export type SwitchSnapshots = Partial<Record<(typeof SWITCH_NODES)[number], SwitchNodeSnapshot>>;
+
+export function getSwitchChannel(key: keyof ControlData) {
+  const { path, property } = getFirebaseControlTarget(key);
+  const segments = path.split("/");
+  return {
+    node: segments[segments.length - 2] as keyof SwitchSnapshots,
+    property: property === "fanspeed" ? "fan" : property,
+    isSpeed: property === "fanspeed",
+  };
+}
+
+function waitForSwitchReport(path: string, command: SwitchCommand, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    let unsubscribe = () => {};
+    const finish = (error?: Error) => {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", cancel);
+      unsubscribe();
+      if (error) reject(error);
+      else resolve();
+    };
+    const cancel = () => finish(new Error("Confirmation cancelled"));
+    const timeout = setTimeout(
+      () => finish(new Error("No confirmation from the device")),
+      Math.max(0, command.expiresAt - getSwitchTime()),
+    );
+    signal.addEventListener("abort", cancel, { once: true });
+    unsubscribe = onValue(ref(database, `switchControl/${path.replace("/commands/", "/reports/")}Ack`), (snapshot) => {
+      if (snapshot.child("commandId").val() !== command.id) return;
+      const outcome = snapshot.child("outcome").val();
+      if (outcome === "applied") finish();
+      if (outcome === "rejected") finish(new Error("Device rejected the command"));
+    }, finish);
+  });
+}
+
 export interface NodeStatusData {
   online?: boolean;
   ip?: string;
@@ -305,168 +351,68 @@ class FirebaseService {
     });
   }
   
-  async getControlStates(): Promise<ControlData> {
-    try {
-      const paths = [
-        "home/room1/controls",
-        "home/room2/controls",
-        "home/room3/controls",
-        "home/commonarea/controls",
-        "home/relay/controls",
-        "security/controls",
-      ];
-      const snaps = await Promise.all(paths.map((p) => get(ref(database, p))));
-      let merged: ControlData = { ...DEFAULT_CONTROLS };
-      snaps.forEach((snap, idx) => {
-        if (!snap.exists()) return;
-        const val = snap.val();
-        if (!val || typeof val !== "object") return;
-        const p = paths[idx];
-        if (p === "home/room1/controls") {
-          if ("light" in val) merged.room1Light = Boolean(val.light);
-          if ("switch" in val) merged.room1Switch = Boolean(val.switch);
-          if ("fan" in val) merged.room1Fan = Boolean(val.fan);
-          if ("fanspeed" in val) merged.room1FanSpeed = Number(val.fanspeed);
-        } else if (p.includes("room2")) {
-          if ("light" in val) merged.room2Light = Boolean(val.light);
-          if ("switch" in val) merged.room2Switch = Boolean(val.switch);
-          if ("fan" in val) merged.room2Fan = Boolean(val.fan);
-          if ("fanspeed" in val) merged.room2FanSpeed = Number(val.fanspeed);
-        } else if (p.includes("room3")) {
-          if ("light" in val) merged.room3Light = Boolean(val.light);
-          if ("switch" in val) merged.room3Switch = Boolean(val.switch);
-          if ("fan" in val) merged.room3Fan = Boolean(val.fan);
-          if ("fanspeed" in val) merged.room3FanSpeed = Number(val.fanspeed);
-        } else if (p.includes("common")) {
-          if ("light" in val) merged.lobbyLight = Boolean(val.light);
-          if ("fan" in val) merged.lobbyFan = Boolean(val.fan);
-          if ("fanspeed" in val) merged.lobbyFanSpeed = Number(val.fanspeed);
-          if ("refrigerator" in val) merged.refrigerator = Boolean(val.refrigerator);
-          if ("tv" in val) merged.lobbyTV = Boolean(val.tv);
-        } else if (p.includes("relay")) {
-          if ("relay1" in val) merged.relay1 = Boolean(val.relay1);
-          if ("relay2" in val) merged.relay2 = Boolean(val.relay2);
-          if ("relay3" in val) merged.relay3 = Boolean(val.relay3);
-          if ("relay4" in val) merged.relay4 = Boolean(val.relay4);
-        } else if (p === "security/controls") {
-          if ("lock" in val) merged.lock = Boolean(val.lock);
-          if ("motion" in val) merged.motion = Boolean(val.motion);
-          if ("nightMode" in val) merged.nightMode = Boolean(val.nightMode);
-        }
-      });
-      return merged;
-    } catch (e) {
-      console.error("Error fetching control states:", e);
-      return DEFAULT_CONTROLS;
-    }
-  }
-
-  listenToControlStates(callback: (data: ControlData) => void): () => void {
-    let mergedState: ControlData = { ...DEFAULT_CONTROLS };
-
-    const pathsToListen = [
-      "home/room1/controls",
-      "home/room2/controls",
-      "home/room3/controls",
-      "home/commonarea/controls",
-      "home/relay/controls",
-      "security/controls",
-    ];
-
-    const unsubs: (() => void)[] = [];
-
-    pathsToListen.forEach((path) => {
-      const unsub = onValue(
-        ref(database, path),
-        (snapshot) => {
-          if (!snapshot.exists()) return;
-          const val = snapshot.val();
-          if (!val || typeof val !== "object") return;
-
-          const mapped: Partial<ControlData> = {};
-
-          if (path === "home/room1/controls") {
-            if ("light" in val) mapped.room1Light = Boolean(val.light);
-            if ("switch" in val) mapped.room1Switch = Boolean(val.switch);
-            if ("fan" in val) mapped.room1Fan = Boolean(val.fan);
-            if ("fanspeed" in val) mapped.room1FanSpeed = Number(val.fanspeed);
-          } else if (path.includes("room2")) {
-            if ("light" in val) mapped.room2Light = Boolean(val.light);
-            if ("switch" in val) mapped.room2Switch = Boolean(val.switch);
-            if ("fan" in val) mapped.room2Fan = Boolean(val.fan);
-            if ("fanspeed" in val) mapped.room2FanSpeed = Number(val.fanspeed);
-          } else if (path.includes("room3")) {
-            if ("light" in val) mapped.room3Light = Boolean(val.light);
-            if ("switch" in val) mapped.room3Switch = Boolean(val.switch);
-            if ("fan" in val) mapped.room3Fan = Boolean(val.fan);
-            if ("fanspeed" in val) mapped.room3FanSpeed = Number(val.fanspeed);
-          } else if (path.includes("common")) {
-            if ("light" in val) mapped.lobbyLight = Boolean(val.light);
-            if ("fan" in val) mapped.lobbyFan = Boolean(val.fan);
-            if ("fanspeed" in val) mapped.lobbyFanSpeed = Number(val.fanspeed);
-            if ("refrigerator" in val) mapped.refrigerator = Boolean(val.refrigerator);
-            if ("tv" in val) mapped.lobbyTV = Boolean(val.tv);
-          } else if (path.includes("relay")) {
-            if ("relay1" in val) mapped.relay1 = Boolean(val.relay1);
-            if ("relay2" in val) mapped.relay2 = Boolean(val.relay2);
-            if ("relay3" in val) mapped.relay3 = Boolean(val.relay3);
-            if ("relay4" in val) mapped.relay4 = Boolean(val.relay4);
-          } else if (path === "security/controls") {
-            if ("lock" in val) mapped.lock = Boolean(val.lock);
-            if ("motion" in val) mapped.motion = Boolean(val.motion);
-            if ("nightMode" in val) mapped.nightMode = Boolean(val.nightMode);
-          }
-
-          mergedState = {
-            ...mergedState,
-            ...mapped,
-          };
-
-          callback({ ...mergedState });
-        },
-        (error) => {
-          console.warn(`[Firebase RTDB] Listener on ${path} warning:`, error.message);
-        }
-      );
-
-      unsubs.push(unsub);
+  listenToSwitchNodes(callback: (nodes: SwitchSnapshots) => void, onError?: (error: Error) => void) {
+    const nodes: SwitchSnapshots = {};
+    const stopClock = onValue(ref(database, ".info/serverTimeOffset"), (snapshot) => {
+      const offset = snapshot.val();
+      if (typeof offset === "number") switchClockOffset = offset;
     });
-
+    const unsubscribers = SWITCH_NODES.map((node) =>
+      onValue(ref(database, `switchControl/${node}`), (snapshot) => {
+        nodes[node] = snapshot.val() ?? {};
+        callback({ ...nodes });
+      }, onError),
+    );
     return () => {
-      unsubs.forEach((u) => u());
+      stopClock();
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }
 
-  async updateSwitchState(key: keyof ControlData, value: boolean) {
-    const { path: targetPath, property } = getFirebaseControlTarget(key);
-    const payload: Record<string, any> = { [property]: value };
-
-    return update(ref(database, targetPath), payload);
+  updateSwitchState(key: keyof ControlData, value: boolean) {
+    return this.updateMultipleSwitches({ [key]: value });
   }
 
   async updateMultipleSwitches(updates: Partial<ControlData>) {
-    const grouped: Record<string, Record<string, any>> = {};
-
-    for (const [k, v] of Object.entries(updates)) {
-      const key = k as keyof ControlData;
-      const { path: targetPath, property } = getFirebaseControlTarget(key);
-      if (!grouped[targetPath]) grouped[targetPath] = {};
-      grouped[targetPath][property] = v;
+    const issuedAt = getSwitchTime();
+    const expiresAt = issuedAt + COMMAND_TTL_MS;
+    const commands = new Map<string, SwitchCommand>();
+    for (const [key, value] of Object.entries(updates)) {
+      if (!Object.prototype.hasOwnProperty.call(DEFAULT_CONTROLS, key)) throw new Error(`Unknown switch: ${key}`);
+      const { node, property } = getSwitchChannel(key as keyof ControlData);
+      const path = `${node}/commands/${property}`;
+      const command = commands.get(path) ?? {
+        id: push(ref(database, `switchControl/${node}/commands`)).key!,
+        value: false,
+        issuedAt,
+        expiresAt,
+      };
+      if (typeof value === "number") {
+        if (property !== "fan") throw new Error(`Invalid speed control: ${key}`);
+        command.speed = value;
+        command.value = value > 0;
+      } else if (command.speed === undefined) {
+        command.value = value;
+      }
+      commands.set(path, command);
     }
 
-    const promises = Object.entries(grouped).map(([targetPath, payload]) =>
-      update(ref(database, targetPath), payload)
-    );
-
-    await Promise.allSettled(promises);
+    if (!commands.size) return;
+    const abort = new AbortController();
+    try {
+      await Promise.all([
+        ...Array.from(commands, ([path, command]) => waitForSwitchReport(path, command, abort.signal)),
+        update(ref(database, "switchControl"), Object.fromEntries(commands)),
+      ]);
+    } finally {
+      abort.abort();
+    }
   }
 
-  async updateFanSpeed(key: keyof ControlData, speed: number) {
-    const { path: targetPath, property } = getFirebaseControlTarget(key);
-    const payload: Record<string, any> = { [property]: speed };
-    return update(ref(database, targetPath), payload);
+  updateFanSpeed(key: keyof ControlData, speed: number) {
+    return this.updateMultipleSwitches({ [key]: speed });
   }
-  // ── Ignition ──
+
   triggerIgnition() {
     return set(ref(database, PATHS.IGNITION), 1);
   }
@@ -558,6 +504,15 @@ class FirebaseService {
   async updateSchedule(id: string, updates: Partial<ScheduleItem>): Promise<void> {
     const clean = cleanFirebasePayload(updates);
     return update(ref(database, `${PATHS.SCHEDULES}/${id}`), clean);
+  }
+
+  async requestTimerExecution(id: string): Promise<void> {
+    const now = Date.now();
+    const result = await runTransaction(ref(database, `${PATHS.SCHEDULES}/${id}`), (timer: ScheduleItem | null) => {
+      if (timer?.type !== "timer" || timer.status !== "active" || timer.enabled === false || timer.pendingRun) return;
+      return { ...timer, targetTimestamp: Math.min(timer.targetTimestamp ?? now, now) };
+    }, { applyLocally: false });
+    if (!result.committed && !result.snapshot.val()?.pendingRun) throw new Error("Timer is no longer active");
   }
 
   /** Delete a Timer or Schedule */

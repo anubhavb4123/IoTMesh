@@ -29,7 +29,7 @@
  *   BMP180 → I²C Bus (SDA=4, SCL=5), Address 0x77
  *
  * Firebase RTDB Paths:
- *   /home/commonarea/controls  → {fan, fanspeed, light, refrigerator, tv}
+ *   /switchControl/commonarea/commands  → {fan, fanspeed, light, refrigerator, tv}
  *   /home/commonarea/status    → {online, ip, rssi, uptime, chipTempC, ...}
  *   /home/sensor               → {temperature, humidity, gas, pressure, temperatureBMP, ...}
  *   /home/history              → Timestamped sensor snapshots
@@ -45,6 +45,7 @@
 // =================================================================================
 //  1. REQUIRED LIBRARIES
 // =================================================================================
+#include "SwitchCommands.h"
 #include <WiFi.h>
 #include <Wire.h>                    // I²C for PCF8574 + BMP180
 #include <Firebase_ESP_Client.h>
@@ -67,7 +68,8 @@
 #define FIREBASE_DB_SECRET      "ItjOcSIaW6GRLAnZLhIi1ouEFFwfCYiQR5cqsmwi"
 
 // Realtime Database Paths
-#define FB_PATH_CONTROLS        "/home/commonarea/controls"
+#define FB_PATH_COMMANDS        "/switchControl/commonarea/commands"
+#define FB_PATH_REPORTS         "/switchControl/commonarea/reports"
 #define FB_PATH_STATUS          "/home/commonarea/status"
 #define FB_PATH_SENSOR          "/home/sensor"
 #define FB_PATH_HISTORY         "/home/history"
@@ -144,6 +146,7 @@ bool controlTV          = false;     // TV / General Switch ON/OFF
 #define PCF_RELAY_ON            1    // HIGH = Relay activated via ULN2003
 #define PCF_RELAY_OFF           0    // LOW  = Relay deactivated
 
+bool outputReady = false;
 uint8_t pcf8574OutputState = 0x00;   // All relays OFF at startup
 
 // ── Sensor Data (latest readings) ──
@@ -167,9 +170,28 @@ unsigned long lastSensorRead = 0;
 unsigned long lastHistoryLog = 0;
 unsigned long bootTime       = 0;
 
+struct CommonSwitch {
+  const char *key;
+  bool &state;
+  char commandId[SwitchCommands::IdLength + 1];
+  uint64_t issuedAt;
+  bool applied;
+};
+
+CommonSwitch commonSwitches[] = {
+  { "light", controlLight, {}, 0, false },
+  { "fan", controlFan, {}, 0, false },
+  { "refrigerator", controlRefrigerator, {}, 0, false },
+  { "tv", controlTV, {}, 0, false },
+};
+bool reportDirty = true;
+unsigned long lastReportAttempt = 0;
+unsigned long lastReportHeartbeat = 0;
+unsigned long nextStreamAttempt = 0;
+
 // Function Prototypes
-void pcf8574Write(uint8_t state);
-void updateRelaysFromState();
+bool pcf8574Write(uint8_t state);
+bool updateRelaysFromState();
 void readAllSensors();
 void pushSensorDataToFirebase();
 void pushHistoryToFirebase();
@@ -178,8 +200,8 @@ void handleNetworkHealth();
 void initializeFirebase();
 void setupFirebaseStream();
 void updateFirebaseHeartbeat();
-void handleStreamCallback(FirebaseStream data);
-void handleStreamTimeoutCallback(bool matched);
+void handleCommandStream();
+void publishSwitchReports();
 void initializeOTA();
 
 // =================================================================================
@@ -192,16 +214,19 @@ void initializeOTA();
  * Bit = 1 → Output HIGH (ULN2003 input HIGH → relay activates)
  * Bit = 0 → Output LOW  (ULN2003 input LOW  → relay deactivates)
  */
-void pcf8574Write(uint8_t state) {
+bool pcf8574Write(uint8_t state) {
   Wire.beginTransmission(PCF8574_ADDRESS);
   Wire.write(state);
   uint8_t error = Wire.endTransmission();
   
   if (error != 0) {
+    outputReady = false;
     Serial.printf("[PCF8574] ❌ I²C write error: %d (Address: 0x%02X)\n", error, PCF8574_ADDRESS);
-  } else {
-    pcf8574OutputState = state;
+    return false;
   }
+  pcf8574OutputState = state;
+  outputReady = true;
+  return true;
 }
 
 /**
@@ -238,7 +263,7 @@ void pcf8574SetPin(uint8_t pin, bool active) {
  * Fan relays are mutually exclusive — only one speed relay is active at a time.
  * When fan is OFF, all 3 fan relays are OFF.
  */
-void updateRelaysFromState() {
+bool updateRelaysFromState() {
   uint8_t newState = 0x00;
   
   // ── Fan Speed Relays (mutually exclusive) ──
@@ -273,15 +298,16 @@ void updateRelaysFromState() {
   }
   
   // Only write to I²C if state actually changed (reduces bus traffic)
-  if (newState != pcf8574OutputState) {
+  if (!outputReady || newState != pcf8574OutputState) {
     Serial.printf("[Relay] State change: 0x%02X → 0x%02X | Fan:%s(Spd:%d) Fridge:%s Light:%s TV:%s\n",
                   pcf8574OutputState, newState,
                   controlFan ? "ON" : "OFF", controlFanSpeed,
                   controlRefrigerator ? "ON" : "OFF",
                   controlLight ? "ON" : "OFF",
                   controlTV ? "ON" : "OFF");
-    pcf8574Write(newState);
+    return pcf8574Write(newState);
   }
+  return true;
 }
 
 // =================================================================================
@@ -506,22 +532,19 @@ void loop() {
     }
     
     if (Firebase.ready()) {
-      // 2A: Start stream if not yet active
-      if (!firebaseStreamActive) {
-        setupFirebaseStream();
-      }
-      
-      // 2B: Process incoming stream events
+      if (!firebaseStreamActive) setupFirebaseStream();
+
       if (firebaseStreamActive) {
         if (!Firebase.RTDB.readStream(&fbdoStream)) {
-          if (fbdoStream.httpCode() != 0) {
-            Serial.printf("[Firebase Stream] Read dropped: %s (HTTP %d)\n",
-                          fbdoStream.errorReason().c_str(), fbdoStream.httpCode());
-            firebaseStreamActive = false;
-          }
+          Firebase.RTDB.endStream(&fbdoStream);
+          firebaseStreamActive = false;
+          nextStreamAttempt = millis() + 2000;
+        } else if (fbdoStream.streamAvailable()) {
+          handleCommandStream();
         }
       }
-      
+      publishSwitchReports();
+
       // 2C: Status Heartbeat — every 1 second
       if (currentMillis - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
         lastHeartbeat = currentMillis;
@@ -558,150 +581,63 @@ void loop() {
 // =================================================================================
 
 void setupFirebaseStream() {
-  if (WiFi.status() != WL_CONNECTED || !Firebase.ready()) return;
-  
-  Serial.printf("[Firebase] Starting Real-time Stream on: %s ...\n", FB_PATH_CONTROLS);
-  
-  if (!Firebase.RTDB.beginStream(&fbdoStream, FB_PATH_CONTROLS)) {
-    Serial.printf("[Firebase] ❌ Stream start failed: %s (HTTP %d)\n",
-                  fbdoStream.errorReason().c_str(), fbdoStream.httpCode());
-    firebaseStreamActive = false;
-    return;
-  }
-  
-  Firebase.RTDB.setStreamCallback(&fbdoStream, handleStreamCallback, handleStreamTimeoutCallback);
-  firebaseStreamActive = true;
-  Serial.println(F("[Firebase] ✅ Stream active. Listening for Common Area commands..."));
+  if (WiFi.status() != WL_CONNECTED || !Firebase.ready() || !SwitchCommands::nowMs()) return;
+  if (static_cast<int32_t>(millis() - nextStreamAttempt) < 0) return;
+  firebaseStreamActive = Firebase.RTDB.beginStream(&fbdoStream, FB_PATH_COMMANDS);
+  nextStreamAttempt = millis() + 2000;
 }
 
-void handleStreamCallback(FirebaseStream data) {
-  Serial.println();
-  Serial.println(F("──────────────────────────────────────────────────"));
-  Serial.printf("[Firebase Stream] Path: %s | Type: %s | Value: %s\n",
-                data.dataPath().c_str(), data.dataType().c_str(), data.stringData().c_str());
-  
-  String path = data.dataPath();
-  String dataType = data.dataType();
-  
-  bool stateChanged = false;
-  
-  // ══════════════════════════════════════════════════════════════════
-  //  Case A: Root JSON (initial stream connection or multi-update)
-  // ══════════════════════════════════════════════════════════════════
-  if (dataType == "json" || path == "/") {
-    FirebaseJson *json = data.to<FirebaseJson *>();
-    if (json != nullptr) {
-      FirebaseJsonData jsonData;
-      
-      // Fan master switch
-      if (json->get(jsonData, "fan")) {
-        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
-        if (controlFan != val) {
-          controlFan = val;
-          stateChanged = true;
-          Serial.printf("[Cloud] Fan → %s\n", val ? "ON" : "OFF");
-        }
-      }
-      
-      // Fan speed
-      if (json->get(jsonData, "fanspeed")) {
-        int newSpeed = jsonData.intValue;
-        if (newSpeed >= 1 && newSpeed <= 3 && controlFanSpeed != newSpeed) {
-          controlFanSpeed = newSpeed;
-          stateChanged = true;
-          Serial.printf("[Cloud] Fan Speed → %d\n", newSpeed);
-        }
-      }
-      
-      // Light
-      if (json->get(jsonData, "light")) {
-        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
-        if (controlLight != val) {
-          controlLight = val;
-          stateChanged = true;
-          Serial.printf("[Cloud] Light → %s\n", val ? "ON" : "OFF");
-        }
-      }
-      
-      // Refrigerator
-      if (json->get(jsonData, "refrigerator")) {
-        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
-        if (controlRefrigerator != val) {
-          controlRefrigerator = val;
-          stateChanged = true;
-          Serial.printf("[Cloud] Refrigerator → %s\n", val ? "ON" : "OFF");
-        }
-      }
-      
-      // TV / General Switch
-      if (json->get(jsonData, "tv")) {
-        bool val = (jsonData.typeNum == FirebaseJson::JSON_BOOL) ? jsonData.boolValue : (jsonData.intValue == 1);
-        if (controlTV != val) {
-          controlTV = val;
-          stateChanged = true;
-          Serial.printf("[Cloud] TV → %s\n", val ? "ON" : "OFF");
-        }
+void handleCommandStream() {
+  if (fbdoStream.dataType() != "json") return;
+  FirebaseJson *json = fbdoStream.jsonObjectPtr();
+  if (!json) return;
+  const String path = fbdoStream.dataPath();
+
+  for (CommonSwitch &channel : commonSwitches) {
+    SwitchCommands::Command command;
+    if (!SwitchCommands::read(*json, path, channel.key, channel.commandId, channel.issuedAt, command)) continue;
+    const bool isFan = &channel.state == &controlFan;
+    const bool valid = command.speed < 0 ||
+                       (isFan && command.speed <= 3 && command.value == (command.speed > 0));
+    channel.applied = false;
+    if (valid) {
+      const bool previous = channel.state;
+      const int previousSpeed = controlFanSpeed;
+      channel.state = command.value;
+      if (isFan && command.speed > 0) controlFanSpeed = command.speed;
+      channel.applied = updateRelaysFromState();
+      if (!channel.applied) {
+        channel.state = previous;
+        controlFanSpeed = previousSpeed;
       }
     }
+    memcpy(channel.commandId, command.id, sizeof(command.id));
+    channel.issuedAt = command.issuedAt;
+    reportDirty = true;
   }
-  // ══════════════════════════════════════════════════════════════════
-  //  Case B: Individual child node update (/fan, /light, etc.)
-  // ══════════════════════════════════════════════════════════════════
-  else {
-    if (path == "/fan" || path == "fan") {
-      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
-      if (controlFan != val) {
-        controlFan = val;
-        stateChanged = true;
-        Serial.printf("[Cloud] Fan → %s\n", val ? "ON" : "OFF");
-      }
-    }
-    else if (path == "/fanspeed" || path == "fanspeed") {
-      int newSpeed = (dataType == "integer" || dataType == "int") ? data.intData() : atoi(data.stringData().c_str());
-      if (newSpeed >= 1 && newSpeed <= 3 && controlFanSpeed != newSpeed) {
-        controlFanSpeed = newSpeed;
-        if (controlFan) stateChanged = true;  // Only update relays if fan is ON
-        Serial.printf("[Cloud] Fan Speed → %d\n", newSpeed);
-      }
-    }
-    else if (path == "/light" || path == "light") {
-      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
-      if (controlLight != val) {
-        controlLight = val;
-        stateChanged = true;
-        Serial.printf("[Cloud] Light → %s\n", val ? "ON" : "OFF");
-      }
-    }
-    else if (path == "/refrigerator" || path == "refrigerator") {
-      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
-      if (controlRefrigerator != val) {
-        controlRefrigerator = val;
-        stateChanged = true;
-        Serial.printf("[Cloud] Refrigerator → %s\n", val ? "ON" : "OFF");
-      }
-    }
-    else if (path == "/tv" || path == "tv") {
-      bool val = (dataType == "boolean") ? data.boolData() : (data.intData() == 1 || data.stringData() == "true");
-      if (controlTV != val) {
-        controlTV = val;
-        stateChanged = true;
-        Serial.printf("[Cloud] TV → %s\n", val ? "ON" : "OFF");
-      }
-    }
-  }
-  
-  // Apply relay changes through PCF8574 → ULN2003APG → Relays
-  if (stateChanged) {
-    updateRelaysFromState();
-  }
-  
-  Serial.println(F("──────────────────────────────────────────────────"));
 }
 
-void handleStreamTimeoutCallback(bool matched) {
-  if (matched) {
-    Serial.println(F("[Firebase Stream] Stream timeout detected. Will auto-resume."));
-    firebaseStreamActive = false;
+void publishSwitchReports() {
+  const unsigned long now = millis();
+  if (now - lastReportAttempt < 1000) return;
+  if (!reportDirty && now - lastReportHeartbeat < 15000) return;
+  lastReportAttempt = now;
+
+  FirebaseJson reports;
+  reports.set("heartbeatAt/.sv", "timestamp");
+  if (!outputReady) updateRelaysFromState();
+  for (const CommonSwitch &channel : commonSwitches) {
+    if (outputReady) {
+      const int speed = &channel.state == &controlFan ? (controlFan ? controlFanSpeed : 0) : -1;
+      SwitchCommands::addReport(reports, channel.key, channel.state, speed, channel.commandId, channel.applied);
+    } else {
+      SwitchCommands::addAcknowledgment(reports, channel.key, channel.commandId, channel.applied);
+    }
+  }
+
+  if (Firebase.RTDB.updateNode(&fbdoWrite, FB_PATH_REPORTS, &reports)) {
+    reportDirty = false;
+    lastReportHeartbeat = millis();
   }
 }
 
@@ -790,6 +726,7 @@ void handleNetworkHealth() {
     wifiRetryCount = 0;
     lastWifiRetry = currentMillis;
     
+    Firebase.RTDB.endStream(&fbdoStream);
     fbdoStream.clear();
     
     Serial.println();
@@ -833,7 +770,8 @@ void handleNetworkHealth() {
       initializeFirebase();
     } else {
       firebaseStreamActive = false;
-      setupFirebaseStream();
+      nextStreamAttempt = currentMillis;
+      reportDirty = true;
     }
     
     if (!otaInitialized) {

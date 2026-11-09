@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+import { firebaseService } from "@/lib/firebase";
 import { useSensorData } from '@/hooks/useSensorData';
 import { useDeviceControls } from '@/hooks/useDeviceControls';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,13 +9,14 @@ import { Thermometer, Droplets, Wind, CloudRain, Lightbulb, Fan, Activity, DoorO
 
 export default function SensorDashboard() {
   const { sensorData, loading: sensorLoading, error: sensorError } = useSensorData();
-  const { controlData, loading: controlLoading, error: controlError, updateDeviceState } = useDeviceControls();
+  const { controlData, status, loading: controlLoading, error: controlError } = useDeviceControls();
 
-  const handleToggleLight = () => {
-    if (controlData?.room1Light !== undefined) updateDeviceState('room1Light', !controlData.room1Light);
-  };
-  const handleToggleFan = () => {
-    if (controlData?.room1Fan !== undefined) updateDeviceState('room1Fan', !controlData.room1Fan);
+  const toggle = async (key: "room1Light" | "room1Fan") => {
+    try {
+      await firebaseService.updateSwitchState(key, !controlData[key]);
+    } catch (error) {
+      toast.error("Switch action unconfirmed", { description: error instanceof Error ? error.message : undefined });
+    }
   };
 
   if (sensorLoading || controlLoading) {
@@ -125,31 +128,36 @@ export default function SensorDashboard() {
       {/* Device Controls */}
       <div className="grid gap-4 md:grid-cols-2">
         {[
-          { label: "Light Control", desc: "Control the main room light", Icon: Lightbulb, active: controlData?.room1Light, toggle: handleToggleLight },
-          { label: "Fan Control",   desc: "Control the ceiling fan",     Icon: Fan,       active: controlData?.room1Fan,   toggle: handleToggleFan },
-        ].map(({ label, desc, Icon, active, toggle }, i) => (
-          <Card
-            key={label}
-            className="transition-all duration-300 hover:border-border/70"
-            style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${0.55 + i * 0.07}s` }}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Icon className="h-5 w-5" />{label}
-              </CardTitle>
-              <CardDescription>{desc}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={toggle}
-                variant={active ? "default" : "outline"}
-                className="w-full transition-transform duration-150 active:scale-95"
-              >
-                {active ? "Turn Off" : "Turn On"}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+          { label: "Light Control", desc: "Control the main room light", Icon: Lightbulb, key: "room1Light" as const },
+          { label: "Fan Control",   desc: "Control the ceiling fan",     Icon: Fan,       key: "room1Fan" as const },
+        ].map(({ label, desc, Icon, key }, i) => {
+          const active = controlData[key];
+          const confirmation = status(key);
+          return (
+            <Card
+              key={label}
+              className="transition-all duration-300 hover:border-border/70"
+              style={{ animation: "fadeSlideIn 0.4s ease both", animationDelay: `${0.55 + i * 0.07}s` }}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon className="h-5 w-5" />{label}
+                </CardTitle>
+                <CardDescription>{desc}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={() => toggle(key)}
+                  disabled={!confirmation.known || confirmation.pending}
+                  variant={active ? "default" : "outline"}
+                  className="w-full transition-transform duration-150 active:scale-95"
+                >
+                  {confirmation.text ?? (active ? "Turn Off" : "Turn On")}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <style>{`

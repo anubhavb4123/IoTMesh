@@ -106,7 +106,7 @@
   * Real-time CSS keyframe animation dynamically scales SVG fan rotation duration (`1.2s`, `0.6s`, `0.25s`).
   * Emits tactile haptic ticks and synthetic clicks on each speed increment.
 * **Global Scene Shortcuts:**
-  * **All OFF:** Turns off all 17 lights, fans, switches, and relays simultaneously in a single atomic multi-path update while preserving security lock states.
+  * **All OFF:** Sends OFF commands to all 17 lights, fans, switches, and relays in one database update. The scene confirms once every controller reports execution.
   * **Night Mode:** Activates global lockdown (`{ nightMode: true, lock: true, motion: true }`). Prevents accidental door unlocks until Night Mode is explicitly disarmed.
   * **Day Mode:** Disarms perimeter lockdown (`{ nightMode: false, lock: false, motion: false }`).
 * **Role-Guarded Security Passkey Interlock:**
@@ -115,6 +115,25 @@
 
 ---
 
+#### Switch confirmation and firmware rollout
+
+The dashboard, schedules, and automation worker send commands to `/switchControl/{node}/commands/{channel}`.
+Each command contains `id`, `value`, `issuedAt`, and `expiresAt` (UTC epoch milliseconds), plus optional `speed` for a fan. Commands expire after 15 seconds.
+
+After applying an output, the controller writes `{value, speed?}` to `/switchControl/{node}/reports/{channel}`
+and `{commandId, outcome}` to `/switchControl/{node}/reports/{channel}Ack` in the same database update.
+`outcome` is `applied` or `rejected`. Local wall-switch actions publish the resulting state. Controllers
+refresh `reports/heartbeatAt` with a Firebase server timestamp every 15 seconds. The app flags a report
+as offline after 45 seconds without a heartbeat.
+
+1. Deploy the database rules in `database.rules.json`.
+2. Build and flash each sketch from its own Arduino sketch directory, with `SwitchCommands.h` next to the sketch.
+   Use `room1.ino` for Room 1 and `IoTMesh.ino` for the common area. For an identical Room 2 or Room 3
+   controller, set `IOTMESH_ROOM_NODE` to `"room2"` or `"room3"` before building.
+3. Update the relay and security controller firmware to use the same protocol. Their sketches are outside this
+   checkout. The website shows **Awaiting device report** until each controller publishes its initial state.
+4. Release the website and restart the Telegram scheduling service with the updated `index.js`.
+
 ### 2.3 Rule-Based Automation Engine
 * **Visual Condition-Action Builder:** Create custom IF/THEN automation rules stored in `home/automations/{ruleId}`.
 * **Condition Engine:**
@@ -122,7 +141,7 @@
   * Supported Operators: `>`, `<`, `>=`, `<=`, `==`, `!=`.
   * Humanized Boolean Mapping: Automatically translates boolean flags (`rain`, `motion`, `door`) to `"Detected / Open"` vs `"Clear / Closed"` and Power to `"Grid ⚡"` vs `"Inverter 🔋"`.
 * **Action Engine:** Any rule can trigger discrete `"Turn ON"` or `"Turn OFF"` commands across any of the 18 appliances and relays.
-* **Continuous Client-Side Daemon:** Active React evaluation hook monitors incoming telemetry in real-time, evaluates all active rules, and automatically executes target device state updates when all conditions in a rule are met.
+* **Automation worker:** The Telegram service watches live telemetry and sends switch commands when a rule's conditions are met. Notifications report the confirmation result for each action.
 
 ---
 
