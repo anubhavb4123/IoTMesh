@@ -19,6 +19,7 @@ import IotMeshA from "./pages/IotMeshA";
 import Security from "./pages/Security";
 import FirmwareUpdate from "./pages/FirmwareUpdate";
 import Schedules from "./pages/Schedules";
+import WledControl from "./pages/WledControl";
 import { MeshLoadingScreen } from "@/components/MeshLoadingScreen";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Devices />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/wled"
+                  element={
+                    <ProtectedRoute>
+                      <WledControl />
                     </ProtectedRoute>
                   }
                 />

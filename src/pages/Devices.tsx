@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import {
   Lightbulb, Fan, ToggleLeft, Tv, Zap, Lock, LockOpen,
   Activity, Sun, Moon, Refrigerator, KeyRound, X, Power,
-  ShieldCheck, RefreshCw, Cpu
+  ShieldCheck, RefreshCw, Cpu, Sparkles
 } from "lucide-react";
+import { WledDeviceCard } from "@/components/wled/WledDeviceCard";
 import { firebaseService, ControlData, NodeStatusData, database } from "@/lib/firebase";
 import { ref, onValue } from "firebase/database";
 import { toast } from "sonner";
@@ -544,6 +545,14 @@ export default function Devices() {
               />
             </div>
           </div>
+        </div>
+
+        <div className="clay-card p-6 space-y-4">
+          <h2 className="flex items-center gap-2 px-1 text-sm font-bold text-[#18191c] uppercase tracking-wider font-mono">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            Addressable Pixel LED Strip (WLED)
+          </h2>
+          <WledDeviceCard />
         </div>
 
         {/* ── 4-Channel Relay Bank ── */}

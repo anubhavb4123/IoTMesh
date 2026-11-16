@@ -45,14 +45,13 @@ interface NavItem {
 const primaryNavItems: NavItem[] = [
   { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard },
   { name: "DEVICES", href: "/devices", icon: Lightbulb },
+  { name: "PIXEL LED", href: "/wled", icon: Sparkles },
   { name: "SCHEDULES", href: "/schedules", icon: Clock },
   { name: "SENSORS", href: "/sensors", icon: Activity },
-  { name: "ALERTS", href: "/alerts", icon: Bell },
   { name: "AUTOMATION", href: "/automation", icon: Workflow },
 ];
 
 const secondaryNavItems: NavItem[] = [
-  { name: "SECURITY", href: "/security", icon: ShieldCheck, adminOnly: true },
   { name: "TELEGRAM", href: "/telegram", icon: MessageSquare },
   { name: "USERS", href: "/users", icon: Users, adminOnly: true },
   { name: "IGNITION", href: "/ignition", icon: Flame },
@@ -329,7 +328,7 @@ export const Layout = ({ children }: LayoutProps) => {
                     {displayName?.[0]?.toUpperCase() || "U"}
                   </div>
                 )}
-                <span className="hidden sm:inline-block text-xs font-bold text-[#18191c] max-w-[70px] truncate">
+                <span className="hidden sm:inline-block text-xs font-bold text-[#18191c] max-w-[140px] truncate">
                   {displayName || "User"}
                 </span>
                 <ChevronDown className="w-3 h-3 text-[#797a82]" />
@@ -369,6 +368,13 @@ export const Layout = ({ children }: LayoutProps) => {
                     >
                       <Lightbulb className="w-3.5 h-3.5" />
                       <span>Device Controls</span>
+                    </Link>
+                    <Link
+                      to="/wled"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-[#44464f] hover:bg-[#edece8] hover:text-[#18191c] transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Pixel LED Studio (WLED)</span>
                     </Link>
                     <Link
                       to="/schedules"

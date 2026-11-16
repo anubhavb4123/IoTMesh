@@ -34,6 +34,7 @@ import { haptic } from "@/lib/haptic";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchedules } from "@/hooks/useSchedules";
+import { WledDashboardItem } from "@/components/wled/WledDashboardItem";
 
 // ── Types ─────────────────────────────────────────────────────
 interface DashboardData {
@@ -1091,6 +1092,9 @@ export default function Dashboard() {
 
             {/* Real Appliance Items with Smooth Tactile Switches */}
             <div className="space-y-3 pt-1">
+
+              {/* ESP32 Pixel LED Strip (WLED) */}
+              <WledDashboardItem />
 
               {/* Room 1 Ceiling Light */}
               <div className="p-3.5 rounded-2xl bg-white/70 border border-black/[0.05] flex items-center justify-between gap-3 shadow-sm">
